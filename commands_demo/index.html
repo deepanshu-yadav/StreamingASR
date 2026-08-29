@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="hi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>सिग्नल — Live Hindi ASR (Debug)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="grain"></div>
+    <div class="app">
+        <!-- ===== HTML ===== -->
+        <div class="eyebrow"><span class="dot"></span>CRISPASR &middot; vLLM REALTIME WS &middot; NEMOTRON-HI</div>
+        <h1>सिग्नल — लाइव ट्रांसक्रिप्शन</h1>
+        <div class="sub">एक बार <b>सेशन शुरू करें</b>, फिर बस बोलते जाएँ — Silero VAD हर utterance को खुद पहचान कर finalize करता है, और केवल speech ही सर्वर को भेजी जाती है (silence नहीं)।</div>
+        <div class="panel">
+            <div class="toolbar">
+                <input id="wsUrl" class="ws-input" value="ws://127.0.0.1:8082/v1/realtime" spellcheck="false" />
+                <div id="statusPill" class="status-pill" data-state="idle"><span class="led"></span><span id="statusText">idle</span></div>
+            </div>
+            <div class="stage">
+                <button id="sessionBtn" class="session-btn"><span class="ring"></span><span id="sessionBtnText">सेशन शुरू करें</span></button>
+                <div class="kbd-hint">या दबाएँ <kbd>Space</kbd></div>
+                <div id="turnState" class="turn-state" data-mode="idle"><span class="tdot"></span><span id="turnStateText">idle</span></div>
+                <div id="ttsStatus" class="tts-status" data-tts="idle"><span class="tts-dot"></span><span id="ttsStatusText">tts idle</span></div>
+                <button id="interruptBtn" class="interrupt-btn"><span class="interrupt-icon"></span><span>Interrupt TTS</span></button>
+                <div id="micMutedBadge" class="mic-muted-badge">🔇 mic muted — tts playing</div>
+                <div id="signalStrip" class="signal-strip"></div>
+                <div id="toast" class="toast"></div>
+            </div>
+            <details class="tuning">
+                <summary>Turn-detection tuning</summary>
+                <div class="tuning-body">
+                    <div class="slider-row"><label><span>Silero speech threshold</span><span id="thresholdVal">0.50</span></label><input type="range" id="thresholdSlider" min="0.10" max="0.90" step="0.05" value="0.50" /></div>
+                    <div class="slider-row"><label><span>Silence before turn finalizes</span><span id="silenceVal">320 ms</span></label><input type="range" id="silenceSlider" min="160" max="1000" step="32" value="320" /></div>
+                    <div class="slider-row"><label><span>Max utterance length (hard cap)</span><span id="maxTurnVal">3500 ms</span></label><input type="range" id="maxTurnSlider" min="1500" max="8000" step="250" value="3500" /></div>
+                    <div class="slider-row"><label><span>Pre-roll padding (pre-speech)</span><span id="padVal">200 ms</span></label><input type="range" id="padSlider" min="0" max="500" step="20" value="200" /></div>
+                    <div class="slider-row"><label><span>LLM classifier सर्वर URL</span></label><input type="text" id="llmUrl" class="ws-input" style="width:100%" value="http://127.0.0.1:8084/v1/chat/completions" spellcheck="false" /></div>
+                    <div class="slider-row"><label><span>Confirmation debounce (ms)</span><span id="debounceVal">1000 ms</span></label><input type="range" id="debounceSlider" min="400" max="2000" step="50" value="1000" /></div>
+                </div>
+            </details>
+            <div class="transcript-zone">
+                <div id="liveLine" class="live-line empty">सेशन शुरू करते ही यहाँ आंशिक ट्रांसक्रिप्शन दिखेगा…</div>
+                <div id="history" class="history"><div class="history-empty">अभी तक कोई पूर्ण command नहीं।</div></div>
+            </div>
+            <div class="stats-bar">
+                <span>session <b id="statDuration">00:00</b></span><span>commands <b id="statCommands">0</b></span><span>words <b id="statWords">0</b></span><span>chunks sent <b id="statChunks">0</b></span><span>silence skipped <b id="statSkipped">0.0s</b></span>
+            </div>
+            <div class="footer-note">
+                <button id="finalizeBtn" disabled>Cut turn now</button>
+                <div class="actions"><button id="copyBtn" disabled>Copy transcript</button><button id="exportBtn" disabled>Export .txt</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
