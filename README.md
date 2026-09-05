@@ -71,21 +71,34 @@ A browser-based interactive web client that captures real-time microphone audio,
 
 ## 🚀 Quick Start Guide
 
-1. **Download Executables & Models**:
-   Refer to the [Commands Demo Setup Guide](./commands_demo/README.md#-required-binaries--models) to download `crispasr.exe`, `llama-server.exe`, and required GGUF models into `bin/` and `models/` folders.
+### 1. One-Click Backend Launcher (Recommended)
+Simply double-click the companion launcher:
+```cmd
+streaming_demos\companion\start_companion.bat
+```
+> 💡 **Zero Manual Setup**:
+> - **Auto-installs Node.js**: If Node.js is not detected, the script automatically installs the official Node.js LTS via Windows Package Manager (`winget`).
+> - **Orchestration & Proxy**: Runs on `http://127.0.0.1:8000` to verify models, manage background AI processes, and handle reverse proxying.
 
-2. **Start Backend Services**:
-   Launch CrispASR TTS (`:8089`), Nemotron Streaming ASR (`:8080` / WS `:8081`), and LFM 2.5 LLM (`:8084`).
+---
 
-3. **Launch Web Client**:
-   ```bash
-   cd commands_demo
-   node server.js
-   ```
-   Open `http://localhost:8000/` in your browser.
+### 2. Choose Your Interface
 
-4. **CLI Testing & Scripting**:
-   Check [`commands.md`](./commands.md) for useful standalone terminal commands, `curl` tests, and `ffmpeg` streaming examples for testing individual servers.
+* **Option A: Chrome Extension (Side Panel Assistant)** ⭐ *(Recommended)*
+  1. Open Chrome and go to `chrome://extensions`.
+  2. Enable **Developer mode** (top-right) and click **Load unpacked**.
+  3. Select the `streaming_demos\extension` folder.
+  4. Open the Side Panel, click **🚀 स्टार्ट सर्विसेज**, and start speaking!
+  5. 📖 Read the full **[Chrome Extension Instructional Manual](./extension/README.md)** for a visual walkthrough.
+
+* **Option B: Standalone Web Demo**
+  1. With the companion server running, open `http://localhost:8000/` in your browser.
+  2. 📖 Read the **[Voice Commands Demo README](./commands_demo/README.md)** for detailed architecture.
+
+---
+
+### 3. Manual CLI Testing & Scripting
+For running individual native binaries directly without the companion, or for CLI tests (`curl`, `ffmpeg`), refer to [`commands.md`](./commands.md).
 
 ---
 

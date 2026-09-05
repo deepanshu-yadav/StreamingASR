@@ -20,7 +20,7 @@ const ASSETS_MANIFEST = [
         minSizeBytes: 5 * 1024 * 1024, // ~17MB expected
         url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.30/crispasr-windows-x86_64-cpu.zip',
         isZip: true,
-        extractFiles: ['crispasr.exe', 'crispasr-quantize.exe']
+        extractFiles: ['crispasr.exe', 'crispasr-quantize.exe', 'openblas.dll']
     },
     {
         id: 'llama_server_bin',
@@ -180,7 +180,7 @@ class AssetDownloader {
                 });
 
                 req.on('error', (err) => {
-                    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (_) {}
+                    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (_) { }
                     reject(err);
                 });
 

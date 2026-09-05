@@ -112,12 +112,15 @@ The system verifies existing files in `Desktop\workspace\browser-form-fill\` and
 ## 🚀 Step-by-Step Installation & Setup
 
 ### Step 1: Start the Companion Orchestrator
-Open a command prompt terminal and run:
+Open Windows File Explorer and double-click:
 ```cmd
-cd Desktop\workspace\browser-form-fill\streaming_demos\companion
-start_companion.bat
+streaming_demos\companion\start_companion.bat
 ```
-*(Or run `node server.js`)*. The companion starts listening at `http://127.0.0.1:8000/`.
+*(Or run `cd streaming_demos\companion && start_companion.bat`)*. 
+
+> 💡 **Automatic Node.js Installation**: If Node.js is not detected on the machine, `start_companion.bat` automatically installs the official **Node.js LTS** via the Windows Package Manager (`winget`) so you don't have to download or configure installers manually.
+
+The companion starts listening at `http://127.0.0.1:8000/`.
 
 ---
 
