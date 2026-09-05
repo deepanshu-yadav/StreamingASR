@@ -15,7 +15,7 @@
     let SILENCE_MS = 700;
     let MAX_TURN_MS = 10000;
 
-    // Confirmation debounce (ms) – the fix!
+    // Confirmation debounce (ms)
     let CONFIRM_DEBOUNCE_MS = 1000;
 
     // ---------- DOM REFS ----------
@@ -59,35 +59,76 @@
     // ---------- HELPERS ----------
     function stripTags(s) { if (!s) return ''; return s.toString().replace(/<[^>]+>/g, '').trim(); }
 
-    function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
-            "'": '&#39;' }[c])); }
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+            "'": '&#39;'
+        }[c]));
+    }
 
     function formatTime(ts) { return new Date(ts).toLocaleTimeString('en-GB', { hour12: false }); }
 
     function showToast(msg) { el.toast.textContent = msg || ''; }
 
-    function setStatus(state, text) { el.statusPill.dataset.state = state;
-        el.statusText.textContent = text; }
+    function setStatus(state, text) {
+        el.statusPill.dataset.state = state;
+        el.statusText.textContent = text;
+    }
 
-    function setTurnMode(mode, text) { el.turnState.dataset.mode = mode;
-        el.turnStateText.textContent = text; }
+    function setTurnMode(mode, text) {
+        el.turnState.dataset.mode = mode;
+        el.turnStateText.textContent = text;
+    }
 
-    function setTTSStatus(state, text) { el.ttsStatus.dataset.tts = state;
-        el.ttsStatusText.textContent = text; }
+    function setTTSStatus(state, text) {
+        el.ttsStatus.dataset.tts = state;
+        el.ttsStatusText.textContent = text;
+    }
+
+    // FIX: Helper to detect if a raw string looks like a confirmation reply
+    function looksLikeConfirmation(text) {
+        const lower = text.toLowerCase().trim();
+        if (!lower) return false;
+        const confirmWords = ['हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल', 'ठीक', 'ठीक है', 'theek hai', 'सही है', 'sahi hai', 'सही', 'sahi', 'आगे बढ़ो', 'बढ़ो', 'continue', 'confirm'];
+        const negWords = ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change', 'sudhar', 'सुधार', 'बदलो', 'बदल', 'नहि', 'ना', 'न'];
+        const hasConfirm = confirmWords.some(w => lower.includes(w));
+        const hasNegate = negWords.some(w => lower.includes(w));
+        return hasConfirm && !hasNegate;
+    }
+
+    // FIX: Central helper to wipe debounce buffers so stale text never leaks across turns
+    function clearDebounceBuffers() {
+        clearTimeout(confirmDebounceTimer);
+        confirmReplyBuffer = '';
+        confirmDebounceTimer = null;
+        clearTimeout(correctionDebounceTimer);
+        correctionReplyBuffer = '';
+        correctionDebounceTimer = null;
+    }
 
     // ---------- SLIDER BINDING ----------
-    el.thresholdSlider.addEventListener('input', () => { VAD_THRESHOLD = parseFloat(el.thresholdSlider.value);
-        el.thresholdVal.textContent = VAD_THRESHOLD.toFixed(2); });
-    el.silenceSlider.addEventListener('input', () => { const ms = parseInt(el.silenceSlider.value, 10);
+    el.thresholdSlider.addEventListener('input', () => {
+        VAD_THRESHOLD = parseFloat(el.thresholdSlider.value);
+        el.thresholdVal.textContent = VAD_THRESHOLD.toFixed(2);
+    });
+    el.silenceSlider.addEventListener('input', () => {
+        const ms = parseInt(el.silenceSlider.value, 10);
         VAD_MIN_SILENCE = Math.max(3, Math.round(ms / 32));
-        el.silenceVal.textContent = ms + ' ms'; });
-    el.maxTurnSlider.addEventListener('input', () => { MAX_UNCOMMITTED_MS = parseInt(el.maxTurnSlider.value, 10);
-        el.maxTurnVal.textContent = MAX_UNCOMMITTED_MS + ' ms'; });
-    el.padSlider.addEventListener('input', () => { VAD_PAD_MS = parseInt(el.padSlider.value, 10);
+        el.silenceVal.textContent = ms + ' ms';
+    });
+    el.maxTurnSlider.addEventListener('input', () => {
+        MAX_UNCOMMITTED_MS = parseInt(el.maxTurnSlider.value, 10);
+        el.maxTurnVal.textContent = MAX_UNCOMMITTED_MS + ' ms';
+    });
+    el.padSlider.addEventListener('input', () => {
+        VAD_PAD_MS = parseInt(el.padSlider.value, 10);
         el.padVal.textContent = VAD_PAD_MS + ' ms';
-        trimPreRoll(); });
-    el.debounceSlider.addEventListener('input', () => { CONFIRM_DEBOUNCE_MS = parseInt(el.debounceSlider.value, 10);
-        el.debounceVal.textContent = CONFIRM_DEBOUNCE_MS + ' ms'; });
+        trimPreRoll();
+    });
+    el.debounceSlider.addEventListener('input', () => {
+        CONFIRM_DEBOUNCE_MS = parseInt(el.debounceSlider.value, 10);
+        el.debounceVal.textContent = CONFIRM_DEBOUNCE_MS + ' ms';
+    });
 
     // ---------- SIGNAL BARS ----------
     const bars = [];
@@ -152,7 +193,7 @@
         preRollSamples = 0,
         gatedSamplesSkipped = 0;
 
-    // ---------- DEBOUNCE BUFFERS (THE FIX!) ----------
+    // ---------- DEBOUNCE BUFFERS ----------
     let confirmReplyBuffer = '';
     let confirmDebounceTimer = null;
 
@@ -169,11 +210,12 @@
         if (transcriptQueue.length === 0) return;
         const text = transcriptQueue.shift();
         if (flowState === 'awaiting_confirmation') {
-            // Use the buffered path instead of direct handleConfirmationReply
             bufferConfirmationReply(text);
         } else if (flowState === 'listening_command') {
-            currentCommand = { original: text, corrections: [], final: null, accepted: false,
-                createdAt: Date.now() };
+            currentCommand = {
+                original: text, corrections: [], final: null, accepted: false,
+                createdAt: Date.now()
+            };
             renderHistory();
             beginConfirmation(text);
         } else if (flowState === 'awaiting_correction') {
@@ -194,7 +236,6 @@
             const merged = confirmReplyBuffer;
             confirmReplyBuffer = '';
             confirmDebounceTimer = null;
-            // Now that the buffer is settled, classify the merged reply
             handleConfirmationReply(merged);
         }, CONFIRM_DEBOUNCE_MS);
     }
@@ -202,6 +243,15 @@
     function bufferCorrectionReply(text) {
         const clean = stripTags(text);
         if (!clean) return;
+
+        // FIX: Escape hatch — if the user says "हाँ / सही है / आगे बढ़ो" while we are asking for a correction,
+        // route it to the confirmation handler instead of sending it to the LLM as a correction instruction.
+        if (looksLikeConfirmation(clean)) {
+            console.log('[FLOW] Correction buffer detected confirmation-like reply, routing to confirmation');
+            bufferConfirmationReply(clean);
+            return;
+        }
+
         correctionReplyBuffer = correctionReplyBuffer ? (correctionReplyBuffer + ' ' + clean) : clean;
         clearTimeout(correctionDebounceTimer);
         setTurnMode('finalizing', 'सुधार सुन रहे हैं…');
@@ -239,9 +289,9 @@
         all.forEach((cmd, idx) => {
             const num = idx + 1,
                 t = cmd.createdAt ? formatTime(cmd.createdAt) : formatTime(Date.now());
-            html += `<div class="cmd-group"><div class="label">command ${String(num).padStart(2,'0')} &middot; ${t}</div>`;
+            html += `<div class="cmd-group"><div class="label">command ${String(num).padStart(2, '0')} &middot; ${t}</div>`;
             html +=
-            `<div class="line"><span class="badge no">✗</span><span class="text-original">${escapeHtml(cmd.original)}</span></div>`;
+                `<div class="line"><span class="badge no">✗</span><span class="text-original">${escapeHtml(cmd.original)}</span></div>`;
             if (cmd.corrections && cmd.corrections.length > 0) {
                 cmd.corrections.forEach(c => {
                     html +=
@@ -250,7 +300,7 @@
             }
             if (cmd.accepted) {
                 html +=
-                `<div class="line"><span class="badge yes">✓</span><span class="text-final">${escapeHtml(cmd.final)}</span></div>`;
+                    `<div class="line"><span class="badge yes">✓</span><span class="text-final">${escapeHtml(cmd.final)}</span></div>`;
             }
             html += `</div>`;
         });
@@ -264,9 +314,11 @@
         console.log('[TTS] speak() → "' + cleanText + '"');
         return new Promise((resolve) => {
             if (!cleanText || !cleanText.trim()) { resolve(); return; }
-            if (ttsAbortController) { ttsAbortController.abort();
-                ttsAbortController = null; }
-            if (ttsSourceNode) { try { ttsSourceNode.stop(); } catch (e) {} ttsSourceNode = null; }
+            if (ttsAbortController) {
+                ttsAbortController.abort();
+                ttsAbortController = null;
+            }
+            if (ttsSourceNode) { try { ttsSourceNode.stop(); } catch (e) { } ttsSourceNode = null; }
             ttsPlaying = true;
             ttsMicMuted = true;
             vadSpeechFrames = 0;
@@ -278,23 +330,29 @@
             ttsAbortController = new AbortController();
             ttsResolve = resolve;
             fetch('/v1/audio/speech', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: 'piper', input: cleanText, spoken_disclaimer: false,
-                        stream: true, response_format: 'pcm' }),
-                    signal: ttsAbortController.signal
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'piper', input: cleanText, spoken_disclaimer: false,
+                    stream: true, response_format: 'pcm'
+                }),
+                signal: ttsAbortController.signal
+            })
+                .then(resp => {
+                    if (!resp.ok) throw new Error(`TTS error: ${resp.status}`);
+                    return resp.arrayBuffer();
                 })
-                .then(resp => { if (!resp.ok) throw new Error(`TTS error: ${resp.status}`);
-                    return resp.arrayBuffer(); })
                 .then(ab => {
-                    if (!ttsPlaying) { ttsResolve = null;
-                        resolve(); return; }
+                    if (!ttsPlaying) {
+                        ttsResolve = null;
+                        resolve(); return;
+                    }
                     const TTS_SAMPLE_RATE = 22050;
                     const int16 = new Int16Array(ab);
                     const f32 = new Float32Array(int16.length);
                     for (let i = 0; i < int16.length; i++) f32[i] = int16[i] / 32768;
                     if (!ttsPlaybackCtx || ttsPlaybackCtx.state === 'closed') {
-                        ttsPlaybackCtx = new(window.AudioContext || window.webkitAudioContext)({
+                        ttsPlaybackCtx = new (window.AudioContext || window.webkitAudioContext)({
                             sampleRate: TTS_SAMPLE_RATE
                         });
                     }
@@ -307,21 +365,27 @@
                         ttsPlaying = false;
                         ttsSourceNode = null;
                         setTTSStatus('idle', 'tts done');
-                        setTimeout(() => { ttsMicMuted = false;
+                        setTimeout(() => {
+                            ttsMicMuted = false;
                             el.micMutedBadge.classList.remove('visible');
-                            drainTranscriptQueue(); }, 300);
+                            drainTranscriptQueue();
+                        }, 300);
                         el.interruptBtn.classList.remove('visible');
-                        if (ttsResolve) { const r = ttsResolve;
+                        if (ttsResolve) {
+                            const r = ttsResolve;
                             ttsResolve = null;
-                            r(); } else resolve();
+                            r();
+                        } else resolve();
                     };
                     ttsSourceNode.start();
                 })
                 .catch(e => {
                     if (e.name === 'AbortError') {
-                        if (ttsResolve) { const r = ttsResolve;
+                        if (ttsResolve) {
+                            const r = ttsResolve;
                             ttsResolve = null;
-                            r(); } else resolve();
+                            r();
+                        } else resolve();
                         return;
                     }
                     showToast('TTS error: ' + e.message);
@@ -330,25 +394,31 @@
                     ttsMicMuted = false;
                     el.micMutedBadge.classList.remove('visible');
                     el.interruptBtn.classList.remove('visible');
-                    if (ttsResolve) { const r = ttsResolve;
+                    if (ttsResolve) {
+                        const r = ttsResolve;
                         ttsResolve = null;
-                        r(); } else resolve();
+                        r();
+                    } else resolve();
                 });
         });
     }
 
     function interruptTTS() {
-        if (ttsAbortController) { ttsAbortController.abort();
-            ttsAbortController = null; }
-        if (ttsSourceNode) { try { ttsSourceNode.stop(); } catch (e) {} ttsSourceNode = null; }
+        if (ttsAbortController) {
+            ttsAbortController.abort();
+            ttsAbortController = null;
+        }
+        if (ttsSourceNode) { try { ttsSourceNode.stop(); } catch (e) { } ttsSourceNode = null; }
         ttsPlaying = false;
         setTTSStatus('idle', 'tts interrupted');
         ttsMicMuted = false;
         el.micMutedBadge.classList.remove('visible');
         el.interruptBtn.classList.remove('visible');
-        if (ttsResolve) { const r = ttsResolve;
+        if (ttsResolve) {
+            const r = ttsResolve;
             ttsResolve = null;
-            r(); }
+            r();
+        }
         showToast('TTS interrupted');
     }
 
@@ -380,8 +450,12 @@
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: [{ role: 'system', content: system }, { role: 'user',
-                        content: user }], temperature: 0.1, max_tokens: 10, stream: false })
+                body: JSON.stringify({
+                    messages: [{ role: 'system', content: system }, {
+                        role: 'user',
+                        content: user
+                    }], temperature: 0.1, max_tokens: 10, stream: false
+                })
             });
             if (!resp.ok) throw new Error(`LLM classification error: ${resp.status}`);
             const data = await resp.json();
@@ -396,18 +470,26 @@
             const neg = ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change', 'sudhar', 'सुधार',
                 'बदलो', 'बदल'
             ];
-            if (neg.some(w => lower2.includes(w))) { console.log('[LLM] Fallback heuristic → CORRECT');
-                return 'CORRECT'; }
+            if (neg.some(w => lower2.includes(w))) {
+                console.log('[LLM] Fallback heuristic → CORRECT');
+                return 'CORRECT';
+            }
             const pos = ['हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल',
                 'ठीक'
             ];
-            if (pos.some(w => lower2.includes(w))) { console.log('[LLM] Fallback heuristic → CONFIRM');
-                return 'CONFIRM'; }
-            if (lower2.includes('सही है') || lower2.includes('sahi hai')) { console.log(
-                '[LLM] Fallback heuristic → CONFIRM');
-                return 'CONFIRM'; }
-            console.log('[LLM] Fallback heuristic → CORRECT');
-            return 'CORRECT';
+            if (pos.some(w => lower2.includes(w))) {
+                console.log('[LLM] Fallback heuristic → CONFIRM');
+                return 'CONFIRM';
+            }
+            if (lower2.includes('सही है') || lower2.includes('sahi hai')) {
+                console.log(
+                    '[LLM] Fallback heuristic → CONFIRM');
+                return 'CONFIRM';
+            }
+
+            // FIX: Default to CONFIRM for empty / ambiguous input so the user is never trapped.
+            console.log('[LLM] Fallback heuristic → CONFIRM (ambiguous/empty, defaulting to confirm)');
+            return 'CONFIRM';
         }
     }
 
@@ -432,8 +514,12 @@
         const resp = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages: [{ role: 'system', content: system }, { role: 'user',
-                    content: user }], temperature: 0.2, max_tokens: 200, stream: false })
+            body: JSON.stringify({
+                messages: [{ role: 'system', content: system }, {
+                    role: 'user',
+                    content: user
+                }], temperature: 0.2, max_tokens: 200, stream: false
+            })
         });
         if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
         const data = await resp.json();
@@ -452,17 +538,21 @@
         const original = pendingTranscript;
         const cleanInstruction = stripTags(instructionText);
         if (!currentCommand) {
-            currentCommand = { original: original, corrections: [], final: null, accepted: false,
-                createdAt: Date.now() };
+            currentCommand = {
+                original: original, corrections: [], final: null, accepted: false,
+                createdAt: Date.now()
+            };
             console.log('[FLOW] Created new currentCommand for correction.');
         }
         flowState = 'correcting';
         setTurnMode('finalizing', 'सुधार हो रहा है…');
         try {
             const corrected = await correctWithLLM(original, cleanInstruction);
-            if (myEpoch !== flowEpoch) { console.log(
-                '[FLOW] handleCorrectionInstruction: session reset mid-correct — discarding.');
-                return; }
+            if (myEpoch !== flowEpoch) {
+                console.log(
+                    '[FLOW] handleCorrectionInstruction: session reset mid-correct — discarding.');
+                return;
+            }
             console.log('[FLOW] Corrected text → "' + corrected + '"');
             currentCommand.corrections.push({ instruction: cleanInstruction, corrected });
             pendingTranscript = corrected;
@@ -472,9 +562,11 @@
             console.log('[FLOW] flowState → busy (speaking correction confirmation)');
             const prompt = `सुधारा गया: ${corrected}. क्या यह सही है?`;
             await speak(prompt);
-            if (myEpoch !== flowEpoch) { console.log(
-                '[FLOW] handleCorrectionInstruction: session reset mid-TTS — discarding.');
-                return; }
+            if (myEpoch !== flowEpoch) {
+                console.log(
+                    '[FLOW] handleCorrectionInstruction: session reset mid-TTS — discarding.');
+                return;
+            }
             flowState = 'awaiting_confirmation';
             console.log('[FLOW] flowState → awaiting_confirmation (after correction)');
             setTurnMode('listening', 'सुनाइए — हाँ या सुधार बताएं');
@@ -487,7 +579,10 @@
             await speak('सुधार करने में समस्या आई, कृपया दोबारा बताएं।');
             if (myEpoch !== flowEpoch) return;
             flowState = 'awaiting_correction';
+            console.log('[FLOW] flowState → awaiting_correction (after error)');
             setTurnMode('listening', 'सुधार बताएं');
+            // FIX: Drain stranded queue so the user is not locked out
+            drainTranscriptQueue();
         }
     }
 
@@ -495,6 +590,8 @@
     function beginConfirmation(text) {
         const cleanText = stripTags(text);
         console.log('[FLOW] beginConfirmation() text="' + cleanText + '"');
+        // FIX: Wipe any stale debounce text before starting a fresh confirmation cycle
+        clearDebounceBuffers();
         pendingTranscript = cleanText;
         const myEpoch = flowEpoch;
         flowState = 'busy';
@@ -503,9 +600,11 @@
         setTurnMode('confirming', 'पुष्टि के लिए बोल रहे हैं…');
         const prompt = `${cleanText}. क्या यह सही है? हाँ बोलें, या बताएं कि क्या सुधारना है।`;
         speak(prompt).then(() => {
-            if (myEpoch !== flowEpoch) { console.log(
-                '[FLOW] beginConfirmation: session reset mid-TTS — discarding.');
-                return; }
+            if (myEpoch !== flowEpoch) {
+                console.log(
+                    '[FLOW] beginConfirmation: session reset mid-TTS — discarding.');
+                return;
+            }
             flowState = 'awaiting_confirmation';
             console.log('[FLOW] flowState → awaiting_confirmation');
             setTurnMode('listening', 'सुनाइए — हाँ या सुधार बताएं');
@@ -522,21 +621,27 @@
     async function handleConfirmationReply(replyText) {
         console.log('[FLOW] handleConfirmationReply() reply="' + replyText + '"');
         const myEpoch = flowEpoch;
+        // FIX: Purge any lingering debounce buffers now that we are acting on a settled reply
+        clearDebounceBuffers();
         flowState = 'evaluating_intent';
         console.log('[FLOW] flowState → evaluating_intent');
         setTurnMode('finalizing', 'जाँच रहे हैं…');
         showToast('');
         const intent = await classifyIntentWithLLM(replyText);
-        if (myEpoch !== flowEpoch) { console.log(
-            '[FLOW] handleConfirmationReply: session reset mid-classify — discarding.');
-            return; }
+        if (myEpoch !== flowEpoch) {
+            console.log(
+                '[FLOW] handleConfirmationReply: session reset mid-classify — discarding.');
+            return;
+        }
         console.log('[FLOW] Intent classification → ' + intent);
 
         if (intent === 'CONFIRM') {
             const finalText = pendingTranscript;
             if (!currentCommand) {
-                currentCommand = { original: finalText, corrections: [], final: null, accepted: false,
-                    createdAt: Date.now() };
+                currentCommand = {
+                    original: finalText, corrections: [], final: null, accepted: false,
+                    createdAt: Date.now()
+                };
                 console.log('[FLOW] Created new currentCommand for confirmation.');
             }
             currentCommand.final = finalText;
@@ -555,11 +660,15 @@
             flowState = 'busy';
             console.log('[FLOW] flowState → busy (speaking next prompt)');
             resetLiveLine('अगला कमांड बोलें…');
-            try { await speak('ठीक है, अगला कमांड बोलें।'); } catch (e) { console.log(
-                '[FLOW] Error speaking next prompt:', e); }
-            if (myEpoch !== flowEpoch) { console.log(
-                '[FLOW] handleConfirmationReply: session reset mid-TTS — discarding.');
-                return; }
+            try { await speak('ठीक है, अगला कमांड बोलें।'); } catch (e) {
+                console.log(
+                    '[FLOW] Error speaking next prompt:', e);
+            }
+            if (myEpoch !== flowEpoch) {
+                console.log(
+                    '[FLOW] handleConfirmationReply: session reset mid-TTS — discarding.');
+                return;
+            }
             flowState = 'listening_command';
             console.log('[FLOW] flowState → listening_command');
             setTurnMode('listening', 'अगला कमांड बोलें');
@@ -569,9 +678,11 @@
             flowState = 'busy';
             console.log('[FLOW] flowState → busy (asking for correction)');
             await speak('कृपया सुधार बताएं।');
-            if (myEpoch !== flowEpoch) { console.log(
-                '[FLOW] handleConfirmationReply: session reset mid-TTS — discarding.');
-                return; }
+            if (myEpoch !== flowEpoch) {
+                console.log(
+                    '[FLOW] handleConfirmationReply: session reset mid-TTS — discarding.');
+                return;
+            }
             flowState = 'awaiting_correction';
             console.log('[FLOW] flowState → awaiting_correction');
             setTurnMode('listening', 'सुधार बताएं');
@@ -586,14 +697,22 @@
             let socket;
             try { socket = new WebSocket(el.wsUrl.value.trim()); } catch (e) { reject(e); return; }
             ws = socket;
-            socket.onopen = () => { setStatus('connected', 'connected');
-                resolve(); };
-            socket.onerror = (e) => { setStatus('error', 'ws error');
-                reject(e); };
-            socket.onclose = (ev) => { setStatus('idle', 'disconnected'); if (sessionActive) endSession(
-                    'कनेक्शन बंद हो गया'); };
-            socket.onmessage = (ev) => { let msg; try { msg = JSON.parse(ev.data); } catch { return; }
-                handleServerEvent(msg); };
+            socket.onopen = () => {
+                setStatus('connected', 'connected');
+                resolve();
+            };
+            socket.onerror = (e) => {
+                setStatus('error', 'ws error');
+                reject(e);
+            };
+            socket.onclose = (ev) => {
+                setStatus('idle', 'disconnected'); if (sessionActive) endSession(
+                    'कनेक्शन बंद हो गया');
+            };
+            socket.onmessage = (ev) => {
+                let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+                handleServerEvent(msg);
+            };
         });
     }
 
@@ -602,10 +721,22 @@
         if (msg.type === 'session.created') return;
         if (msg.type.endsWith('.delta')) {
             const text = msg.delta ?? msg.text ?? '';
-            if (text) setLiveText(liveText + text);
+            if (text) {
+                // FIX: Your ASR runs in prefix mode (--stream-final-mode prefix).
+                // Each delta already contains the FULL text so far. Appending creates ghost duplication.
+                // We now detect a prefix and replace instead of append.
+                if (liveText && text.startsWith(liveText) && text.length >= liveText.length) {
+                    setLiveText(text);
+                } else {
+                    setLiveText(liveText + text);
+                }
+            }
         } else if (msg.type.endsWith('.completed')) {
             const rawFinalText = (msg.transcript ?? msg.text ?? liveText ?? '').toString();
             const finalText = stripTags(rawFinalText);
+            // FIX: Always reset liveText after a completed event so the next turn starts absolutely fresh.
+            // This prevents the previous command from bleeding into the next confirmation reply.
+            liveText = '';
             finalizing = false;
             console.log('[WS] Completed, raw="' + rawFinalText + '" clean="' + finalText + '", flowState=' +
                 flowState);
@@ -619,11 +750,12 @@
                 return;
             }
             if (flowState === 'awaiting_confirmation') {
-                // Use buffered path instead of direct handleConfirmationReply
                 bufferConfirmationReply(finalText);
             } else if (flowState === 'listening_command') {
-                currentCommand = { original: finalText, corrections: [], final: null, accepted: false,
-                    createdAt: Date.now() };
+                currentCommand = {
+                    original: finalText, corrections: [], final: null, accepted: false,
+                    createdAt: Date.now()
+                };
                 renderHistory();
                 beginConfirmation(finalText);
             } else if (flowState === 'awaiting_correction') {
@@ -684,8 +816,10 @@
         if (accumLen === 0 || !audioCtx) return;
         const merged = new Float32Array(accumLen);
         let off = 0;
-        for (const arr of accumBuf) { merged.set(arr, off);
-            off += arr.length; }
+        for (const arr of accumBuf) {
+            merged.set(arr, off);
+            off += arr.length;
+        }
         accumBuf = [];
         accumLen = 0;
         sendAppend(floatTo16BitPCM(merged, audioCtx.sampleRate, TARGET_RATE));
@@ -801,8 +935,10 @@
                         }
                     }
                 }
-            } catch (e) { vadReady = false;
-                handleLevelLegacy(rms); return; }
+            } catch (e) {
+                vadReady = false;
+                handleLevelLegacy(rms); return;
+            }
         }
         if (speaking && !finalizing && performance.now() - turnStartedAt > MAX_UNCOMMITTED_MS) {
             speaking = false;
@@ -816,10 +952,12 @@
         const now = performance.now();
         if (finalizing) return;
         if (rms > SPEECH_RMS_THRESHOLD) {
-            if (!speaking) { speaking = true;
+            if (!speaking) {
+                speaking = true;
                 turnStartedAt = now;
                 resetLiveLine('सुन रहा हूँ…');
-                setTurnMode('speaking', 'speaking'); }
+                setTurnMode('speaking', 'speaking');
+            }
             lastSpeechAt = now;
         } else if (speaking && now - lastSpeechAt > SILENCE_MS) {
             speaking = false;
@@ -846,11 +984,8 @@
         commands = [];
         currentCommand = null;
         transcriptQueue = [];
-        // Clear any pending debounce timers
-        clearTimeout(confirmDebounceTimer);
-        confirmReplyBuffer = '';
-        clearTimeout(correctionDebounceTimer);
-        correctionReplyBuffer = '';
+        // FIX: Use central helper to purge stale buffers
+        clearDebounceBuffers();
         renderHistory();
         try { await connectWs(); } catch (e) {
             showToast('WebSocket से कनेक्ट नहीं हो सका');
@@ -864,8 +999,12 @@
             return;
         }
         try {
-            micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1,
-                    echoCancellation: true, noiseSuppression: true } });
+            micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true, noiseSuppression: true
+                }
+            });
         } catch (e) {
             showToast('माइक्रोफ़ोन एक्सेस नहीं मिला');
             el.sessionBtn.disabled = false;
@@ -873,8 +1012,8 @@
             return;
         }
         try {
-            audioCtx = new(window.AudioContext || window.webkitAudioContext)({ sampleRate: TARGET_RATE });
-        } catch (e) { audioCtx = new(window.AudioContext || window.webkitAudioContext)(); }
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: TARGET_RATE });
+        } catch (e) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
         const blob = new Blob([WORKLET_SRC], { type: 'application/javascript' });
         const workletUrl = URL.createObjectURL(blob);
         await audioCtx.audioWorklet.addModule(workletUrl);
@@ -893,8 +1032,10 @@
                 el.statSkipped.textContent = (gatedSamplesSkipped / audioCtx.sampleRate).toFixed(1) + 's';
             } else if (speaking) {
                 if (!wasSpeaking) {
-                    for (const buf of preRollBuffer) { accumBuf.push(buf);
-                        accumLen += buf.length; }
+                    for (const buf of preRollBuffer) {
+                        accumBuf.push(buf);
+                        accumLen += buf.length;
+                    }
                     preRollBuffer = [];
                     preRollSamples = 0;
                 }
@@ -942,26 +1083,31 @@
         pendingTranscript = '';
         currentCommand = null;
         transcriptQueue = [];
-        // Clear debounce timers
-        clearTimeout(confirmDebounceTimer);
-        confirmReplyBuffer = '';
-        clearTimeout(correctionDebounceTimer);
-        correctionReplyBuffer = '';
+        // FIX: Central clear
+        clearDebounceBuffers();
         el.sessionBtn.classList.remove('live');
         el.sessionBtnText.textContent = 'सेशन शुरू करें';
         el.finalizeBtn.disabled = true;
         setTurnMode('idle', 'idle');
         if (ttsPlaying) interruptTTS();
-        if (durationTimer) { clearInterval(durationTimer);
-            durationTimer = null; }
+        if (durationTimer) {
+            clearInterval(durationTimer);
+            durationTimer = null;
+        }
         sessionStartedAt = 0;
-        if (workletNode) { workletNode.port.onmessage = null;
+        if (workletNode) {
+            workletNode.port.onmessage = null;
             workletNode.disconnect();
-            workletNode = null; }
-        if (audioCtx) { audioCtx.close().catch(() => {});
-            audioCtx = null; }
-        if (micStream) { micStream.getTracks().forEach(t => t.stop());
-            micStream = null; }
+            workletNode = null;
+        }
+        if (audioCtx) {
+            audioCtx.close().catch(() => { });
+            audioCtx = null;
+        }
+        if (micStream) {
+            micStream.getTracks().forEach(t => t.stop());
+            micStream = null;
+        }
         if (ws && ws.readyState === WebSocket.OPEN) ws.close();
         resetVAD();
         gatedSamplesSkipped = 0;
@@ -974,11 +1120,17 @@
     }
 
     // ---------- EVENT BINDING ----------
-    el.sessionBtn.addEventListener('click', () => { if (sessionActive) endSession();
-        else startSession(); });
-    document.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e
+    el.sessionBtn.addEventListener('click', () => {
+        if (sessionActive) endSession();
+        else startSession();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && e.target === document.body) {
+            e
                 .preventDefault();
-            el.sessionBtn.click(); } });
+            el.sessionBtn.click();
+        }
+    });
     el.finalizeBtn.addEventListener('click', () => {
         if (sessionActive && speaking && !finalizing) {
             speaking = false;
@@ -1013,7 +1165,5 @@
     });
 
     console.log('[INIT] All event listeners attached. Ready.');
-    console.log('[FIX] Confirmation debounce is ACTIVE (CONFIRM_DEBOUNCE_MS = ' + CONFIRM_DEBOUNCE_MS +
-        ' ms)');
-    console.log('[FIX] Correction debounce uses same delay.');
+    console.log('[FIX] Prefix-aware delta handling, liveText reset, debounce purge, and confirmation escape hatch are ACTIVE.');
 })();
