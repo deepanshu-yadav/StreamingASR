@@ -11,21 +11,33 @@ streaming_demos/
 ├── README.md               # Main repository documentation (this file)
 ├── commands.md             # Scratchpad reference for CLI commands & testing scripts
 ├── LICENSE.txt             # Project license
-└── commands_demo/          # Complete Web-based Streaming Voice Commands Application
-    ├── README.md           # Detailed setup & architecture documentation for the demo
-    ├── index.html          # Frontend layout & HTML structure
-    ├── styles.css          # Modern UI styling & visual components
-    ├── script.js           # Web Audio, Silero VAD, WebSocket client, LLM & TTS integration
-    ├── server.js           # Node.js Express static server
-    ├── silero_vad.onnx     # Client-side VAD ONNX model
-    └── file.wav            # Sample test audio file
-```
+├── extension/              # Chrome Extension (Manifest V3 Side Panel Voice Assistant)
+│   ├── README.md           # 📖 Comprehensive Chrome Extension Instructional Manual
+│   ├── manifest.json       # Manifest V3 extension configuration
+│   ├── sidepanel.html      # Side Panel user interface
+│   ├── sidepanel.js        # Voice capture, VAD, WebSocket streaming, and LLM correction
+│   └── docs/images/        # Visual walkthrough screenshots
+├── companion/              # Companion Orchestrator & Proxy Server
+│   ├── server.js           # Process manager + TTS/LLM reverse proxy (:8000)
+│   ├── downloader.js       # Binary/model checker and conditional downloader
+│   └── start_companion.bat # 1-click companion launcher
+└── commands_demo/          # Web-based Streaming Voice Commands Standalone Demo
+    ├── README.md           # Detailed setup & architecture documentation
+    ├── index.html          # Web frontend layout
+    ├── styles.css          # UI styling
+    ├── script.js           # Complete client logic
+    └── server.js           # Static file server
 
 ---
 
 ## 🎙️ Featured Demos
 
-### 1. [Voice Commands & Real-Time Streaming ASR Demo](./commands_demo/README.md)
+### 1. [Chrome Extension — Local Voice ASR & Form Assistant](./extension/README.md) ⭐
+An offline, privacy-first Chrome Extension that runs in the **Chrome Side Panel**, automatically coordinates with the local companion daemon to manage backend services, performs real-time Hindi streaming ASR, carries out LLM intent verification, and speaks voice feedback.
+
+* 📖 **[Read the Full Chrome Extension Instructional Manual](./extension/README.md)** with visual screenshots, setup instructions, and troubleshooting tips.
+
+### 2. [Voice Commands & Real-Time Streaming ASR Web Demo](./commands_demo/README.md)
 A browser-based interactive web client that captures real-time microphone audio, performs low-latency streaming ASR via native WebSockets, transforms raw recognized speech into structured commands using a local LLM, and plays synthesized voice responses.
 
 * 📖 **[Read the Full Voice Commands Demo README](./commands_demo/README.md)** for detailed installation steps, model downloads, architecture diagrams, and service ports.

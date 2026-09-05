@@ -1,2 +1,3 @@
 commands_demo/*.onnx
 commands_demo/*.wav
+extension/*.onnx

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="hi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>वॉइस असिस्टेंट — Local ASR & LLM</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+    <script src="lib/ort.min.js"></script>
+</head>
+<body>
+    <div class="grain"></div>
+    <div class="app-container">
+        <!-- ===== HEADER ===== -->
+        <header class="app-header">
+            <div class="brand">
+                <span class="pulse-dot"></span>
+                <span class="brand-title">CRISPASR &bull; NEMOTRON &bull; GEMMA 4</span>
+            </div>
+            <h1>सिग्नल — वॉइस असिस्टेंट</h1>
+            <p class="tagline">लोकल ASR, TTS और LLM द्वारा संचालित पूर्णतः ऑफलाइन सहायक</p>
+        </header>
+
+        <!-- ===== COMPANION ORCHESTRATOR CARD ===== -->
+        <section class="orchestrator-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">⚡</span>
+                    <span>बैकएंड सर्विसेज (Orchestrator)</span>
+                </div>
+                <div id="companionPill" class="badge badge-disconnected" data-state="offline">
+                    <span class="dot"></span>
+                    <span id="companionStatusText">Companion Offline</span>
+                </div>
+            </div>
+
+            <!-- 3 Backend Services Indicators -->
+            <div class="services-grid">
+                <div class="service-item" id="svc-asr" data-status="stopped">
+                    <div class="svc-icon">🎙️</div>
+                    <div class="svc-info">
+                        <div class="svc-name">Nemotron ASR</div>
+                        <div class="svc-port">WS :8082/v1/realtime &bull; HTTP :8080</div>
+                    </div>
+                    <span class="svc-badge">stopped</span>
+                </div>
+                <div class="service-item" id="svc-tts" data-status="stopped">
+                    <div class="svc-icon">🗣️</div>
+                    <div class="svc-info">
+                        <div class="svc-name">Piper TTS</div>
+                        <div class="svc-port">Port :8089</div>
+                    </div>
+                    <span class="svc-badge">stopped</span>
+                </div>
+                <div class="service-item" id="svc-llm" data-status="stopped">
+                    <div class="svc-icon">🧠</div>
+                    <div class="svc-info">
+                        <div class="svc-name">Gemma 4 LLM</div>
+                        <div class="svc-port">Port :8084</div>
+                    </div>
+                    <span class="svc-badge">stopped</span>
+                </div>
+            </div>
+
+            <div class="orchestrator-actions">
+                <button id="btnStartServices" class="btn btn-primary" title="Start all 3 backend components">
+                    <span>🚀 स्टार्ट सर्विसेज</span>
+                </button>
+                <button id="btnStopServices" class="btn btn-secondary" title="Stop all 3 backend components">
+                    <span>⏹️ स्टॉप</span>
+                </button>
+                <button id="btnCheckAssets" class="btn btn-outline" title="Verify binaries and models">
+                    <span>🔍 चेक फाइल्स</span>
+                </button>
+            </div>
+            <div id="orchestratorNotice" class="orchestrator-notice">
+                कम्पैनियन से जुड़ने के लिए सुनिश्चित करें कि <kbd>node companion/server.js</kbd> चालू है।
+            </div>
+        </section>
+
+        <!-- ===== MAIN VOICE PANEL ===== -->
+        <main class="voice-panel">
+            <div class="toolbar">
+                <div class="input-group">
+                    <label for="wsUrl">WebSocket URL</label>
+                    <input id="wsUrl" class="ws-input" value="ws://127.0.0.1:8082/v1/realtime" spellcheck="false" />
+                </div>
+                <div id="statusPill" class="status-pill" data-state="idle">
+                    <span class="led"></span>
+                    <span id="statusText">idle</span>
+                </div>
+            </div>
+
+            <div class="stage">
+                <button id="sessionBtn" class="session-btn" disabled>
+                    <span class="ring"></span>
+                    <span id="sessionBtnText">सर्विस शुरू होने की प्रतीक्षा…</span>
+                </button>
+                <div class="kbd-hint">या दबाएँ <kbd>Space</kbd> &bull; <a href="#" id="linkMicPerm" style="color: #60a5fa; text-decoration: underline;">🎙️ माइक अनुमति</a></div>
+
+                <div class="states-row">
+                    <div id="turnState" class="turn-state" data-mode="idle">
+                        <span class="tdot"></span>
+                        <span id="turnStateText">idle</span>
+                    </div>
+                    <div id="ttsStatus" class="tts-status" data-tts="idle">
+                        <span class="tts-dot"></span>
+                        <span id="ttsStatusText">tts idle</span>
+                    </div>
+                    <button id="interruptBtn" class="interrupt-btn">
+                        <span class="interrupt-icon"></span>
+                        <span>Interrupt TTS</span>
+                    </button>
+                </div>
+
+                <div id="micMutedBadge" class="mic-muted-badge">🔇 mic muted — tts playing</div>
+                <div id="signalStrip" class="signal-strip"></div>
+                <div id="toast" class="toast"></div>
+            </div>
+
+            <!-- TUNING SETTINGS ACCORDION -->
+            <details class="tuning">
+                <summary>टर्न डिटेक्शन और मॉडल सेटिंग्स (Tuning)</summary>
+                <div class="tuning-body">
+                    <div class="slider-row">
+                        <label><span>Silero Speech Threshold</span><span id="thresholdVal">0.50</span></label>
+                        <input type="range" id="thresholdSlider" min="0.10" max="0.90" step="0.05" value="0.50" />
+                    </div>
+                    <div class="slider-row">
+                        <label><span>Silence Before Turn Finalizes</span><span id="silenceVal">320 ms</span></label>
+                        <input type="range" id="silenceSlider" min="160" max="1000" step="32" value="320" />
+                    </div>
+                    <div class="slider-row">
+                        <label><span>Max Utterance Hard Cap</span><span id="maxTurnVal">3500 ms</span></label>
+                        <input type="range" id="maxTurnSlider" min="1500" max="8000" step="250" value="3500" />
+                    </div>
+                    <div class="slider-row">
+                        <label><span>Pre-roll Padding</span><span id="padVal">200 ms</span></label>
+                        <input type="range" id="padSlider" min="0" max="500" step="20" value="200" />
+                    </div>
+                    <div class="slider-row">
+                        <label><span>LLM Proxy Server URL</span></label>
+                        <input type="text" id="llmUrl" class="ws-input" style="width:100%" value="http://127.0.0.1:8000/v1/chat/completions" spellcheck="false" />
+                    </div>
+                    <div class="slider-row">
+                        <label><span>Confirmation Debounce</span><span id="debounceVal">1000 ms</span></label>
+                        <input type="range" id="debounceSlider" min="400" max="2000" step="50" value="1000" />
+                    </div>
+                </div>
+            </details>
+
+            <!-- LIVE TRANSCRIPTION ZONE -->
+            <div class="transcript-zone">
+                <div class="zone-label">लाइव ट्रांसक्रिप्शन (Streaming STT)</div>
+                <div id="liveLine" class="live-line empty">सेशन शुरू करते ही यहाँ आंशिक ट्रांसक्रिप्शन दिखेगा…</div>
+                
+                <div class="zone-label" style="margin-top: 14px;">कमांड इतिहास और पुष्टि संवाद</div>
+                <div id="history" class="history">
+                    <div class="history-empty">अभी तक कोई पूर्ण command नहीं।</div>
+                </div>
+            </div>
+
+            <!-- STATS BAR -->
+            <div class="stats-bar">
+                <span>session <b id="statDuration">00:00</b></span>
+                <span>commands <b id="statCommands">0</b></span>
+                <span>words <b id="statWords">0</b></span>
+                <span>chunks <b id="statChunks">0</b></span>
+                <span>silence <b id="statSkipped">0.0s</b></span>
+            </div>
+
+            <!-- FOOTER ACTIONS -->
+            <div class="footer-note">
+                <button id="finalizeBtn" class="btn btn-outline btn-sm" disabled>Cut turn now</button>
+                <div class="actions">
+                    <button id="copyBtn" class="btn btn-outline btn-sm" disabled>Copy transcript</button>
+                    <button id="exportBtn" class="btn btn-outline btn-sm" disabled>Export .txt</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html>
