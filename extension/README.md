@@ -4,6 +4,16 @@ An offline, privacy-first Chrome Extension (Manifest V3) that provides real-time
 
 ---
 
+## 🎥 Video Demonstration
+
+### 📺 Part 1: End-to-End Walkthrough & Live Session
+
+[![Part 1: Chrome Extension Offline Voice Assistant Demo](https://img.youtube.com/vi/W0ftU5tn1mg/maxresdefault.jpg)](https://youtu.be/W0ftU5tn1mg "Click to Watch Part 1 Demo on YouTube")
+
+> 🔗 **Watch Video on YouTube**: [https://youtu.be/W0ftU5tn1mg](https://youtu.be/W0ftU5tn1mg)
+
+---
+
 ## 📸 Visual Tour & Interface Overview
 
 ### 1. Extension Loaded & Services Orchestration
