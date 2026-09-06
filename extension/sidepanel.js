@@ -1194,6 +1194,8 @@
         btnStartServices: document.getElementById('btnStartServices'),
         btnStopServices: document.getElementById('btnStopServices'),
         btnCheckAssets: document.getElementById('btnCheckAssets'),
+        btnLaunchCompanion: document.getElementById('btnLaunchCompanion'),
+        companionOfflineBanner: document.getElementById('companionOfflineBanner'),
         orchestratorNotice: document.getElementById('orchestratorNotice'),
         linkMicPerm: document.getElementById('linkMicPerm')
     };
@@ -1207,6 +1209,53 @@
         });
     }
 
+    function triggerProtocolLaunch(url) {
+        // Chrome extension side panels cannot directly navigate to custom protocols.
+        // Opening launch.html in a top-level tab triggers the Windows OS protocol handler cleanly.
+        if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+            chrome.tabs.create({ url: chrome.runtime.getURL('launch.html') });
+            return;
+        }
+        window.location.href = url;
+    }
+
+    let launchPollTimer = null;
+    if (compEl.btnLaunchCompanion) {
+        compEl.btnLaunchCompanion.addEventListener('click', () => {
+            compEl.btnLaunchCompanion.disabled = true;
+            compEl.btnLaunchCompanion.innerHTML = '<span>⏳ चालू हो रहा है… (Starting…)</span>';
+            showToast('कम्पैनियन शुरू किया जा रहा है…');
+
+            triggerProtocolLaunch('voice-companion://start');
+
+            if (launchPollTimer) clearInterval(launchPollTimer);
+            let attempts = 0;
+            launchPollTimer = setInterval(async () => {
+                attempts++;
+                try {
+                    const resp = await fetch(`${COMPANION_BASE}/api/status`, { cache: 'no-store' });
+                    if (resp.ok) {
+                        clearInterval(launchPollTimer);
+                        launchPollTimer = null;
+                        compEl.btnLaunchCompanion.disabled = false;
+                        compEl.btnLaunchCompanion.innerHTML = '<span>⚡ कम्पैनियन चालू करें (Launch Companion)</span>';
+                        checkCompanion();
+                        showToast('कम्पैनियन ऑनलाइन हो गया है ✓');
+                        return;
+                    }
+                } catch (_) {}
+
+                if (attempts >= 18) {
+                    clearInterval(launchPollTimer);
+                    launchPollTimer = null;
+                    compEl.btnLaunchCompanion.disabled = false;
+                    compEl.btnLaunchCompanion.innerHTML = '<span>⚡ कम्पैनियन चालू करें (Launch Companion)</span>';
+                    showToast('कम्पैनियन चालू नहीं हुआ? register_protocol.bat चलाएं');
+                }
+            }, 1000);
+        });
+    }
+
     async function checkCompanion() {
         try {
             const resp = await fetch(`${COMPANION_BASE}/api/status`, { cache: 'no-store' });
@@ -1216,7 +1265,10 @@
                 compEl.companionPill.className = 'badge badge-connected';
                 compEl.companionStatusText.textContent = 'Companion Online';
             }
-            if (compEl.orchestratorNotice) compEl.orchestratorNotice.style.display = 'none';
+            if (compEl.companionOfflineBanner) compEl.companionOfflineBanner.style.display = 'none';
+            if (compEl.btnStartServices) compEl.btnStartServices.disabled = false;
+            if (compEl.btnStopServices) compEl.btnStopServices.disabled = false;
+            if (compEl.btnCheckAssets) compEl.btnCheckAssets.disabled = false;
 
             function updateCard(card, live) {
                 if (!card) return;
@@ -1240,7 +1292,11 @@
                 compEl.companionPill.className = 'badge badge-disconnected';
                 compEl.companionStatusText.textContent = 'Companion Offline';
             }
-            if (compEl.orchestratorNotice) compEl.orchestratorNotice.style.display = 'block';
+            if (compEl.companionOfflineBanner) compEl.companionOfflineBanner.style.display = 'flex';
+            if (compEl.btnStartServices) compEl.btnStartServices.disabled = true;
+            if (compEl.btnStopServices) compEl.btnStopServices.disabled = true;
+            if (compEl.btnCheckAssets) compEl.btnCheckAssets.disabled = true;
+
             if (!sessionActive) {
                 el.sessionBtn.disabled = true;
                 el.sessionBtnText.textContent = 'Companion Offline';

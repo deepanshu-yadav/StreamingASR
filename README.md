@@ -71,14 +71,25 @@ A browser-based interactive web client that captures real-time microphone audio,
 
 ## 🚀 Quick Start Guide
 
-### 1. One-Click Backend Launcher (Recommended)
-Simply double-click the companion launcher:
-```cmd
-streaming_demos\companion\start_companion.bat
-```
-> 💡 **Zero Manual Setup**:
-> - **Auto-installs Node.js**: If Node.js is not detected, the script automatically installs the official Node.js LTS via Windows Package Manager (`winget`).
-> - **Orchestration & Proxy**: Runs on `http://127.0.0.1:8000` to verify models, manage background AI processes, and handle reverse proxying.
+### 1. Launch Options
+
+* **Option A: 1-Click Launch from Chrome Extension** ⭐ *(Recommended)*
+  1. Register the URL protocol once (no admin privileges needed):
+     ```cmd
+     streaming_demos\companion\register_protocol.bat
+     ```
+  2. Open the Chrome Extension Side Panel.
+  3. When offline, click **⚡ कम्पैनियन चालू करें (Launch Companion)** right from the extension to boot the companion orchestrator automatically!
+  4. Once online, click **🚀 स्टार्ट सर्विसेज** to load the AI models into memory.
+
+* **Option B: Manual Batch Launcher**
+  Simply double-click:
+  ```cmd
+  streaming_demos\companion\start_companion.bat
+  ```
+  > 💡 **Zero Manual Setup**:
+  > - **Auto-installs Node.js**: If Node.js is not detected, the script automatically installs the official Node.js LTS via Windows Package Manager (`winget`).
+  > - **Orchestration & Proxy**: Runs on `http://127.0.0.1:8000` to verify models, manage background AI processes, and handle reverse proxying.
 
 ---
 
@@ -88,7 +99,7 @@ streaming_demos\companion\start_companion.bat
   1. Open Chrome and go to `chrome://extensions`.
   2. Enable **Developer mode** (top-right) and click **Load unpacked**.
   3. Select the `streaming_demos\extension` folder.
-  4. Open the Side Panel, click **🚀 स्टार्ट सर्विसेज**, and start speaking!
+  4. Open the Side Panel, launch companion / start services, and start speaking!
   5. 📖 Read the full **[Chrome Extension Instructional Manual](./extension/README.md)** for a visual walkthrough.
 
 * **Option B: Standalone Web Demo**

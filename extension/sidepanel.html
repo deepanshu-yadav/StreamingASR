@@ -72,8 +72,13 @@
                     <span>🔍 चेक फाइल्स</span>
                 </button>
             </div>
-            <div id="orchestratorNotice" class="orchestrator-notice">
-                कम्पैनियन से जुड़ने के लिए सुनिश्चित करें कि <kbd>node companion/server.js</kbd> चालू है।
+            <div id="companionOfflineBanner" class="companion-offline-box" style="display: none;">
+                <button id="btnLaunchCompanion" class="btn btn-launch" title="Launch Companion Orchestrator Server">
+                    <span>⚡ कम्पैनियन चालू करें (Launch Companion)</span>
+                </button>
+                <div id="orchestratorNotice" class="orchestrator-notice">
+                    यदि यह पहली बार है, तो सुनिश्चित करें कि <kbd>register_protocol.bat</kbd> चला लिया गया है।
+                </div>
             </div>
         </section>
 

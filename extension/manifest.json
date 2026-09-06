@@ -39,6 +39,8 @@
         "silero_vad.onnx",
         "permission.html",
         "permission.js",
+        "launch.html",
+        "launch.js",
         "worklet-processor.js",
         "lib/*"
       ],

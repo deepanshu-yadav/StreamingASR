@@ -1,10 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
-title Companion Orchestrator & Proxy Server
+title Companion Orchestrator ^& Proxy Server
 cd /d "%~dp0"
 
 echo ========================================================
-echo   Companion Orchestrator & Proxy Server
+echo   Companion Orchestrator ^& Proxy Server
 echo ========================================================
 echo.
 

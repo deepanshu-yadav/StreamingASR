@@ -27,6 +27,7 @@ When the extension is loaded in Google Chrome, it opens as a persistent **Side P
 * **🗣️ Piper TTS Card**: Monitors the offline Hindi speech synthesis engine (`Port :8089`). Displays `READY` when available.
 * **🧠 Gemma 4 LLM Card**: Monitors the local `llama-server` running Gemma 4 E2B (`Port :8084`). Displays `READY` when loaded.
 * **Service Actions**:
+  * **⚡ कम्पैनियन चालू करें (Launch Companion)**: 1-click launch from within the extension when offline (uses registered `voice-companion://` protocol handler).
   * **🚀 स्टार्ट सर्विसेज (Start Services)**: 1-click startup that checks local models and spawns all 3 background AI processes.
   * **⏹️ स्टॉप (Stop)**: Gracefully terminates the 3 AI server processes.
   * **🔍 चेक फाइल्स (Check Files)**: Verifies presence and integrity of models and binaries without re-downloading.
@@ -111,12 +112,21 @@ The system verifies existing files in `Desktop\workspace\browser-form-fill\` and
 
 ## 🚀 Step-by-Step Installation & Setup
 
-### Step 1: Start the Companion Orchestrator
-Open Windows File Explorer and double-click:
-```cmd
-streaming_demos\companion\start_companion.bat
-```
-*(Or run `cd streaming_demos\companion && start_companion.bat`)*. 
+### Step 1: Companion Orchestrator Setup (1-Click or Manual)
+
+* **Option A: Enable 1-Click Launch from Chrome Extension (Recommended)**
+  Run the one-time registration script (no administrator privileges needed):
+  ```cmd
+  streaming_demos\companion\register_protocol.bat
+  ```
+  Once registered, you can start the companion directly from inside the Chrome Extension side panel by clicking **⚡ कम्पैनियन चालू करें (Launch Companion)**!
+
+* **Option B: Manual Launcher**
+  Open Windows File Explorer and double-click:
+  ```cmd
+  streaming_demos\companion\start_companion.bat
+  ```
+  *(Or run `cd streaming_demos\companion && start_companion.bat`)*.
 
 > 💡 **Automatic Node.js Installation**: If Node.js is not detected on the machine, `start_companion.bat` automatically installs the official **Node.js LTS** via the Windows Package Manager (`winget`) so you don't have to download or configure installers manually.
 
