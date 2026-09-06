@@ -39,7 +39,7 @@ streaming_demos/
     ├── styles.css          # UI styling
     ├── script.js           # Complete client logic
     └── server.js           # Static file server
-
+```
 ---
 
 ## 🎙️ Featured Demos
