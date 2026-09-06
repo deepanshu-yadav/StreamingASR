@@ -10,9 +10,9 @@ An end-to-end, high-performance local AI voice interaction suite built for Windo
 
 Watch the complete end-to-end demo showing service orchestration, real-time streaming Hindi ASR, Silero VAD turn detection, local LLM confirmation, and neural TTS:
 
-[![Part 1: Chrome Extension Offline Voice Assistant Demo](https://img.youtube.com/vi/W0ftU5tn1mg/maxresdefault.jpg)](https://youtu.be/W0ftU5tn1mg "Click to Watch Part 1: Chrome Extension Offline Voice Assistant Demo")
+[![Part 1: Chrome Extension Offline Voice Assistant Demo](https://img.youtube.com/vi/qUn9UL8tBAM/maxresdefault.jpg)](https://youtu.be/qUn9UL8tBAM "Click to Watch Part 1: Chrome Extension Offline Voice Assistant Demo")
 
-> 🔗 **Watch Video on YouTube**: [https://youtu.be/W0ftU5tn1mg](https://youtu.be/W0ftU5tn1mg)
+> 🔗 **Watch Video on YouTube**: [https://youtu.be/qUn9UL8tBAM](https://youtu.be/qUn9UL8tBAM)
 
 ---
 
