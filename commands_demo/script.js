@@ -848,11 +848,36 @@
 
     async function initSileroVAD() {
         try {
-            vadSession = await ort.InferenceSession.create('./silero_vad.onnx');
-            resetVAD();
-            vadReady = true;
-            showToast('Silero VAD loaded ✓');
+            const candidates = [
+                './silero_vad.onnx',
+                '/models/silero_vad.onnx',
+                'http://127.0.0.1:8000/models/silero_vad.onnx'
+            ];
+            let loaded = false;
+            for (const path of candidates) {
+                try {
+                    if (path.startsWith('http') || path.startsWith('/')) {
+                        const resp = await fetch(path);
+                        if (!resp.ok) continue;
+                        const buffer = await resp.arrayBuffer();
+                        vadSession = await ort.InferenceSession.create(buffer);
+                    } else {
+                        vadSession = await ort.InferenceSession.create(path);
+                    }
+                    loaded = true;
+                    break;
+                } catch (_) {}
+            }
+
+            if (loaded) {
+                resetVAD();
+                vadReady = true;
+                showToast('Silero VAD loaded ✓');
+            } else {
+                throw new Error('All VAD candidate sources unreachable');
+            }
         } catch (e) {
+            console.warn('[VAD] Could not load Silero VAD model, falling back to RMS speech detection:', e);
             showToast('Silero VAD load failed — using RMS fallback');
             vadReady = false;
         }

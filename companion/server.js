@@ -22,8 +22,22 @@ const TTS_PORT = 8089;
 const LLM_HOST = '127.0.0.1';
 const LLM_PORT = 8084;
 
-// Workspace root is two levels up from this script (Desktop/workspace/browser-form-fill)
-const ROOT_DIR = path.resolve(__dirname, '..', '..');
+// Resolve models/bin root directory:
+// 1. COMPANION_ROOT environment variable (if set and exists)
+// 2. Parent directory (e.g. dev workspace Desktop/workspace/browser-form-fill) if it has models/ or bin/
+// 3. Project root (streaming_demos) so new downloads remain completely self-contained
+function resolveRootDir() {
+    if (process.env.COMPANION_ROOT && fs.existsSync(process.env.COMPANION_ROOT)) {
+        return path.resolve(process.env.COMPANION_ROOT);
+    }
+    const parentRoot = path.resolve(__dirname, '..', '..');
+    if (fs.existsSync(path.join(parentRoot, 'models')) || fs.existsSync(path.join(parentRoot, 'bin'))) {
+        return parentRoot;
+    }
+    return path.resolve(__dirname, '..');
+}
+
+const ROOT_DIR = resolveRootDir();
 const STATIC_DIR = path.resolve(__dirname, '..', 'commands_demo');
 
 console.log(`[Companion] Workspace root: ${ROOT_DIR}`);
@@ -248,7 +262,41 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ==========================================
-    // 8. STATIC ASSET SERVING (Fallback to commands_demo)
+    // 8. MODELS SERVING (/models/* -> ROOT_DIR/models/*)
+    // ==========================================
+    if (pathname.startsWith('/models/')) {
+        const modelRel = pathname.replace(/^\/models\//, '');
+        const modelPath = path.join(ROOT_DIR, 'models', decodeURIComponent(modelRel));
+
+        fs.stat(modelPath, (err, stats) => {
+            if (err || !stats.isFile()) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Model Not Found');
+                return;
+            }
+
+            const ext = path.extname(modelPath).toLowerCase();
+            const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+            res.writeHead(200, { 'Content-Type': contentType });
+            fs.createReadStream(modelPath).pipe(res);
+        });
+        return;
+    }
+
+    // Direct /silero_vad.onnx route check (serves from STATIC_DIR or ROOT_DIR/models)
+    if (pathname === '/silero_vad.onnx') {
+        const staticVad = path.join(STATIC_DIR, 'silero_vad.onnx');
+        const modelVad = path.join(ROOT_DIR, 'models', 'silero_vad.onnx');
+        const vadTarget = fs.existsSync(staticVad) ? staticVad : (fs.existsSync(modelVad) ? modelVad : null);
+        if (vadTarget) {
+            res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+            fs.createReadStream(vadTarget).pipe(res);
+            return;
+        }
+    }
+
+    // ==========================================
+    // 9. STATIC ASSET SERVING (Fallback to commands_demo)
     // ==========================================
     let filePath = path.join(STATIC_DIR, pathname === '/' ? 'index.html' : pathname);
     filePath = decodeURIComponent(filePath);

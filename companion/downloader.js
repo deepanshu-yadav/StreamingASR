@@ -58,6 +58,15 @@ const ASSETS_MANIFEST = [
         minSizeBytes: 1000 * 1024 * 1024, // ~3.1GB expected
         url: 'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-UD-Q4_K_XL.gguf',
         isZip: false
+    },
+    {
+        id: 'vad_model',
+        name: 'Silero VAD v5 (ONNX)',
+        type: 'model',
+        relPath: path.join('models', 'silero_vad.onnx'),
+        minSizeBytes: 2 * 1024 * 1024, // ~2.3MB expected
+        url: 'https://huggingface.co/runanywhere/silero-vad-v5/resolve/main/silero_vad.onnx',
+        isZip: false
     }
 ];
 
@@ -210,6 +219,20 @@ class AssetDownloader {
             });
 
             if (onItemDone) onItemDone(manifestItem);
+
+            // If VAD model was downloaded, also mirror it to commands_demo and extension directories if available
+            if (manifestItem.id === 'vad_model' && fs.existsSync(destPath)) {
+                try {
+                    const demoVad = path.resolve(__dirname, '..', 'commands_demo', 'silero_vad.onnx');
+                    const extVad = path.resolve(__dirname, '..', 'extension', 'silero_vad.onnx');
+                    if (fs.existsSync(path.dirname(demoVad)) && !fs.existsSync(demoVad)) {
+                        fs.copyFileSync(destPath, demoVad);
+                    }
+                    if (fs.existsSync(path.dirname(extVad)) && !fs.existsSync(extVad)) {
+                        fs.copyFileSync(destPath, extVad);
+                    }
+                } catch (_) {}
+            }
         }
 
         return this.checkAssets();
