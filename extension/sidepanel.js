@@ -849,39 +849,47 @@
     async function initSileroVAD() {
         try {
             if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
-                ort.env.wasm.wasmPaths = (typeof chrome !== 'undefined' && chrome.runtime?.getURL)
+                const libBase = (typeof chrome !== 'undefined' && chrome.runtime?.getURL)
                     ? chrome.runtime.getURL('lib/')
                     : './lib/';
+                ort.env.wasm.wasmPaths = {
+                    mjs: libBase + 'ort-wasm-simd-threaded.mjs',
+                    wasm: libBase + 'ort-wasm-simd-threaded.wasm'
+                };
+                ort.env.wasm.numThreads = 1;
             }
 
             // Candidates to locate silero_vad.onnx:
             // 1. Packaged directly inside extension
             // 2. Served by companion server from downloaded models/ directory (:8000)
-            // 3. Relative path fallback
+            // 3. Direct /silero_vad.onnx from companion
+            // 4. Relative path
             const candidates = [];
             if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
-                candidates.push({ type: 'url', path: chrome.runtime.getURL('silero_vad.onnx'), label: 'extension bundle' });
+                candidates.push({ path: chrome.runtime.getURL('silero_vad.onnx'), label: 'extension bundle' });
             }
-            candidates.push({ type: 'http', path: 'http://127.0.0.1:8000/models/silero_vad.onnx', label: 'companion /models/' });
-            candidates.push({ type: 'http', path: 'http://127.0.0.1:8000/silero_vad.onnx', label: 'companion /silero_vad.onnx' });
-            candidates.push({ type: 'url', path: './silero_vad.onnx', label: 'relative path' });
+            candidates.push({ path: 'http://127.0.0.1:8000/models/silero_vad.onnx', label: 'companion /models/' });
+            candidates.push({ path: 'http://127.0.0.1:8000/silero_vad.onnx', label: 'companion /silero_vad.onnx' });
+            candidates.push({ path: './silero_vad.onnx', label: 'relative path' });
 
             let loaded = false;
+            let lastErr = null;
             for (const cand of candidates) {
                 try {
-                    if (cand.type === 'http') {
-                        const resp = await fetch(cand.path);
-                        if (!resp.ok) continue;
-                        const buffer = await resp.arrayBuffer();
-                        vadSession = await ort.InferenceSession.create(buffer);
-                    } else {
-                        vadSession = await ort.InferenceSession.create(cand.path);
+                    console.log(`[VAD] Attempting to load Silero VAD from ${cand.label} (${cand.path})...`);
+                    const resp = await fetch(cand.path);
+                    if (!resp.ok) {
+                        console.warn(`[VAD] HTTP ${resp.status} fetching from ${cand.label}`);
+                        continue;
                     }
+                    const buffer = await resp.arrayBuffer();
+                    vadSession = await ort.InferenceSession.create(buffer);
                     loaded = true;
                     console.log(`[VAD] Silero VAD successfully loaded from ${cand.label}`);
                     break;
-                } catch (_) {
-                    // Try next candidate
+                } catch (err) {
+                    lastErr = err;
+                    console.warn(`[VAD] Error initializing from ${cand.label}:`, err);
                 }
             }
 
@@ -890,7 +898,7 @@
                 vadReady = true;
                 showToast('Silero VAD loaded ✓');
             } else {
-                throw new Error('All VAD candidate sources unreachable');
+                throw lastErr || new Error('All VAD candidate sources unreachable');
             }
         } catch (e) {
             console.warn('[VAD] Could not load Silero VAD model, falling back to RMS speech detection:', e);

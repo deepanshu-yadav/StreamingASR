@@ -170,9 +170,9 @@ const server = http.createServer(async (req, res) => {
     // 4. REST API: POST /api/start
     // ==========================================
     if (pathname === '/api/start' && req.method === 'POST') {
-        // First verify assets are present
+        // First verify backend assets are present
         const assetStatus = downloader.checkAssets();
-        if (!assetStatus.allPresent) {
+        if (!assetStatus.backendReady) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 error: 'Cannot start: some binaries or models are missing',

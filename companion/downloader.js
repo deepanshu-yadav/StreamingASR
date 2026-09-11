@@ -66,7 +66,8 @@ const ASSETS_MANIFEST = [
         relPath: path.join('models', 'silero_vad.onnx'),
         minSizeBytes: 2 * 1024 * 1024, // ~2.3MB expected
         url: 'https://huggingface.co/runanywhere/silero-vad-v5/resolve/main/silero_vad.onnx',
-        isZip: false
+        isZip: false,
+        isBackendRequired: false // Runs client-side in browser; not needed to launch backend processes
     }
 ];
 
@@ -82,6 +83,7 @@ class AssetDownloader {
     checkAssets() {
         const results = [];
         let allPresent = true;
+        let backendReady = true;
 
         for (const item of ASSETS_MANIFEST) {
             const absPath = path.join(this.rootDir, item.relPath);
@@ -98,8 +100,28 @@ class AssetDownloader {
                 exists = false;
             }
 
+            // Auto-heal VAD model: if missing in models/ but present in extension or demo, copy it
+            if (!exists && item.id === 'vad_model') {
+                const extPath = path.resolve(__dirname, '..', 'extension', 'silero_vad.onnx');
+                const demoPath = path.resolve(__dirname, '..', 'commands_demo', 'silero_vad.onnx');
+                const src = fs.existsSync(extPath) ? extPath : (fs.existsSync(demoPath) ? demoPath : null);
+                if (src) {
+                    try {
+                        const dir = path.dirname(absPath);
+                        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                        fs.copyFileSync(src, absPath);
+                        const stat = fs.statSync(absPath);
+                        size = stat.size;
+                        exists = size >= item.minSizeBytes;
+                    } catch (_) {}
+                }
+            }
+
             if (!exists) {
                 allPresent = false;
+                if (item.isBackendRequired !== false) {
+                    backendReady = false;
+                }
             }
 
             results.push({
@@ -109,13 +131,14 @@ class AssetDownloader {
                 relPath: item.relPath,
                 absPath,
                 exists,
+                isBackendRequired: item.isBackendRequired !== false,
                 sizeBytes: size,
                 formattedSize: this.formatBytes(size),
                 minSizeBytes: item.minSizeBytes
             });
         }
 
-        return { allPresent, assets: results };
+        return { allPresent, backendReady, assets: results };
     }
 
     /**
