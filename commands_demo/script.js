@@ -96,6 +96,16 @@
         return hasConfirm && !hasNegate;
     }
 
+    // Clean ASR tags (<hi-IN>, <en-US>) and commas that split digit sequences
+    function cleanSpokenTranscript(text) {
+        if (!text) return '';
+        return text
+            .replace(/<[^>]+>/g, '')
+            .replace(/[,，]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
     // FIX: Central helper to wipe debounce buffers so stale text never leaks across turns
     function clearDebounceBuffers() {
         clearTimeout(confirmDebounceTimer);
@@ -496,15 +506,16 @@
     async function correctWithLLM(original, instruction) {
         const url = el.llmUrl.value.trim();
         const cleanOriginal = stripTags(original);
-        const cleanInstruction = stripTags(instruction);
+        const cleanInstruction = cleanSpokenTranscript(instruction);
         console.log('[LLM] correctWithLLM() original="' + original + '"→"' + cleanOriginal + '" instruction="' +
             instruction + '"→"' + cleanInstruction + '"');
+
         const system = `आप एक हिंदी वाक्-पहचान (speech-to-text) सुधार सहायक हैं।
 उपयोगकर्ता ने पिछली ट्रांसक्रिप्शन में सुधार बताया है।
 
 नियम:
 1. पिछली ट्रांसक्रिप्शन को आधार मानें।
-2. केवल वही भाग बदलें जो सुधार निर्देश में कहा गया है।
+2. केवल वही भाग बदलें जो सुधार निर्देश में कहा गया है (जैसे "X की जगह Y", "replace X with Y")।
 3. बाकी पूरा वाक्य ज्यों का त्यों रखें।
 4. अंतिम उत्तर **पूरा सही वाक्य** होना चाहिए — कोई अधूरा टुकड़ा नहीं।
 5. कोई व्याख्या, उद्धरण चिह्न या अतिरिक्त शब्द न लिखें। केवल पूरा वाक्य।`;
@@ -551,6 +562,17 @@
             if (myEpoch !== flowEpoch) {
                 console.log(
                     '[FLOW] handleCorrectionInstruction: session reset mid-correct — discarding.');
+                return;
+            }
+            if (!corrected || corrected === original) {
+                console.warn('[FLOW] Command correction failed or returned unchanged.');
+                flowState = 'busy';
+                await speak('सुधार समझ नहीं आया, कृपया दोबारा बताएं।');
+                if (myEpoch !== flowEpoch) return;
+                flowState = 'awaiting_correction';
+                setTurnMode('listening', 'सुधार बताएं');
+                resetLiveLine('सुधार बोलें…');
+                drainTranscriptQueue();
                 return;
             }
             console.log('[FLOW] Corrected text → "' + corrected + '"');

@@ -130,6 +130,33 @@
         return skipWords.some(w => lower.includes(w));
     }
 
+    // Helper to detect whether an utterance is purely a rejection/negation without a replacement value
+    function isPureRejection(text) {
+        if (!text) return true;
+        const negationTokens = new Set([
+            'नहीं', 'नही', 'ना', 'गलत', 'सही', 'ठीक', 'है', 'हैं', 'यह', 'ये', 'था', 'थी', 'गया', 'गई',
+            'हो', 'अरे', 'बिल्कुल', 'बदलो', 'सुधारो', 'सुधार', 'गलती', 'बोल', 'दिया', 'का', 'के', 'की',
+            'इसको', 'इसे', 'करना', 'करो', 'मुझे', 'आप', 'तो', 'भी', 'no', 'not', 'wrong', 'incorrect',
+            'false', 'nope', 'nah', 'it', 'is', 'this', 'that'
+        ]);
+        const tokens = text.toLowerCase()
+            .replace(/[।.,!?\-]/g, ' ')
+            .split(/\s+/)
+            .filter(Boolean);
+        if (tokens.length === 0) return true;
+        return tokens.every(w => negationTokens.has(w));
+    }
+
+    // Clean ASR tags (<hi-IN>, <en-US>) and commas that split digit sequences
+    function cleanSpokenTranscript(text) {
+        if (!text) return '';
+        return text
+            .replace(/<[^>]+>/g, '')
+            .replace(/[,，]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
     // FIX: Central helper to wipe debounce buffers so stale text never leaks across turns
     function clearDebounceBuffers() {
         clearTimeout(confirmDebounceTimer);
@@ -662,9 +689,12 @@
     }
 
     async function extractFormFieldValueWithLLM(fieldLabel, rawSpoken) {
-        const cleanSpoken = stripTags(rawSpoken).trim();
+        const cleanSpoken = cleanSpokenTranscript(rawSpoken);
         if (!cleanSpoken) return '';
-        // If already very short and clean (1-3 words), use directly
+        const isAadhaar = /aadhaar|आधार/i.test(fieldLabel);
+        const isPhone = /phone|mobile|फोन|फ़ोन|मोबाइल/i.test(fieldLabel);
+
+        // If already very short and clean (1-2 words), use directly
         if (cleanSpoken.split(/\s+/).length <= 2 && !cleanSpoken.includes('मेरा') && !cleanSpoken.includes('नाम')) {
             return cleanSpoken;
         }
@@ -673,7 +703,9 @@
         const system = `आप एक फ़ॉर्म डेटा निष्कर्षण सहायक (Form Field Extractor) हैं।
 उपयोगकर्ता ने फ़ील्ड के लिए बोला है। बोली गई बात में से केवल फ़ील्ड का शुद्ध मान (Clean Value) निकालें।
 बातचीत के शब्द (जैसे "मेरा नाम ... है", "लिख दीजिए", "भर दो", "यह है") हटा दें।
-केवल शुद्ध मान लिखें। कोई व्याख्या नहीं।`;
+नियम:
+1. यदि फ़ील्ड आधार (Aadhaar), मोबाइल (Phone/Mobile), पिन कोड (PIN/ZIP) या संख्यात्मक (Number) है, और उपयोगकर्ता ने अंक शब्दों में बोले हैं (जैसे 'एक दो तीन...'), तो उन्हें अंकों (Digits, जैसे '123...') में बदलें।
+2. केवल शुद्ध मान लिखें। कोई व्याख्या या उद्धरण चिह्न नहीं।`;
         const user = `फ़ॉर्म फ़ील्ड: ${fieldLabel}\nबोला गया उत्तर: "${cleanSpoken}"\nशुद्ध मान:`;
         try {
             const resp = await fetch(url, {
@@ -694,6 +726,10 @@
             let content = (data?.choices?.[0]?.message?.content || '').trim();
             content = content.replace(/^शुद्ध मान\s*[:：\-]\s*/, '').trim();
             content = content.replace(/^["']|["']$/g, '').trim();
+            if (isAadhaar || isPhone) {
+                const digits = content.replace(/\D/g, '');
+                if (digits) content = digits;
+            }
             console.log(`[LLM] Extracted clean value: "${content}"`);
             return content || cleanSpoken;
         } catch (e) {
@@ -705,21 +741,42 @@
     async function correctFormFieldWithLLM(fieldLabel, currentValue, instruction) {
         const url = el.llmUrl.value.trim();
         const cleanOriginal = stripTags(currentValue).trim();
-        const cleanInstruction = stripTags(instruction).trim();
+        const cleanInstruction = cleanSpokenTranscript(instruction);
         console.log(`[LLM] correctFormFieldWithLLM() field="${fieldLabel}" orig="${cleanOriginal}" instr="${cleanInstruction}"`);
 
-        const system = `आप एक फ़ॉर्म फ़ील्ड सुधार सहायक (Form Field Correction Assistant) हैं।
-उपयोगकर्ता एक वेब फ़ॉर्म भर रहा है।
-पिछला मान (Previous Value) में गलत पहचान, अधूरा टेक्स्ट या अतिरिक्त बातचीत आ गई है।
-उपयोगकर्ता का सुधार निर्देश (Correction Instruction) देखकर फ़ील्ड का केवल शुद्ध और सही मान (Clean Field Value) निकालें।
+        const isAadhaar = /aadhaar|आधार/i.test(fieldLabel);
+        const isPhone = /phone|mobile|फोन|फ़ोन|मोबाइल/i.test(fieldLabel);
+        const isNumeric = isAadhaar || isPhone || /pin|पिन|zip|number|संख्या/i.test(fieldLabel);
 
-नियम:
-1. फ़ील्ड का केवल शुद्ध मान लिखें (जैसे नाम, नंबर, पता आदि)।
-2. "नहीं", "गलत है", "सही नहीं है", "बदलो", "लिखो", "हटा दो", "आगे बढ़ें" जैसी बातचीत और निर्देशों को मान में शामिल न करें।
-3. कोई अतिरिक्त व्याख्या या वाक्य न लिखें। केवल और केवल शुद्ध मान।
-4. यदि ईमेल पते में उपयोगकर्ता 'डॉट' या '.' हटाने को कहे, तो यूज़रनेम वाले हिस्से (जैसे rohan.yadav -> rohanyadav) से डॉट हटाएं, डोमेन (@gmail.com) का डॉट हमेशा सुरक्षित रखें।`;
+        const system = `आप एक अत्यंत कुशल फ़ॉर्म फ़ील्ड सुधार सहायक हैं।
+उपयोगकर्ता फ़ॉर्म भरते समय पिछली प्रविष्टि (Previous Value) में सुधार बता रहा है।
+वाक्-पहचान (STT) के कारण अंक शब्दों में हो सकते हैं (जैसे 'एक एक शून्य एक' = 1101, 'एक शून्य एक' = 101) और बीच में विराम या बातचीत हो सकती है।
 
-        const user = `फ़ॉर्म फ़ील्ड: ${fieldLabel}\nपिछला मान: "${cleanOriginal}"\nसुधार निर्देश: "${cleanInstruction}"\nशुद्ध मान:`;
+निर्देश:
+1. उपयोगकर्ता के सुधार निर्देश को समझें:
+   - यदि वह किसी हिस्से को बदलने को कहे (जैसे "X की जगह Y होगा" / "X नहीं Y" / "replace X with Y"), तो पिछले मान में X की जगह Y लगाएँ।
+   - यदि वह पूरा नया मान बोले (जैसे "नहीं मेरा आधार 1234... है"), तो वह पूरा नया मान निकालें।
+   - यदि ईमेल में डॉट हटाने को कहे, तो यूज़रनेम से डॉट हटाएँ।
+2. यदि फ़ील्ड आधार (Aadhaar), मोबाइल (Phone/Mobile) या संख्यात्मक है, तो अंतिम मान में केवल अंक (Digits: 0-9) लिखें।
+3. उत्तर में केवल और केवल अंतिम शुद्ध मान (Clean Value) लिखें। कोई व्याख्या या उद्धरण चिह्न नहीं।
+
+उदाहरण:
+फ़ील्ड: Enter Aadhaar No
+पिछला मान: 1234567891101
+सुधार निर्देश: नही एक एक शून्य एक की जगह एक शून्य एक होगा
+शुद्ध मान: 123456789101
+
+फ़ील्ड: Mobile Number
+पिछला मान: 9876543210
+सुधार निर्देश: लास्ट में दस नहीं ग्यारह है
+शुद्ध मान: 9876543211
+
+फ़ील्ड: Full Name
+पिछला मान: Rohan Sharma
+सुधार निर्देश: शर्मा की जगह यादव कर दो
+शुद्ध मान: Rohan Yadav`;
+
+        const user = `फ़ील्ड: ${fieldLabel}\nपिछला मान: ${cleanOriginal}\nसुधार निर्देश: ${cleanInstruction}\nशुद्ध मान:`;
 
         try {
             const resp = await fetch(url, {
@@ -738,29 +795,37 @@
             if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
             const data = await resp.json();
             let content = (data?.choices?.[0]?.message?.content || '').trim();
-            content = content.replace(/^शुद्ध मान\s*[:：\-]\s*/, '').trim();
+            content = content.replace(/^(?:शुद्ध मान|Clean Value|Corrected Value)\s*[:：\-]\s*/i, '').trim();
             content = content.replace(/^["']|["']$/g, '').trim();
+            if (isNumeric) {
+                const digits = content.replace(/\D/g, '');
+                if (digits) content = digits;
+            }
             console.log(`[LLM] Form field correction result → "${content}"`);
-            return content || cleanInstruction || cleanOriginal;
+            if (content && content !== cleanOriginal) {
+                return content;
+            }
+            console.warn('[LLM] Form field correction returned unchanged value.');
+            return null;
         } catch (e) {
             console.warn('[LLM] Form field correction failed, using fallback:', e);
-            const fallback = cleanInstruction.replace(/(नहीं|नही|गलत|wrong|no|गलती|सुधारो|बदलो|लिखो)/gi, '').trim();
-            return fallback || cleanInstruction || cleanOriginal;
+            return null;
         }
     }
 
     async function correctWithLLM(original, instruction) {
         const url = el.llmUrl.value.trim();
         const cleanOriginal = stripTags(original);
-        const cleanInstruction = stripTags(instruction);
+        const cleanInstruction = cleanSpokenTranscript(instruction);
         console.log('[LLM] correctWithLLM() original="' + original + '"→"' + cleanOriginal + '" instruction="' +
             instruction + '"→"' + cleanInstruction + '"');
+
         const system = `आप एक हिंदी वाक्-पहचान (speech-to-text) सुधार सहायक हैं।
 उपयोगकर्ता ने पिछली ट्रांसक्रिप्शन में सुधार बताया है।
 
 नियम:
 1. पिछली ट्रांसक्रिप्शन को आधार मानें।
-2. केवल वही भाग बदलें जो सुधार निर्देश में कहा गया है।
+2. केवल वही भाग बदलें जो सुधार निर्देश में कहा गया है (जैसे "X की जगह Y", "replace X with Y")।
 3. बाकी पूरा वाक्य ज्यों का त्यों रखें।
 4. अंतिम उत्तर **पूरा सही वाक्य** होना चाहिए — कोई अधूरा टुकड़ा नहीं।
 5. कोई व्याख्या, उद्धरण चिह्न या अतिरिक्त शब्द न लिखें। केवल पूरा वाक्य।`;
@@ -1420,16 +1485,7 @@
             }
 
             // Check if user spoke a pure rejection vs providing instructions or new value
-            const lower = cleanReply.toLowerCase().replace(/[।.,!?]/g, '').trim();
-            const pureRejections = [
-                'नहीं', 'नही', 'गलत', 'wrong', 'no', 'incorrect', 'na', 'ना',
-                'नहीं है', 'सही नहीं है', 'गलत है', 'गलती है', 'बदलो', 'सुधारो', 'ठीक नहीं है',
-                'यह गलत है', 'ये गलत है', 'यह सही नहीं है', 'ये सही नहीं है', 'गलत बोल दिया', 'नहीं नहीं'
-            ];
-            const isPureRejection = pureRejections.includes(lower);
-
-            // If it is just a pure rejection without providing instructions, ask user what to correct:
-            if (isPureRejection) {
+            if (isPureRejection(cleanReply)) {
                 flowState = 'busy';
                 if (el.spotlightStatus) {
                     el.spotlightStatus.dataset.phase = 'asking';
@@ -1448,7 +1504,7 @@
                 resetLiveLine('सुधार बोलें…');
                 drainTranscriptQueue();
             } else {
-                // User already provided the correction phrase (e.g. "नहीं, डॉट हटा दो", "remove the dot", "8178524055")
+                // User already provided the correction phrase (e.g. "नहीं, 8178524055", "डॉट हटा दो", "remove dot")
                 await handleFormCorrectionInstruction(cleanReply);
             }
         }
@@ -1475,12 +1531,58 @@
         }
 
         const f = scannedFields[currentFieldIndex];
+
+        // If the user spoke only a pure rejection without giving the new value, ask for the new value again
+        if (isPureRejection(clean)) {
+            console.log(`[VFF] Pure rejection in correction state for #${currentFieldIndex}: "${clean}"`);
+            flowState = 'busy';
+            if (el.spotlightStatus) {
+                el.spotlightStatus.dataset.phase = 'asking';
+                el.spotlightStatus.textContent = 'नया मान पूछ रहे हैं…';
+            }
+            setTurnMode('confirming', 'सुधार पूछ रहे हैं…');
+            await speak(`कृपया ${f.label} के लिए नया या सही मान बोलें।`);
+            if (myEpoch !== flowEpoch) return;
+
+            flowState = 'form_awaiting_correction';
+            if (el.spotlightStatus) {
+                el.spotlightStatus.dataset.phase = 'listening';
+                el.spotlightStatus.textContent = 'सुधार बताएं…';
+            }
+            setTurnMode('listening', 'सुधार बोलें: ' + f.label);
+            resetLiveLine('नया मान बोलें…');
+            drainTranscriptQueue();
+            return;
+        }
+
         flowState = 'correcting';
         setTurnMode('finalizing', 'सुधार लागू कर रहे हैं…');
 
         try {
             const corrected = await correctFormFieldWithLLM(f.label, pendingFieldValue, clean);
             if (myEpoch !== flowEpoch) return;
+
+            if (!corrected || corrected === pendingFieldValue) {
+                console.warn(`[VFF] Correction could not be applied for #${currentFieldIndex} (${f.label})`);
+                flowState = 'busy';
+                if (el.spotlightStatus) {
+                    el.spotlightStatus.dataset.phase = 'asking';
+                    el.spotlightStatus.textContent = 'सुधार समझ नहीं आया';
+                }
+                setTurnMode('confirming', 'सुधार समझ नहीं आया');
+                await speak(`क्षमा करें, सुधार समझ नहीं आया। कृपया ${f.label} के लिए सही मान दोबारा बोलें।`);
+                if (myEpoch !== flowEpoch) return;
+
+                flowState = 'form_awaiting_correction';
+                if (el.spotlightStatus) {
+                    el.spotlightStatus.dataset.phase = 'listening';
+                    el.spotlightStatus.textContent = 'सुधार बताएं…';
+                }
+                setTurnMode('listening', 'सुधार बोलें: ' + f.label);
+                resetLiveLine('सही मान बोलें…');
+                drainTranscriptQueue();
+                return;
+            }
 
             currentFieldCorrections.push({ instruction: clean, corrected });
             pendingFieldValue = corrected;
