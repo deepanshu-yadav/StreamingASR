@@ -720,3 +720,320 @@ kbd {
     display: flex;
     gap: 6px;
 }
+
+/* ==========================================================
+   FORM ASSISTANT & SCANNER STYLES
+   ========================================================== */
+.form-assistant-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.form-page-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 11px;
+}
+
+.form-url-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.form-tab-url {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10px;
+    flex: 1;
+}
+
+.form-actions-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.form-actions-row .btn {
+    flex: 1;
+    font-size: 12px;
+    padding: 8px 10px;
+}
+
+.form-step-controls {
+    display: flex;
+    gap: 6px;
+    background: var(--bg-card);
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+}
+
+.form-step-controls .btn {
+    flex: 1;
+    font-size: 11px;
+    padding: 5px 6px;
+}
+
+/* Active Field Spotlight */
+.form-spotlight-box {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(30, 41, 59, 0.5) 100%);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.12);
+    animation: spotlightFadeIn 0.25s ease-out;
+}
+
+@keyframes spotlightFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.spotlight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.spotlight-step {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.spotlight-status-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.spotlight-status-badge[data-phase="listening"] {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.4);
+    animation: pulse 1.5s infinite;
+}
+
+.spotlight-status-badge[data-phase="confirming"] {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.spotlight-status-badge[data-phase="confirmed"] {
+    background: rgba(16, 185, 129, 0.25);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.6);
+}
+
+.spotlight-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.spotlight-label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.spotlight-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.spotlight-req-tag {
+    font-size: 9px;
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.spotlight-prompt {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.spotlight-value-preview {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.spotlight-value-preview .val-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.spotlight-value-preview .val-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6ee7b7;
+}
+
+.spotlight-value-preview .val-text.empty {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-style: italic;
+}
+
+/* Scanned Fields Accordion */
+.form-fields-accordion {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    overflow: hidden;
+}
+
+.form-fields-accordion summary {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    transition: background 0.15s;
+    user-select: none;
+}
+
+.form-fields-accordion summary:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.accordion-hint {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.field-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.field-item-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--border-focus);
+}
+
+.field-item-row.active {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent-blue);
+}
+
+.field-item-row.confirmed {
+    border-left: 3px solid var(--accent-green);
+}
+
+.field-item-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.field-index-chip {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    background: var(--bg-surface);
+    color: var(--text-muted);
+    padding: 2px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.field-label-text {
+    font-size: 11px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.field-type-pill {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.field-item-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.field-status-icon {
+    font-size: 11px;
+}
+
+.field-val-badge {
+    font-size: 10px;
+    color: #6ee7b7;
+    max-width: 90px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+

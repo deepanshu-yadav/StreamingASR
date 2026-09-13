@@ -1,0 +1,10 @@
+/* scanner-highlight.css — Content script styling for form field highlight.
+   Loaded directly as a content script stylesheet to avoid inline-style CSP violations. */
+
+.vff-active-highlight-field {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.75) !important;
+  transition: outline 0.2s ease, box-shadow 0.2s ease !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}

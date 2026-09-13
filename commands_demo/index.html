@@ -18,7 +18,7 @@
         <div class="sub">एक बार <b>सेशन शुरू करें</b>, फिर बस बोलते जाएँ — Silero VAD हर utterance को खुद पहचान कर finalize करता है, और केवल speech ही सर्वर को भेजी जाती है (silence नहीं)।</div>
         <div class="panel">
             <div class="toolbar">
-                <input id="wsUrl" class="ws-input" value="ws://127.0.0.1:8081" spellcheck="false" />
+                <input id="wsUrl" class="ws-input" value="ws://127.0.0.1:8082/v1/realtime" spellcheck="false" />
                 <div id="statusPill" class="status-pill" data-state="idle"><span class="led"></span><span id="statusText">idle</span></div>
             </div>
             <div class="stage">
@@ -35,8 +35,8 @@
                 <summary>Turn-detection tuning</summary>
                 <div class="tuning-body">
                     <div class="slider-row"><label><span>Silero speech threshold</span><span id="thresholdVal">0.50</span></label><input type="range" id="thresholdSlider" min="0.10" max="0.90" step="0.05" value="0.50" /></div>
-                    <div class="slider-row"><label><span>Silence before turn finalizes</span><span id="silenceVal">320 ms</span></label><input type="range" id="silenceSlider" min="160" max="1000" step="32" value="320" /></div>
-                    <div class="slider-row"><label><span>Max utterance length (hard cap)</span><span id="maxTurnVal">3500 ms</span></label><input type="range" id="maxTurnSlider" min="1500" max="8000" step="250" value="3500" /></div>
+                    <div class="slider-row"><label><span>Silence before turn finalizes</span><span id="silenceVal">800 ms</span></label><input type="range" id="silenceSlider" min="200" max="2000" step="50" value="800" /></div>
+                    <div class="slider-row"><label><span>Max utterance length (hard cap)</span><span id="maxTurnVal">12000 ms</span></label><input type="range" id="maxTurnSlider" min="3000" max="25000" step="500" value="12000" /></div>
                     <div class="slider-row"><label><span>Pre-roll padding (pre-speech)</span><span id="padVal">200 ms</span></label><input type="range" id="padSlider" min="0" max="500" step="20" value="200" /></div>
                     <div class="slider-row"><label><span>LLM classifier सर्वर URL</span></label><input type="text" id="llmUrl" class="ws-input" style="width:100%" value="http://127.0.0.1:8084/v1/chat/completions" spellcheck="false" /></div>
                     <div class="slider-row"><label><span>Confirmation debounce (ms)</span><span id="debounceVal">1000 ms</span></label><input type="range" id="debounceSlider" min="400" max="2000" step="50" value="1000" /></div>

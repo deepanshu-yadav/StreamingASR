@@ -8,12 +8,12 @@
     // VAD / RMS defaults
     let VAD_THRESHOLD = 0.50;
     let VAD_MIN_SPEECH = 3;
-    let VAD_MIN_SILENCE = 10;
-    let MAX_UNCOMMITTED_MS = 3500;
+    let VAD_MIN_SILENCE = 25; // 25 * 32ms = 800 ms
+    let MAX_UNCOMMITTED_MS = 12000; // 12 seconds cap
     let VAD_PAD_MS = 200;
     let SPEECH_RMS_THRESHOLD = 0.012;
-    let SILENCE_MS = 700;
-    let MAX_TURN_MS = 10000;
+    let SILENCE_MS = 800;
+    let MAX_TURN_MS = 12000;
 
     // Confirmation debounce (ms)
     let CONFIRM_DEBOUNCE_MS = 1000;
@@ -691,11 +691,22 @@
     }
 
     // ---------- WEBSOCKET ----------
+    function normalizeWsUrl(url) {
+        let clean = (url || '').trim();
+        if (!clean) clean = 'ws://127.0.0.1:8082/v1/realtime';
+        clean = clean.replace(':8081', ':8082');
+        if (!clean.includes('/v1/realtime')) {
+            clean = clean.replace(/\/?$/, '/v1/realtime');
+        }
+        return clean;
+    }
+
     function connectWs() {
         return new Promise((resolve, reject) => {
+            el.wsUrl.value = normalizeWsUrl(el.wsUrl.value);
             setStatus('connecting', 'connecting');
             let socket;
-            try { socket = new WebSocket(el.wsUrl.value.trim()); } catch (e) { reject(e); return; }
+            try { socket = new WebSocket(el.wsUrl.value); } catch (e) { reject(e); return; }
             ws = socket;
             socket.onopen = () => {
                 setStatus('connected', 'connected');
@@ -706,8 +717,8 @@
                 reject(e);
             };
             socket.onclose = (ev) => {
-                setStatus('idle', 'disconnected'); if (sessionActive) endSession(
-                    'कनेक्शन बंद हो गया');
+                setStatus('idle', 'disconnected');
+                if (sessionActive) endSession('कनेक्शन बंद हो गया');
             };
             socket.onmessage = (ev) => {
                 let msg; try { msg = JSON.parse(ev.data); } catch { return; }
@@ -717,14 +728,17 @@
     }
 
     function handleServerEvent(msg) {
-        if (!msg || !msg.type) return;
-        if (msg.type === 'session.created') return;
+        if (!msg) return;
+        if (msg.error) {
+            console.error('[WS Error]', msg.error);
+            const errText = typeof msg.error === 'string' ? msg.error : (msg.error.message || JSON.stringify(msg.error));
+            showToast('ASR त्रुटि: ' + errText);
+            return;
+        }
+        if (!msg.type || msg.type === 'session.created') return;
         if (msg.type.endsWith('.delta')) {
             const text = msg.delta ?? msg.text ?? '';
             if (text) {
-                // FIX: Your ASR runs in prefix mode (--stream-final-mode prefix).
-                // Each delta already contains the FULL text so far. Appending creates ghost duplication.
-                // We now detect a prefix and replace instead of append.
                 if (liveText && text.startsWith(liveText) && text.length >= liveText.length) {
                     setLiveText(text);
                 } else {
@@ -732,14 +746,15 @@
                 }
             }
         } else if (msg.type.endsWith('.completed')) {
-            const rawFinalText = (msg.transcript ?? msg.text ?? liveText ?? '').toString();
-            const finalText = stripTags(rawFinalText);
-            // FIX: Always reset liveText after a completed event so the next turn starts absolutely fresh.
-            // This prevents the previous command from bleeding into the next confirmation reply.
+            const serverTranscript = stripTags(msg.transcript ?? msg.text ?? '');
+            const currentLive = stripTags(liveText ?? '');
+            // Preserve whichever text is longer and more complete so trailing words are never discarded
+            const finalText = (serverTranscript && serverTranscript.length >= currentLive.length)
+                ? serverTranscript
+                : (currentLive || serverTranscript);
             liveText = '';
             finalizing = false;
-            console.log('[WS] Completed, raw="' + rawFinalText + '" clean="' + finalText + '", flowState=' +
-                flowState);
+            console.log('[WS] Completed, server="' + serverTranscript + '" live="' + currentLive + '" chosen="' + finalText + '", flowState=' + flowState);
             if (!finalText || !finalText.trim()) {
                 if (flowState === 'listening_command' || flowState === 'awaiting_confirmation' ||
                     flowState === 'awaiting_correction') setTurnMode('listening', 'listening');

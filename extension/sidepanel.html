@@ -39,7 +39,7 @@
                     <div class="svc-icon">🎙️</div>
                     <div class="svc-info">
                         <div class="svc-name">Nemotron ASR</div>
-                        <div class="svc-port">WS :8081 &bull; HTTP :8080</div>
+                        <div class="svc-port">WS :8082 &bull; HTTP :8080</div>
                     </div>
                     <span class="svc-badge">stopped</span>
                 </div>
@@ -52,7 +52,6 @@
                     <span class="svc-badge">stopped</span>
                 </div>
                 <div class="service-item" id="svc-llm" data-status="stopped">
-                    <div class="svc-icon">🧠</div>
                     <div class="svc-info">
                         <div class="svc-name">Gemma 4 LLM</div>
                         <div class="svc-port">Port :8084</div>
@@ -87,7 +86,7 @@
             <div class="toolbar">
                 <div class="input-group">
                     <label for="wsUrl">WebSocket URL</label>
-                    <input id="wsUrl" class="ws-input" value="ws://127.0.0.1:8081" spellcheck="false" />
+                    <input id="wsUrl" class="ws-input" value="ws://127.0.0.1:8082/v1/realtime" spellcheck="false" />
                 </div>
                 <div id="statusPill" class="status-pill" data-state="idle">
                     <span class="led"></span>
@@ -131,12 +130,12 @@
                         <input type="range" id="thresholdSlider" min="0.10" max="0.90" step="0.05" value="0.50" />
                     </div>
                     <div class="slider-row">
-                        <label><span>Silence Before Turn Finalizes</span><span id="silenceVal">320 ms</span></label>
-                        <input type="range" id="silenceSlider" min="160" max="1000" step="32" value="320" />
+                        <label><span>Silence Before Turn Finalizes</span><span id="silenceVal">800 ms</span></label>
+                        <input type="range" id="silenceSlider" min="200" max="2000" step="50" value="800" />
                     </div>
                     <div class="slider-row">
-                        <label><span>Max Utterance Hard Cap</span><span id="maxTurnVal">3500 ms</span></label>
-                        <input type="range" id="maxTurnSlider" min="1500" max="8000" step="250" value="3500" />
+                        <label><span>Max Utterance Hard Cap</span><span id="maxTurnVal">12000 ms</span></label>
+                        <input type="range" id="maxTurnSlider" min="3000" max="25000" step="500" value="12000" />
                     </div>
                     <div class="slider-row">
                         <label><span>Pre-roll Padding</span><span id="padVal">200 ms</span></label>
@@ -152,6 +151,82 @@
                     </div>
                 </div>
             </details>
+
+            <!-- ===== FORM FIELD ASSISTANT & SCANNER CARD ===== -->
+            <section class="form-assistant-card" id="formCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="icon">📋</span>
+                        <span>फ़ॉर्म स्कैनर & वॉइस असिस्टेंट</span>
+                    </div>
+                    <div id="formScanBadge" class="badge badge-neutral" data-state="ready">
+                        <span class="dot"></span>
+                        <span id="formScanBadgeText">कोई फ़ील्ड स्कैन नहीं</span>
+                    </div>
+                </div>
+
+                <!-- Page & Scan Info -->
+                <div class="form-page-info" id="formPageInfo" style="display: none;">
+                    <span class="form-url-label">पृष्ठ:</span>
+                    <span id="formTabUrl" class="form-tab-url" title="">-</span>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="form-actions-row">
+                    <button id="btnScanPage" class="btn btn-outline" title="Scan all text and textarea fields on current tab">
+                        <span>🔍 फ़ॉर्म स्कैन करें</span>
+                    </button>
+                    <button id="btnStartFormFlow" class="btn btn-primary" disabled title="Sequentially iterate through scanned fields with TTS & STT">
+                        <span>▶️ क्रमबद्ध भरें</span>
+                    </button>
+                    <button id="btnStopFormFlow" class="btn btn-secondary" style="display: none;" title="Stop sequential form flow">
+                        <span>⏹️ रोकें</span>
+                    </button>
+                </div>
+
+                <!-- Flow Step Controls (Visible during form filling) -->
+                <div id="formStepControls" class="form-step-controls" style="display: none;">
+                    <button id="btnPrevField" class="btn btn-outline btn-sm" title="Go to previous field">
+                        <span>⏮️ पिछला</span>
+                    </button>
+                    <button id="btnReaskField" class="btn btn-outline btn-sm" title="Re-ask current field with TTS">
+                        <span>🔄 दोबारा पूछें</span>
+                    </button>
+                    <button id="btnSkipField" class="btn btn-outline btn-sm" title="Skip this field and move to next">
+                        <span>⏭️ छोड़ें</span>
+                    </button>
+                </div>
+
+                <!-- Current Active Field Spotlight -->
+                <div id="formActiveSpotlight" class="form-spotlight-box" style="display: none;">
+                    <div class="spotlight-header">
+                        <span id="spotlightStep" class="spotlight-step">फ़ील्ड 1 / 5</span>
+                        <span id="spotlightStatus" class="spotlight-status-badge" data-phase="asking">पूछ रहे हैं…</span>
+                    </div>
+                    <div class="spotlight-body">
+                        <div class="spotlight-label-row">
+                            <span id="spotlightLabel" class="spotlight-label">पूरा नाम</span>
+                            <span id="spotlightRequired" class="spotlight-req-tag" style="display: none;">*आवश्यक</span>
+                        </div>
+                        <div class="spotlight-prompt" id="spotlightPrompt">सुन रहे हैं: अपना उत्तर बोलें…</div>
+                        <div class="spotlight-value-preview" id="spotlightValueBox">
+                            <span class="val-label">प्राप्त मान:</span>
+                            <span id="spotlightValue" class="val-text empty">अभी कोई उत्तर नहीं</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scanned Fields List Accordion -->
+                <details id="formFieldsAccordion" class="form-fields-accordion" style="display: none;">
+                    <summary>
+                        <span>स्कैन किए गए फ़ील्ड्स (<b id="scannedFieldsCount">0</b>)</span>
+                        <span class="accordion-hint">क्लिक कर चुनें</span>
+                    </summary>
+                    <div class="fields-list" id="fieldsListContainer">
+                        <!-- Dynamic field items rendered here -->
+                    </div>
+                </details>
+            </section>
 
             <!-- LIVE TRANSCRIPTION ZONE -->
             <div class="transcript-zone">
