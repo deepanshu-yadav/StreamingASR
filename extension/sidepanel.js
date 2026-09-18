@@ -23,22 +23,11 @@
         wsUrl: document.getElementById('wsUrl'),
         statusPill: document.getElementById('statusPill'),
         statusText: document.getElementById('statusText'),
-        sessionBtn: document.getElementById('sessionBtn'),
-        sessionBtnText: document.getElementById('sessionBtnText'),
         turnState: document.getElementById('turnState'),
         turnStateText: document.getElementById('turnStateText'),
         signalStrip: document.getElementById('signalStrip'),
         liveLine: document.getElementById('liveLine'),
-        history: document.getElementById('history'),
         toast: document.getElementById('toast'),
-        statDuration: document.getElementById('statDuration'),
-        statCommands: document.getElementById('statCommands'),
-        statWords: document.getElementById('statWords'),
-        statChunks: document.getElementById('statChunks'),
-        statSkipped: document.getElementById('statSkipped'),
-        finalizeBtn: document.getElementById('finalizeBtn'),
-        copyBtn: document.getElementById('copyBtn'),
-        exportBtn: document.getElementById('exportBtn'),
         thresholdSlider: document.getElementById('thresholdSlider'),
         thresholdVal: document.getElementById('thresholdVal'),
         silenceSlider: document.getElementById('silenceSlider'),
@@ -159,13 +148,7 @@
 
     // FIX: Central helper to wipe debounce buffers so stale text never leaks across turns
     function clearDebounceBuffers() {
-        clearTimeout(confirmDebounceTimer);
-        confirmReplyBuffer = '';
-        confirmDebounceTimer = null;
-        clearTimeout(correctionDebounceTimer);
-        correctionReplyBuffer = '';
-        correctionDebounceTimer = null;
-        if (typeof formConfirmDebounceTimer !== 'undefined') {
+        if (typeof formConfirmDebounceTimer !== 'undefined' && formConfirmDebounceTimer) {
             clearTimeout(formConfirmDebounceTimer);
             formConfirmReplyBuffer = '';
             formConfirmDebounceTimer = null;
@@ -242,10 +225,8 @@
         finalizing = false;
     let sessionStartedAt = 0,
         durationTimer = null;
-    let flowState = 'listening_command';
-    let pendingTranscript = '',
-        currentCommand = null,
-        commands = [];
+    let flowState = 'idle';
+    let pendingTranscript = '';
     let transcriptQueue = [];
     let flowEpoch = 0;
     let ttsPlaying = false,
@@ -262,12 +243,6 @@
         gatedSamplesSkipped = 0;
 
     // ---------- DEBOUNCE BUFFERS ----------
-    let confirmReplyBuffer = '';
-    let confirmDebounceTimer = null;
-
-    let correctionReplyBuffer = '';
-    let correctionDebounceTimer = null;
-
     let formConfirmReplyBuffer = '';
     let formConfirmDebounceTimer = null;
 
@@ -280,18 +255,7 @@
     function drainTranscriptQueue() {
         if (transcriptQueue.length === 0) return;
         const text = transcriptQueue.shift();
-        if (flowState === 'awaiting_confirmation') {
-            bufferConfirmationReply(text);
-        } else if (flowState === 'listening_command') {
-            currentCommand = {
-                original: text, corrections: [], final: null, accepted: false,
-                createdAt: Date.now()
-            };
-            renderHistory();
-            beginConfirmation(text);
-        } else if (flowState === 'awaiting_correction') {
-            bufferCorrectionReply(text);
-        } else if (flowState === 'form_awaiting_input') {
+        if (flowState === 'form_awaiting_input') {
             handleFormFieldInput(text);
         } else if (flowState === 'form_awaiting_confirmation') {
             bufferFormConfirmationReply(text);
@@ -303,43 +267,6 @@
     }
 
     // ---------- DEBOUNCE FUNCTIONS ----------
-    function bufferConfirmationReply(text) {
-        const clean = stripTags(text);
-        if (!clean) return;
-        confirmReplyBuffer = confirmReplyBuffer ? (confirmReplyBuffer + ' ' + clean) : clean;
-        clearTimeout(confirmDebounceTimer);
-        setTurnMode('finalizing', 'सुन रहे हैं…');
-        confirmDebounceTimer = setTimeout(() => {
-            const merged = confirmReplyBuffer;
-            confirmReplyBuffer = '';
-            confirmDebounceTimer = null;
-            handleConfirmationReply(merged);
-        }, CONFIRM_DEBOUNCE_MS);
-    }
-
-    function bufferCorrectionReply(text) {
-        const clean = stripTags(text);
-        if (!clean) return;
-
-        // FIX: Escape hatch — if the user says "हाँ / सही है / आगे बढ़ो" while we are asking for a correction,
-        // route it to the confirmation handler instead of sending it to the LLM as a correction instruction.
-        if (looksLikeConfirmation(clean)) {
-            console.log('[FLOW] Correction buffer detected confirmation-like reply, routing to confirmation');
-            bufferConfirmationReply(clean);
-            return;
-        }
-
-        correctionReplyBuffer = correctionReplyBuffer ? (correctionReplyBuffer + ' ' + clean) : clean;
-        clearTimeout(correctionDebounceTimer);
-        setTurnMode('finalizing', 'सुधार सुन रहे हैं…');
-        correctionDebounceTimer = setTimeout(() => {
-            const merged = correctionReplyBuffer;
-            correctionReplyBuffer = '';
-            correctionDebounceTimer = null;
-            handleCorrectionInstruction(merged);
-        }, CONFIRM_DEBOUNCE_MS);
-    }
-
     function bufferFormConfirmationReply(text) {
         const clean = stripTags(text);
         if (!clean) return;
@@ -365,38 +292,6 @@
         liveText = text;
         el.liveLine.classList.remove('empty');
         el.liveLine.innerHTML = escapeHtml(text) + '<span class="cursor"></span>';
-    }
-
-    // ---------- RENDER HISTORY ----------
-    function renderHistory() {
-        const all = [...commands];
-        if (currentCommand) all.push(currentCommand);
-        if (all.length === 0) {
-            el.history.innerHTML = '<div class="history-empty">अभी तक कोई पूर्ण command नहीं।</div>';
-            el.statCommands.textContent = '0';
-            return;
-        }
-        let html = '';
-        all.forEach((cmd, idx) => {
-            const num = idx + 1,
-                t = cmd.createdAt ? formatTime(cmd.createdAt) : formatTime(Date.now());
-            html += `<div class="cmd-group"><div class="label">command ${String(num).padStart(2, '0')} &middot; ${t}</div>`;
-            html +=
-                `<div class="line"><span class="badge no">✗</span><span class="text-original">${escapeHtml(cmd.original)}</span></div>`;
-            if (cmd.corrections && cmd.corrections.length > 0) {
-                cmd.corrections.forEach(c => {
-                    html +=
-                        `<div class="line" style="padding-left:30px;"><span class="badge corr">🟡</span><span class="text-correction">${escapeHtml(c.instruction)} &rarr; <b>${escapeHtml(c.corrected)}</b></span></div>`;
-                });
-            }
-            if (cmd.accepted) {
-                html +=
-                    `<div class="line"><span class="badge yes">✓</span><span class="text-final">${escapeHtml(cmd.final)}</span></div>`;
-            }
-            html += `</div>`;
-        });
-        el.history.innerHTML = html;
-        el.statCommands.textContent = commands.length;
     }
 
     // ---------- TTS ----------
@@ -813,204 +708,6 @@
         }
     }
 
-    async function correctWithLLM(original, instruction) {
-        const url = el.llmUrl.value.trim();
-        const cleanOriginal = stripTags(original);
-        const cleanInstruction = cleanSpokenTranscript(instruction);
-        console.log('[LLM] correctWithLLM() original="' + original + '"→"' + cleanOriginal + '" instruction="' +
-            instruction + '"→"' + cleanInstruction + '"');
-
-        const system = `आप एक हिंदी वाक्-पहचान (speech-to-text) सुधार सहायक हैं।
-उपयोगकर्ता ने पिछली ट्रांसक्रिप्शन में सुधार बताया है।
-
-नियम:
-1. पिछली ट्रांसक्रिप्शन को आधार मानें।
-2. केवल वही भाग बदलें जो सुधार निर्देश में कहा गया है (जैसे "X की जगह Y", "replace X with Y")।
-3. बाकी पूरा वाक्य ज्यों का त्यों रखें।
-4. अंतिम उत्तर **पूरा सही वाक्य** होना चाहिए — कोई अधूरा टुकड़ा नहीं।
-5. कोई व्याख्या, उद्धरण चिह्न या अतिरिक्त शब्द न लिखें। केवल पूरा वाक्य।`;
-        const user =
-            `पिछली ट्रांसक्रिप्शन: "${cleanOriginal}"\nसुधार निर्देश: "${cleanInstruction}"\nसुधारा गया वाक्य:`;
-        console.log('[LLM] Sending correction request…');
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                messages: [{ role: 'system', content: system }, {
-                    role: 'user',
-                    content: user
-                }], temperature: 0.2, max_tokens: 200, stream: false
-            })
-        });
-        if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
-        const data = await resp.json();
-        let content = data?.choices?.[0]?.message?.content?.trim();
-        if (!content) throw new Error('LLM returned empty');
-        content = content.replace(/^सुधारा गया वाक्य\s*[:：\-]\s*/, '').trim();
-        content = content.replace(/^["']|["']$/g, '').trim();
-        console.log('[LLM] Correction result → "' + content + '"');
-        return content;
-    }
-
-    // ---------- FLOW: handleCorrectionInstruction ----------
-    async function handleCorrectionInstruction(instructionText) {
-        console.log('[FLOW] handleCorrectionInstruction() instruction="' + instructionText + '"');
-        const myEpoch = flowEpoch;
-        const original = pendingTranscript;
-        const cleanInstruction = stripTags(instructionText);
-        if (!currentCommand) {
-            currentCommand = {
-                original: original, corrections: [], final: null, accepted: false,
-                createdAt: Date.now()
-            };
-            console.log('[FLOW] Created new currentCommand for correction.');
-        }
-        flowState = 'correcting';
-        setTurnMode('finalizing', 'सुधार हो रहा है…');
-        try {
-            const corrected = await correctWithLLM(original, cleanInstruction);
-            if (myEpoch !== flowEpoch) {
-                console.log(
-                    '[FLOW] handleCorrectionInstruction: session reset mid-correct — discarding.');
-                return;
-            }
-            console.log('[FLOW] Corrected text → "' + corrected + '"');
-            currentCommand.corrections.push({ instruction: cleanInstruction, corrected });
-            pendingTranscript = corrected;
-            renderHistory();
-            setLiveText(corrected);
-            flowState = 'busy';
-            console.log('[FLOW] flowState → busy (speaking correction confirmation)');
-            const prompt = `सुधारा गया: ${corrected}. क्या यह सही है?`;
-            await speak(prompt);
-            if (myEpoch !== flowEpoch) {
-                console.log(
-                    '[FLOW] handleCorrectionInstruction: session reset mid-TTS — discarding.');
-                return;
-            }
-            flowState = 'awaiting_confirmation';
-            console.log('[FLOW] flowState → awaiting_confirmation (after correction)');
-            setTurnMode('listening', 'सुनाइए — हाँ या सुधार बताएं');
-            drainTranscriptQueue();
-        } catch (e) {
-            console.log('[LLM] Error during correction:', e);
-            showToast('सुधार करने में समस्या: ' + e.message);
-            if (myEpoch !== flowEpoch) return;
-            flowState = 'busy';
-            await speak('सुधार करने में समस्या आई, कृपया दोबारा बताएं।');
-            if (myEpoch !== flowEpoch) return;
-            flowState = 'awaiting_correction';
-            console.log('[FLOW] flowState → awaiting_correction (after error)');
-            setTurnMode('listening', 'सुधार बताएं');
-            // FIX: Drain stranded queue so the user is not locked out
-            drainTranscriptQueue();
-        }
-    }
-
-    // ---------- FLOW: beginConfirmation ----------
-    function beginConfirmation(text) {
-        const cleanText = stripTags(text);
-        console.log('[FLOW] beginConfirmation() text="' + cleanText + '"');
-        // FIX: Wipe any stale debounce text before starting a fresh confirmation cycle
-        clearDebounceBuffers();
-        pendingTranscript = cleanText;
-        const myEpoch = flowEpoch;
-        flowState = 'busy';
-        console.log('[FLOW] flowState → busy (preparing confirmation prompt)');
-        setLiveText(cleanText);
-        setTurnMode('confirming', 'पुष्टि के लिए बोल रहे हैं…');
-        const prompt = `${cleanText}. क्या यह सही है? हाँ बोलें, या बताएं कि क्या सुधारना है।`;
-        speak(prompt).then(() => {
-            if (myEpoch !== flowEpoch) {
-                console.log(
-                    '[FLOW] beginConfirmation: session reset mid-TTS — discarding.');
-                return;
-            }
-            flowState = 'awaiting_confirmation';
-            console.log('[FLOW] flowState → awaiting_confirmation');
-            setTurnMode('listening', 'सुनाइए — हाँ या सुधार बताएं');
-            drainTranscriptQueue();
-        }).catch(e => {
-            console.log('[FLOW] Error during confirmation prompt speech:', e);
-            if (myEpoch !== flowEpoch) return;
-            flowState = 'awaiting_confirmation';
-            drainTranscriptQueue();
-        });
-    }
-
-    // ---------- FLOW: handleConfirmationReply ----------
-    async function handleConfirmationReply(replyText) {
-        console.log('[FLOW] handleConfirmationReply() reply="' + replyText + '"');
-        const myEpoch = flowEpoch;
-        // FIX: Purge any lingering debounce buffers now that we are acting on a settled reply
-        clearDebounceBuffers();
-        flowState = 'evaluating_intent';
-        console.log('[FLOW] flowState → evaluating_intent');
-        setTurnMode('finalizing', 'जाँच रहे हैं…');
-        showToast('');
-        const intent = await classifyIntentWithLLM(replyText);
-        if (myEpoch !== flowEpoch) {
-            console.log(
-                '[FLOW] handleConfirmationReply: session reset mid-classify — discarding.');
-            return;
-        }
-        console.log('[FLOW] Intent classification → ' + intent);
-
-        if (intent === 'CONFIRM') {
-            const finalText = pendingTranscript;
-            if (!currentCommand) {
-                currentCommand = {
-                    original: finalText, corrections: [], final: null, accepted: false,
-                    createdAt: Date.now()
-                };
-                console.log('[FLOW] Created new currentCommand for confirmation.');
-            }
-            currentCommand.final = finalText;
-            currentCommand.accepted = true;
-            commands.push(currentCommand);
-            currentCommand = null;
-            console.log('[FLOW] Command ACCEPTED: "' + finalText + '"');
-            el.copyBtn.disabled = false;
-            el.exportBtn.disabled = false;
-            const totalWords = commands.reduce((n, c) => n + (c.final || '').split(/\s+/).filter(Boolean)
-                .length, 0);
-            el.statWords.textContent = totalWords;
-            console.log('[FLOW] Total words → ' + totalWords);
-            renderHistory();
-            pendingTranscript = '';
-            flowState = 'busy';
-            console.log('[FLOW] flowState → busy (speaking next prompt)');
-            resetLiveLine('अगला कमांड बोलें…');
-            try { await speak('ठीक है, अगला कमांड बोलें।'); } catch (e) {
-                console.log(
-                    '[FLOW] Error speaking next prompt:', e);
-            }
-            if (myEpoch !== flowEpoch) {
-                console.log(
-                    '[FLOW] handleConfirmationReply: session reset mid-TTS — discarding.');
-                return;
-            }
-            flowState = 'listening_command';
-            console.log('[FLOW] flowState → listening_command');
-            setTurnMode('listening', 'अगला कमांड बोलें');
-            drainTranscriptQueue();
-        } else {
-            // CORRECT
-            flowState = 'busy';
-            console.log('[FLOW] flowState → busy (asking for correction)');
-            await speak('कृपया सुधार बताएं।');
-            if (myEpoch !== flowEpoch) {
-                console.log(
-                    '[FLOW] handleConfirmationReply: session reset mid-TTS — discarding.');
-                return;
-            }
-            flowState = 'awaiting_correction';
-            console.log('[FLOW] flowState → awaiting_correction');
-            setTurnMode('listening', 'सुधार बताएं');
-            drainTranscriptQueue();
-        }
-    }
-
     // ==========================================================
     // FORM FIELD SCANNER & SEQUENTIAL VOICE ITERATOR
     // ==========================================================
@@ -1229,16 +926,15 @@
             }
         }
 
-        // Auto-start microphone session if not running (skip general command greeting)
+        // Auto-start microphone session if not running
         if (!sessionActive) {
-            console.log('[VFF] Starting mic session for form fill (skipping general greeting)');
-            await startSession(true);
+            console.log('[VFF] Starting mic session for form fill');
+            await startSession();
         }
 
         formFlowActive = true;
-        if (el.btnStartFormFlow) el.btnStartFormFlow.style.display = 'none';
-        if (el.btnStopFormFlow) el.btnStopFormFlow.style.display = 'inline-flex';
-        if (el.formStepControls) el.formStepControls.style.display = 'flex';
+        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = true;
+        if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = false;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'flex';
 
         // Find first unconfirmed field, or index 0
@@ -1251,14 +947,13 @@
 
     function stopFormFlow() {
         formFlowActive = false;
-        if (el.btnStartFormFlow) el.btnStartFormFlow.style.display = 'inline-flex';
-        if (el.btnStopFormFlow) el.btnStopFormFlow.style.display = 'none';
-        if (el.formStepControls) el.formStepControls.style.display = 'none';
+        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
+        if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'none';
         if (currentScannedTabId) {
             chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => {});
         }
-        flowState = 'listening_command';
+        flowState = 'idle';
         setTurnMode('idle', 'idle');
         renderScannedFieldsList();
         showToast('फ़ॉर्म भरण प्रक्रिया रोक दी गई');
@@ -1266,9 +961,8 @@
 
     async function finishFormFlow() {
         formFlowActive = false;
-        if (el.btnStartFormFlow) el.btnStartFormFlow.style.display = 'inline-flex';
-        if (el.btnStopFormFlow) el.btnStopFormFlow.style.display = 'none';
-        if (el.formStepControls) el.formStepControls.style.display = 'none';
+        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
+        if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'none';
         if (currentScannedTabId) {
             chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => {});
@@ -1277,8 +971,8 @@
         setFormScanBadge('success', 'सभी फ़ील्ड पूर्ण!');
         flowState = 'busy';
         await speak('बहुत बढ़िया! इस पृष्ठ के सभी फ़ील्ड पूरे हो चुके हैं।');
-        flowState = 'listening_command';
-        setTurnMode('listening', 'सत्र जारी है');
+        flowState = 'idle';
+        setTurnMode('idle', 'सत्र पूर्ण');
     }
 
     async function askField(index, isRepeat = false) {
@@ -1443,17 +1137,8 @@
                 }).catch(() => {});
             }
 
-            // Record in command history
-            commands.push({
-                original: `${f.label}: ${currentFieldOriginalValue || confirmedVal}`,
-                corrections: [...currentFieldCorrections],
-                final: `${f.label} = "${confirmedVal}"`,
-                accepted: true,
-                createdAt: Date.now()
-            });
             currentFieldCorrections = [];
             currentFieldOriginalValue = '';
-            renderHistory();
 
             // Update UI
             if (el.spotlightStatus) {
@@ -1713,34 +1398,23 @@
             finalizing = false;
             console.log('[WS] Completed, server="' + serverTranscript + '" live="' + currentLive + '" chosen="' + finalText + '", flowState=' + flowState);
             if (!finalText || !finalText.trim()) {
-                if (flowState === 'listening_command' || flowState === 'awaiting_confirmation' ||
-                    flowState === 'awaiting_correction' || flowState === 'form_awaiting_input' ||
-                    flowState === 'form_awaiting_confirmation' || flowState === 'form_awaiting_correction') setTurnMode('listening', 'listening');
+                if (flowState === 'form_awaiting_input' || flowState === 'form_awaiting_confirmation' || flowState === 'form_awaiting_correction') {
+                    setTurnMode('listening', 'listening');
+                }
                 return;
             }
             if (flowState === 'evaluating_intent' || flowState === 'correcting' || flowState === 'busy') {
                 queueTranscript(finalText);
                 return;
             }
-            if (flowState === 'awaiting_confirmation') {
-                bufferConfirmationReply(finalText);
-            } else if (flowState === 'listening_command') {
-                currentCommand = {
-                    original: finalText, corrections: [], final: null, accepted: false,
-                    createdAt: Date.now()
-                };
-                renderHistory();
-                beginConfirmation(finalText);
-            } else if (flowState === 'awaiting_correction') {
-                bufferCorrectionReply(finalText);
-            } else if (flowState === 'form_awaiting_input') {
+            if (flowState === 'form_awaiting_input') {
                 handleFormFieldInput(finalText);
             } else if (flowState === 'form_awaiting_confirmation') {
                 bufferFormConfirmationReply(finalText);
             } else if (flowState === 'form_awaiting_correction') {
                 handleFormCorrectionInstruction(finalText);
             } else {
-                console.log('[WS] Unexpected flowState="' + flowState + '" on completed.');
+                setLiveText(finalText);
             }
         } else if (msg.type === 'error') {
             showToast(msg.message || msg.error?.message || 'server error');
@@ -1756,7 +1430,6 @@
         for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
         ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: btoa(binary) }));
         chunkCount++;
-        el.statChunks.textContent = chunkCount + (droppedChunks ? ` (${droppedChunks} dropped)` : '');
     }
 
     function sendCommit() {
@@ -2002,27 +1675,19 @@
     }
 
     // ---------- SESSION ----------
-    async function startSession(skipGreeting = false) {
-        el.sessionBtn.disabled = true;
+    async function startSession() {
         resetLiveLine('… सुन रहा हूँ');
         showToast('');
-        flowState = 'listening_command';
         flowEpoch++;
         pendingTranscript = '';
-        commands = [];
-        currentCommand = null;
         transcriptQueue = [];
-        // FIX: Use central helper to purge stale buffers
         clearDebounceBuffers();
-        renderHistory();
         try { await connectWs(); } catch (e) {
             showToast('WebSocket से कनेक्ट नहीं हो सका');
-            el.sessionBtn.disabled = false;
             return;
         }
         try { await initSileroVAD(); } catch (e) {
             showToast('VAD init failed');
-            el.sessionBtn.disabled = false;
             if (ws) ws.close();
             return;
         }
@@ -2044,7 +1709,6 @@
             } else {
                 showToast('माइक्रोफ़ोन एक्सेस नहीं मिला: ' + e.message);
             }
-            el.sessionBtn.disabled = false;
             if (ws) ws.close();
             return;
         }
@@ -2067,7 +1731,6 @@
                 preRollSamples += samples.length;
                 gatedSamplesSkipped += samples.length;
                 trimPreRoll();
-                el.statSkipped.textContent = (gatedSamplesSkipped / audioCtx.sampleRate).toFixed(1) + 's';
             } else if (speaking) {
                 if (!wasSpeaking) {
                     for (const buf of preRollBuffer) {
@@ -2085,7 +1748,6 @@
                 preRollSamples += samples.length;
                 gatedSamplesSkipped += samples.length;
                 trimPreRoll();
-                el.statSkipped.textContent = (gatedSamplesSkipped / audioCtx.sampleRate).toFixed(1) + 's';
             }
             if (pendingCommit && !ttsMicMuted) {
                 flushAccumIfAny();
@@ -2096,22 +1758,8 @@
         source.connect(workletNode);
         sessionActive = true;
         sessionStartedAt = Date.now();
-        durationTimer = setInterval(updateDuration, 1000);
-        el.sessionBtn.classList.add('live');
-        el.sessionBtn.disabled = false;
-        el.sessionBtnText.textContent = 'सेशन समाप्त करें';
-        el.finalizeBtn.disabled = false;
+        if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = false;
         setTurnMode('listening', 'listening');
-        if (!skipGreeting) {
-            await speak('नमस्ते, कृपया अपना कमांड बोलें।');
-        }
-    }
-
-    function updateDuration() {
-        if (!sessionStartedAt) return;
-        const s = Math.floor((Date.now() - sessionStartedAt) / 1000);
-        el.statDuration.textContent =
-            `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     }
 
     function endSession(reason) {
@@ -2119,23 +1767,14 @@
         sessionActive = false;
         speaking = false;
         finalizing = false;
-        flowState = 'listening_command';
+        flowState = 'idle';
         pendingTranscript = '';
-        currentCommand = null;
         transcriptQueue = [];
-        // FIX: Central clear
         clearDebounceBuffers();
-        el.sessionBtn.classList.remove('live');
-        el.sessionBtnText.textContent = 'सेशन शुरू करें';
-        el.finalizeBtn.disabled = true;
         setTurnMode('idle', 'idle');
         if (ttsPlaying) interruptTTS();
         ttsMicMuted = false;
         el.micMutedBadge.classList.remove('visible');
-        if (durationTimer) {
-            clearInterval(durationTimer);
-            durationTimer = null;
-        }
         sessionStartedAt = 0;
         if (workletNode) {
             workletNode.port.onmessage = null;
@@ -2153,62 +1792,20 @@
         if (ws && ws.readyState === WebSocket.OPEN) ws.close();
         resetVAD();
         gatedSamplesSkipped = 0;
-        el.statSkipped.textContent = '0.0s';
         barHistory = new Array(BAR_COUNT).fill(0);
         pushLevel(0, 'idle');
         if (formFlowActive) {
             stopFormFlow();
         }
+        if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
+        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
         if (reason) showToast(reason);
-        if (!liveText) resetLiveLine('सेशन शुरू करते ही यहाँ आंशिक ट्रांसक्रिप्शन दिखेगा…');
-        renderHistory();
+        else showToast('सत्र समाप्त — सभी गतिविधियाँ बंद कर दी गईं ✓');
+        if (!liveText) resetLiveLine('फ़ॉर्म भरने के लिए "वॉइस से भरें" दबाएं…');
     }
 
     // ---------- EVENT BINDING ----------
-    el.sessionBtn.addEventListener('click', () => {
-        ensureTTSContext();
-        if (sessionActive) endSession();
-        else startSession();
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && e.target === document.body) {
-            e.preventDefault();
-            ensureTTSContext();
-            el.sessionBtn.click();
-        }
-    });
-    el.finalizeBtn.addEventListener('click', () => {
-        if (sessionActive && speaking && !finalizing) {
-            speaking = false;
-            finalizing = true;
-            setTurnMode('finalizing', 'finalizing turn…');
-            flushAccumIfAny();
-            sendCommit();
-        }
-    });
-    el.interruptBtn.addEventListener('click', () => { if (ttsPlaying) interruptTTS(); });
-    el.copyBtn.addEventListener('click', () => {
-        const text = commands.map(cmd => cmd.final).join('\n');
-        navigator.clipboard?.writeText(text).then(() => showToast('transcript copied'));
-    });
-    el.exportBtn.addEventListener('click', () => {
-        let text = '';
-        commands.forEach((cmd, i) => {
-            text += `[command ${i + 1}]\n  original: ${cmd.original}\n`;
-            if (cmd.corrections && cmd.corrections.length) {
-                cmd.corrections.forEach((c, j) => {
-                    text += `  correction ${j + 1}: ${c.instruction} → ${c.corrected}\n`;
-                });
-            }
-            text += `  final: ${cmd.final}\n\n`;
-        });
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `transcript-${Date.now()}.txt`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-    });
+    if (el.interruptBtn) el.interruptBtn.addEventListener('click', () => { if (ttsPlaying) interruptTTS(); });
 
     // Form button bindings
     if (el.btnScanPage) el.btnScanPage.addEventListener('click', () => {
@@ -2219,12 +1816,14 @@
         ensureTTSContext();
         startFormFlow();
     });
-    if (el.btnStopFormFlow) el.btnStopFormFlow.addEventListener('click', () => stopFormFlow());
+    if (el.btnStopFormFlow) el.btnStopFormFlow.addEventListener('click', () => {
+        endSession('सत्र समाप्त — सभी गतिविधियाँ बंद कर दी गईं');
+    });
     if (el.btnSkipField) el.btnSkipField.addEventListener('click', () => skipField());
     if (el.btnPrevField) el.btnPrevField.addEventListener('click', () => prevField());
     if (el.btnReaskField) el.btnReaskField.addEventListener('click', () => reaskCurrentField());
 
-    console.log('[INIT] All event listeners attached. Ready.');
+    console.log('[INIT] All event listeners attached. Form Assistant ready.');
     console.log('[FIX] Prefix-aware delta handling, liveText reset, debounce purge, and confirmation escape hatch are ACTIVE.');
 
     // ---------- COMPANION ORCHESTRATOR CLIENT ----------
@@ -2324,12 +1923,10 @@
             updateCard(compEl.svcTts, data.services?.tts?.live);
             updateCard(compEl.svcLlm, data.services?.llm?.live);
 
-            if (data.allReady && !sessionActive) {
-                el.sessionBtn.disabled = false;
-                el.sessionBtnText.textContent = 'सेशन शुरू करें';
-            } else if (!data.allReady && !sessionActive) {
-                el.sessionBtn.disabled = true;
-                el.sessionBtnText.textContent = 'सर्विस शुरू होने की प्रतीक्षा…';
+            if (data.allReady) {
+                if (el.btnStartFormFlow && scannedFields.length > 0 && !formFlowActive) {
+                    el.btnStartFormFlow.disabled = false;
+                }
             }
         } catch (_) {
             if (compEl.companionPill) {
@@ -2340,11 +1937,6 @@
             if (compEl.btnStartServices) compEl.btnStartServices.disabled = true;
             if (compEl.btnStopServices) compEl.btnStopServices.disabled = true;
             if (compEl.btnCheckAssets) compEl.btnCheckAssets.disabled = true;
-
-            if (!sessionActive) {
-                el.sessionBtn.disabled = true;
-                el.sessionBtnText.textContent = 'Companion Offline';
-            }
         }
     }
 

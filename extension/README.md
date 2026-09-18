@@ -38,24 +38,22 @@ When the extension is loaded in Google Chrome, it opens as a persistent **Side P
 
 ![Live Voice Session, VAD Tuning, and Spoken Confirmation Dialogue](./docs/images/live_session_dialogue.png)
 
-Once services are active, the voice session is ready to begin:
+Once services are active, the form assistant is ready:
 
-* **Session Toggle**: Press **सत्र समाप्त करें / सेशन शुरू करें** (or press <kbd>Space</kbd>) to start or stop microphone capture.
-* **🎙️ माइक अनुमति (Mic Permission)**: Direct link to quickly approve microphone access in a dedicated tab.
+* **🔍 फ़ॉर्म स्कैन करें (Scan Form)**: Primary action button that instantly inspects the active browser tab, extracting all form inputs, textareas, labels, and required flags.
+* **▶️ वॉइस से भरें (Start Voice Filling)**: Initiates sequential voice filling. Begins asking each field one-by-one via local TTS and capturing answers via ASR.
+* **⏹️ सत्र समाप्त करें (Stop Session & All Activity)**: Instantly terminates audio listening, aborts TTS playback, stops sequential form filling, clears webpage highlights, and resets assistant state.
+* **🎙️ माइक अनुमति (Mic Permission)**: Quick link to approve microphone access in a dedicated tab.
 * **Real-time Signal Strip (RMS VU Meter)**: Visualizes incoming audio levels in real time and highlights speech vs. silence boundaries detected by **Silero VAD**.
-* **लाइव ट्रांसक्रिप्शन (Streaming STT)**: Displays live, low-latency partial and interim Hindi transcripts as you speak.
-* **कमांड इतिहास और पुष्टि संवाद (Command History & Verification)**:
-  * Records finalized speech utterances with exact timestamps.
-  * `✗` indicates raw recognized transcript awaiting user verification.
-  * `✓` indicates confirmed and accepted command.
-  * `🟡` indicates contextual correction applied by the local LLM.
+* **लाइव ट्रांसक्रिप्शन (Streaming STT)**: Displays live, low-latency partial and interim Hindi transcripts as you speak into the form fields.
+* **Current Active Field Spotlight**: Highlights the current field, spoken prompt, live recognized value preview, and quick step navigation controls (`⏮️ पिछला`, `🔄 दोबारा पूछें`, `⏭️ छोड़ें`).
+* **📋 स्कैन किए गए फ़ील्ड्स (Scanned Fields Accordion)**: Interactive checklist of all form fields. Clicking any row directly focuses and selects that field.
 * **Tuning Parameters (Accordion)**:
   * **Silero Speech Threshold** (Default: `0.50`): Adjusts sensitivity of speech detection.
-  * **Silence Before Turn Finalizes** (Default: `320 ms`): Delay before speech is finalized.
-  * **Max Utterance Hard Cap** (Default: `3500 ms`): Maximum continuous speaking window.
+  * **Silence Before Turn Finalizes** (Default: `800 ms`): Delay before speech is finalized.
+  * **Max Utterance Hard Cap** (Default: `12000 ms`): Maximum continuous speaking window.
   * **Pre-roll Padding** (Default: `200 ms`): Audio captured just before speech onset to prevent clipping.
-  * **LLM Proxy Server URL**: Endpoint for Gemma 4 intent classification and command rewriting (`http://127.0.0.1:8000/v1/chat/completions`).
-  * **Confirmation Debounce**: Window for buffering follow-up replies.
+  * **LLM Proxy Server URL**: Endpoint for Gemma 4 intent classification and value extraction (`http://127.0.0.1:8000/v1/chat/completions`).
 
 ---
 
@@ -159,17 +157,16 @@ Because Chrome Side Panels do not have a URL bar to display permission bubbles:
 
 ---
 
-### Step 4: Boot AI Services & Begin Voice Session
+### Step 4: Boot AI Services, Scan Forms & Begin Voice Fill
 1. In the Side Panel, click **🚀 स्टार्ट सर्विसेज**.
 2. The companion will boot the 3 local AI processes. Within a few seconds, all three indicators turn green (**READY**).
-3. The session button unlocks as **`सेशन शुरू करें`**.
-4. Click **सेशन शुरू करें** (or press <kbd>Space</kbd>).
-5. The assistant greets you:
-   > *"नमस्ते, कृपया अपना कमांड बोलें।"*
-6. Speak your Hindi command into the microphone.
-7. The assistant transcribes in real time and asks:
-   > *"क्या आपका मतलब यह था: [आपका कमांड]? हाँ बोलें, या बताएं कि क्या सुधारना है।"*
-8. Reply **"हाँ / जी / ठीक है"** to confirm, or state your correction to have Gemma 4 rewrite the text!
+3. Open any webpage with form inputs (e.g. contact forms, registration forms).
+4. Click **🔍 फ़ॉर्म स्कैन करें** (Scan Form). The extension automatically identifies all text fields, email inputs, textareas, etc.
+5. Click **▶️ वॉइस से भरें** (Start Voice Filling).
+6. The assistant highlights each field on the page and prompts you via TTS:
+   > *"अगला फ़ील्ड है [नाम]। कृपया बताएं इसमें क्या भरना है?"*
+7. Speak your answer in Hindi or English. The assistant fills the field, verifies with you (*"क्या यह सही है?"*), and moves to the next field upon confirmation!
+8. Click **⏹️ सत्र समाप्त करें** anytime to immediately stop all listening and activity.
 
 ---
 
