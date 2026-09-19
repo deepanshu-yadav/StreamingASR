@@ -199,39 +199,40 @@ After registration, the **⚡ Launch Companion** button in the extension side pa
 
 ---
 
-### Step 4 — Grant Microphone Permission (one-time)
+### Step 4 — Grant Microphone Permission (One-Time Setup)
 
-Chrome Side Panels cannot show permission prompts directly:
-1. In the Side Panel, click **🎙️ माइक अनुमति** (Mic Permission).
-2. A new tab opens asking for microphone access → click **Allow**.
-3. The tab closes automatically. Permission is permanently granted to the extension.
+Chrome Side Panels cannot render microphone permission bubbles directly:
+1. In the Side Panel, click **`🎙️ माइक अनुमति`** (Mic Permission).
+2. A dedicated browser tab opens requesting microphone access → click **Allow**.
+3. The tab displays `✅ अनुमति मिल गई!` and closes automatically. Permission is permanently granted to the extension origin.
 
 ---
 
-### Step 5 — Choose Your Language
+### Step 5 — Choose Your Language & Handle Service Restarts
 
-The assistant supports **15 languages / 19 locales**. Language is selected from the **Language Selector** in the extension Side Panel.
+Select your preferred language from the **Language Selector** dropdown at the top of the Side Panel. The assistant supports **15 languages / 19 locales**.
 
 > [!IMPORTANT]
-> **Changing language restarts the ASR and TTS services.** The LLM stays running. Expect a ~5–15 second restart while the new voice model loads. The first time a new language is selected, the companion may automatically download the required Piper voice model (~50–150 MB).
+> **Selecting a new language automatically hot-restarts the ASR and TTS backend services** (the LLM remains running). Expect a ~5–15 second transition period while the new language's voice models are initialized. If selected for the first time, the companion automatically fetches the corresponding Piper TTS voice GGUF model (~50–150 MB).
 
-**How it works:**
-- Select a language/locale from the dropdown in the Side Panel.
-- The extension calls `POST /api/language` on the companion.
-- The companion saves the selection to `companion/config.json` and hot-restarts only the ASR and TTS processes with the new language's model.
-- The UI cards will briefly show **STARTING** then return to **READY**.
-- Your selection is **persisted** — the next time the companion starts, it remembers the last language.
+**How language switching works under the hood:**
+- The extension sends a request to `POST /api/language` on the companion server.
+- The companion persists your choice in `companion/config.json` and triggers a restart of only the ASR + TTS processes.
+- Service indicators in the Side Panel briefly transition to **STARTING** before returning to **READY**.
+- Your language preference is saved across sessions and automatically restored whenever you restart the companion.
 
 ---
 
-### Step 6 — Start Services & Use
+### Step 6 — Start AI Services & Begin Voice Filling
 
 1. In the Side Panel, click **🚀 स्टार्ट सर्विसेज (Start Services)**.
-2. All three AI service cards (ASR, TTS, LLM) will turn green (**READY**).
-3. Open any webpage with a form.
-4. Click **🔍 फ़ॉर्म स्कैन करें (Scan Form)** — the extension maps all input fields.
-5. Click **▶️ वॉइस से भरें (Start Voice Filling)** — the assistant prompts each field via TTS and captures your spoken answer via ASR.
-6. Click **⏹️ सत्र समाप्त करें (Stop Session)** anytime to halt all activity.
+2. All three service cards (Nemotron ASR, Piper TTS, Gemma 4 LLM) will turn green (**READY**).
+3. Open any webpage containing form fields (contact form, registration, survey, etc.).
+4. Click **🔍 फ़ॉर्म स्कैन करें (Scan Form)** — the extension maps and lists all detectable input fields.
+5. Click **▶️ वॉइस से भरें (Start Voice Filling)** — the assistant prompts each field in your selected language via local TTS and listens for your spoken response.
+6. The assistant populates the input, verifies (*"क्या यह सही है?"*), and advances to the next field.
+7. Click **⏹️ सत्र समाप्त करें (Stop Session)** anytime to halt all listening, playback, and form-filling activities.
+
 
 ---
 
