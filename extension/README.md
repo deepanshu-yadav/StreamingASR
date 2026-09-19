@@ -1,6 +1,29 @@
 # 🎙️ Local Voice ASR & Form Assistant — Chrome Extension Manual
 
-An offline, privacy-first Chrome Extension (Manifest V3) that provides real-time streaming Hindi Speech-to-Text (ASR), large language model (LLM) intent classification and correction, and high-quality Text-to-Speech (TTS) voice responses—all powered by local models running natively on Windows CPU.
+An offline, privacy-first Chrome Extension (Manifest V3) that provides real-time streaming multilingual Speech-to-Text (ASR), large language model (LLM) intent classification and correction, and high-quality Text-to-Speech (TTS) voice responses across 15 languages—all powered by local models running natively on Windows CPU.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](../LICENSE.txt)
+[![Chrome Extension](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](./manifest.json)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-ONNX%20Runtime%20Web-654FF0?style=flat-square&logo=webassembly&logoColor=white)](https://onnxruntime.ai/)
+[![Supported Languages](https://img.shields.io/badge/Supported%20Languages-15%20Languages%20%2F%2019%20Locales-success?style=flat-square)](#-supported-languages-15-languages--19-locales)
+
+### 🌐 Supported Languages
+[![Hindi](https://img.shields.io/badge/Hindi-🇮🇳%20hi--IN-FF9933?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![English](https://img.shields.io/badge/English-🇺🇸%20en--US%20%7C%20🇬🇧%20en--GB-0052B4?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Spanish](https://img.shields.io/badge/Spanish-🇪🇸%20es--ES%20%7C%20🇲🇽%20es--US-AA151B?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![French](https://img.shields.io/badge/French-🇫🇷%20fr--FR%20%7C%20🇨🇦%20fr--CA-002654?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![German](https://img.shields.io/badge/German-🇩🇪%20de--DE-000000?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Italian](https://img.shields.io/badge/Italian-🇮🇹%20it--IT-009246?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Portuguese](https://img.shields.io/badge/Portuguese-🇧🇷%20pt--BR%20%7C%20🇵🇹%20pt--PT-009C3B?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Dutch](https://img.shields.io/badge/Dutch-🇳🇱%20nl--NL-21468B?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Turkish](https://img.shields.io/badge/Turkish-🇹🇷%20tr--TR-E30A17?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Russian](https://img.shields.io/badge/Russian-🇷🇺%20ru--RU-D52B1E?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Arabic](https://img.shields.io/badge/Arabic-🇸🇦%20ar--AR-006C35?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Japanese](https://img.shields.io/badge/Japanese-🇯🇵%20ja--JP-BC002D?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Korean](https://img.shields.io/badge/Korean-🇰🇷%20ko--KR-003478?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Vietnamese](https://img.shields.io/badge/Vietnamese-🇻🇳%20vi--VN-DA251D?style=flat-square)](#-supported-languages-15-languages--19-locales)
+[![Ukrainian](https://img.shields.io/badge/Ukrainian-🇺🇦%20uk--UA-005BBB?style=flat-square)](#-supported-languages-15-languages--19-locales)
 
 ---
 
@@ -54,6 +77,46 @@ Once services are active, the form assistant is ready:
   * **Max Utterance Hard Cap** (Default: `12000 ms`): Maximum continuous speaking window.
   * **Pre-roll Padding** (Default: `200 ms`): Audio captured just before speech onset to prevent clipping.
   * **LLM Proxy Server URL**: Endpoint for Gemma 4 intent classification and value extraction (`http://127.0.0.1:8000/v1/chat/completions`).
+
+---
+
+## 📁 Extension File Structure
+
+```
+extension/
+├── manifest.json             # Manifest V3 extension configuration & permissions
+├── sidepanel.html            # Persistent Side Panel user interface layout
+├── sidepanel.css             # Side Panel glassmorphism styling & animations
+├── sidepanel.js              # Core UI controller, audio capture, STT client & state machine
+├── form-field-scanner.js     # DOM form analyzer & sequential field fill orchestrator
+├── scanner-highlight.css     # Webpage active input highlight rings & pulsing focus styles
+├── i18n.js                   # Client-side localization engine & translation loader
+├── locales/                  # 15 Language dictionary modules
+│   ├── ar.js                 # 🇸🇦 Arabic (ar-AR)
+│   ├── de.js                 # 🇩🇪 German (de-DE)
+│   ├── en.js                 # 🇺🇸/🇬🇧 English (en-US, en-GB)
+│   ├── es.js                 # 🇪🇸/🇲🇽 Spanish (es-ES, es-US)
+│   ├── fr.js                 # 🇫🇷/🇨🇦 French (fr-FR, fr-CA)
+│   ├── hi.js                 # 🇮🇳 Hindi (hi-IN)
+│   ├── it.js                 # 🇮🇹 Italian (it-IT)
+│   ├── ja.js                 # 🇯🇵 Japanese (ja-JP)
+│   ├── ko.js                 # 🇰🇷 Korean (ko-KR)
+│   ├── nl.js                 # 🇳🇱 Dutch (nl-NL)
+│   ├── pt.js                 # 🇧🇷/🇵🇹 Portuguese (pt-BR, pt-PT)
+│   ├── ru.js                 # 🇷🇺 Russian (ru-RU)
+│   ├── tr.js                 # 🇹🇷 Turkish (tr-TR)
+│   ├── uk.js                 # 🇺🇦 Ukrainian (uk-UA)
+│   └── vi.js                 # 🇻🇳 Vietnamese (vi-VN)
+├── permission.html / .js     # Dedicated tab to grant persistent microphone access
+├── launch.html / .js         # Protocol launch fallback helper
+├── background.js             # Service worker handling extension lifecycle & side panel open
+├── scanBackground.js         # Content-script / tab coordination for DOM form inspection
+├── silero_vad.onnx           # Silero VAD v5 ONNX neural speech detector model
+├── worklet-processor.js      # AudioWorklet processor for 16 kHz PCM downsampling
+├── lib/                      # Bundled ONNX Runtime WebAssembly SIMD/threaded binaries
+├── icons/                    # Extension action icons (16px, 48px, 128px)
+└── docs/images/              # UI walkthrough screenshots
+```
 
 ---
 
@@ -223,6 +286,18 @@ Chrome separates extension logs into two separate DevTools consoles:
 #### 3. Companion Server Console
 * **How to open**: Look at the terminal window running `node server.js`.
 * **What you see**: Process spawn logs, stdout/stderr streams from `crispasr.exe` and `llama-server.exe`, and HTTP reverse proxy requests.
+
+---
+
+## 🙏 Acknowledgments & Special Thanks
+
+We would like to express our sincere gratitude to the open-source projects, model creators, and research teams that made this local AI voice assistant extension possible:
+
+* **[Piper Voices (Rhasspy)](https://huggingface.co/rhasspy/piper-voices)** — High-quality, fast, and lightweight local neural text-to-speech voice models and dataset tools.
+* **[CrispASR](https://github.com/CrispStrobe/CrispASR)** — High-performance native streaming Speech-to-Text server and embedded Piper TTS engine.
+* **[llama.cpp](https://github.com/ggml-org/llama.cpp)** — State-of-the-art C/C++ inference engine for large language models, powering our local `llama-server`.
+* **[NVIDIA Nemotron 3.5 ASR Streaming](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)** — Exceptional streaming Speech-to-Text architecture providing low-latency transcription.
+* **[Google Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B)** — High-efficiency open language model powering real-time intent extraction and conversational slot filling.
 
 ---
 
