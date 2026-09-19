@@ -1,6 +1,6 @@
 # Streaming ASR & Real-Time Local AI Voice Demos
 
-An end-to-end, high-performance local AI voice interaction suite built for Windows CPU. This project demonstrates real-time streaming Speech-to-Text (ASR), client-side Voice Activity Detection (VAD), Large Language Model (LLM) speech-to-command transformation, and Text-to-Speech (TTS) voice responses—all operating completely offline.
+An end-to-end, high-performance local AI voice interaction suite that runs natively on **Windows, Linux, and macOS**. This project demonstrates real-time streaming Speech-to-Text (ASR), client-side Voice Activity Detection (VAD), Large Language Model (LLM) speech-to-command transformation, and Text-to-Speech (TTS) voice responses across **15 languages**—all operating completely offline.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](./LICENSE.txt)
 [![Chrome Extension](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](./extension)
@@ -154,44 +154,96 @@ The system supports end-to-end localization across UI elements, conversational T
 
 ## 🚀 Quick Start Guide
 
-### 1. Launch Options
+### Step 1 — Start the Companion Orchestrator
 
-* **Option A: 1-Click Launch from Chrome Extension** ⭐ *(Recommended)*
-  1. Register the URL protocol once (no admin privileges needed):
-     - **Windows**: Run `streaming_demos\companion\register_protocol.bat`
-     - **Linux / macOS**: Run `./streaming_demos/companion/register_protocol.sh`
-  2. Open the Chrome Extension Side Panel.
-  3. When offline, click **⚡ कम्पैनियन चालू करें (Launch Companion)** right from the extension to boot the companion orchestrator automatically!
-  4. Once online, click **🚀 स्टार्ट सर्विसेज** to load the AI models into memory.
+The companion is a Node.js server that manages all 3 local AI processes (ASR, TTS, LLM) and proxies their APIs to the browser extension.
 
-* **Option B: Manual Batch Launcher**
-  Double-click:
-  ```cmd
-  streaming_demos\companion\start_companion.bat
-  ```
-  *(Or `./companion/start_companion.sh` on Linux/macOS)*
-  > 💡 **Zero Manual Setup**:
-  > - **Auto-installs Node.js**: If Node.js is not detected on Windows, the script automatically installs the official Node.js LTS via Windows Package Manager (`winget`).
-  > - **Orchestration & Proxy**: Runs on `http://127.0.0.1:8000` to verify models, manage background AI processes, and handle reverse proxying.
+#### 🪟 Windows
+```cmd
+companion\start_companion.bat
+```
+> **Auto-installs Node.js** via `winget` if not found. No admin required.
 
----
+#### 🐧 Linux / 🍎 macOS
+```bash
+chmod +x companion/start_companion.sh
+./companion/start_companion.sh
+```
+> Requires Node.js v18+ installed. The script checks for it and prints install instructions if missing.
 
-### 2. Choose Your Interface
-
-* **Option A: Chrome Extension (Side Panel Assistant)** ⭐ *(Recommended)*
-  1. Open Chrome and go to `chrome://extensions`.
-  2. Enable **Developer mode** (top-right) and click **Load unpacked**.
-  3. Select the `streaming_demos\extension` folder.
-  4. Open the Side Panel, launch companion / start services, and start speaking!
-  5. 📖 Read the full **[Chrome Extension Instructional Manual](./extension/README.md)** for a visual walkthrough.
-
-* **Option B: Standalone Web Demo**
-  1. With the companion server running, open `http://localhost:8000/` in your browser.
-  2. 📖 Read the **[Voice Commands Demo README](./commands_demo/README.md)** for detailed architecture.
+The companion starts at **`http://127.0.0.1:8000`** and keeps running in that terminal window.
 
 ---
 
-### 3. Manual CLI Testing & Scripting
+### Step 2 — Register the Protocol Handler (one-time, optional)
+
+This lets the Chrome Extension launch the companion with a single click when it detects it is offline.
+
+| Platform | Command |
+| :--- | :--- |
+| **Windows** | Double-click `companion\register_protocol.bat` |
+| **Linux** | `chmod +x companion/register_protocol.sh && ./companion/register_protocol.sh` |
+| **macOS** | `chmod +x companion/register_protocol.sh && ./companion/register_protocol.sh` |
+
+After registration, the **⚡ Launch Companion** button in the extension side panel will auto-start the companion from within Chrome.
+
+---
+
+### Step 3 — Load the Chrome Extension
+
+1. Open Chrome and navigate to `chrome://extensions`.
+2. Enable **Developer mode** (toggle in the top-right corner).
+3. Click **Load unpacked** and select the `extension/` folder.
+4. The **Local Voice ASR & Form Assistant** extension will appear in your extensions list.
+5. Click the puzzle-piece icon → pin the extension → click it to open the **Side Panel**.
+
+---
+
+### Step 4 — Grant Microphone Permission (one-time)
+
+Chrome Side Panels cannot show permission prompts directly:
+1. In the Side Panel, click **🎙️ माइक अनुमति** (Mic Permission).
+2. A new tab opens asking for microphone access → click **Allow**.
+3. The tab closes automatically. Permission is permanently granted to the extension.
+
+---
+
+### Step 5 — Choose Your Language
+
+The assistant supports **15 languages / 19 locales**. Language is selected from the **Language Selector** in the extension Side Panel.
+
+> [!IMPORTANT]
+> **Changing language restarts the ASR and TTS services.** The LLM stays running. Expect a ~5–15 second restart while the new voice model loads. The first time a new language is selected, the companion may automatically download the required Piper voice model (~50–150 MB).
+
+**How it works:**
+- Select a language/locale from the dropdown in the Side Panel.
+- The extension calls `POST /api/language` on the companion.
+- The companion saves the selection to `companion/config.json` and hot-restarts only the ASR and TTS processes with the new language's model.
+- The UI cards will briefly show **STARTING** then return to **READY**.
+- Your selection is **persisted** — the next time the companion starts, it remembers the last language.
+
+---
+
+### Step 6 — Start Services & Use
+
+1. In the Side Panel, click **🚀 स्टार्ट सर्विसेज (Start Services)**.
+2. All three AI service cards (ASR, TTS, LLM) will turn green (**READY**).
+3. Open any webpage with a form.
+4. Click **🔍 फ़ॉर्म स्कैन करें (Scan Form)** — the extension maps all input fields.
+5. Click **▶️ वॉइस से भरें (Start Voice Filling)** — the assistant prompts each field via TTS and captures your spoken answer via ASR.
+6. Click **⏹️ सत्र समाप्त करें (Stop Session)** anytime to halt all activity.
+
+---
+
+### Alternative — Standalone Web Demo
+
+With the companion running, open **`http://localhost:8000/`** in your browser for the voice commands web demo.
+📖 See the **[Voice Commands Demo README](./commands_demo/README.md)** for details.
+
+---
+
+### CLI Testing & Manual Binary Invocation
+
 For running individual native binaries directly without the companion, or for CLI tests (`curl`, `ffmpeg`), refer to [`commands.md`](./commands.md).
 
 ---

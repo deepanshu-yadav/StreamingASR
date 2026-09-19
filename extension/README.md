@@ -1,6 +1,6 @@
 # 🎙️ Local Voice ASR & Form Assistant — Chrome Extension Manual
 
-An offline, privacy-first Chrome Extension (Manifest V3) that provides real-time streaming multilingual Speech-to-Text (ASR), large language model (LLM) intent classification and correction, and high-quality Text-to-Speech (TTS) voice responses across 15 languages—all powered by local models running natively on Windows CPU.
+An offline, privacy-first Chrome Extension (Manifest V3) that provides real-time streaming multilingual Speech-to-Text (ASR), large language model (LLM) intent classification and correction, and high-quality Text-to-Speech (TTS) voice responses across 15 languages—all powered by local models running natively on Windows, Linux, and macOS.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](../LICENSE.txt)
 [![Chrome Extension](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](./manifest.json)
@@ -47,7 +47,7 @@ When the extension is loaded in Google Chrome, it opens as a persistent **Side P
 
 * **⚡ Companion Status**: Displays `Companion Online` (green indicator) when connected to the local companion daemon at `http://127.0.0.1:8000`.
 * **🎙️ Nemotron Streaming ASR Card**: Monitors the streaming Speech-to-Text engine (`WS :8082/v1/realtime` & `HTTP :8080`). Displays `READY` when listening.
-* **🗣️ Piper TTS Card**: Monitors the offline Hindi speech synthesis engine (`Port :8089`). Displays `READY` when available.
+* **🗣️ Piper TTS Card**: Monitors the offline voice speech synthesis engine (`Port :8089`). Displays `READY` when available.
 * **🧠 Gemma 4 LLM Card**: Monitors the local `llama-server` running Gemma 4 E2B (`Port :8084`). Displays `READY` when loaded.
 * **Service Actions**:
   * **⚡ कम्पैनियन चालू करें (Launch Companion)**: 1-click launch from within the extension when offline (uses registered `voice-companion://` protocol handler).
@@ -68,7 +68,7 @@ Once services are active, the form assistant is ready:
 * **⏹️ सत्र समाप्त करें (Stop Session & All Activity)**: Instantly terminates audio listening, aborts TTS playback, stops sequential form filling, clears webpage highlights, and resets assistant state.
 * **🎙️ माइक अनुमति (Mic Permission)**: Quick link to approve microphone access in a dedicated tab.
 * **Real-time Signal Strip (RMS VU Meter)**: Visualizes incoming audio levels in real time and highlights speech vs. silence boundaries detected by **Silero VAD**.
-* **लाइव ट्रांसक्रिप्शन (Streaming STT)**: Displays live, low-latency partial and interim Hindi transcripts as you speak into the form fields.
+* **लाइव ट्रांसक्रिप्शन (Streaming STT)**: Displays live, low-latency partial and interim transcripts in your selected language as you speak into the form fields.
 * **Current Active Field Spotlight**: Highlights the current field, spoken prompt, live recognized value preview, and quick step navigation controls (`⏮️ पिछला`, `🔄 दोबारा पूछें`, `⏭️ छोड़ें`).
 * **📋 स्कैन किए गए फ़ील्ड्स (Scanned Fields Accordion)**: Interactive checklist of all form fields. Clicking any row directly focuses and selects that field.
 * **Tuning Parameters (Accordion)**:
@@ -136,7 +136,7 @@ extension/
                │ (WebSockets & REST)
                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ Local Host OS (Windows CPU)                                     │
+│ Local Host OS (Windows, Linux, macOS)                           │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │ Companion Orchestrator & Proxy Server (:8000)             │  │
@@ -158,22 +158,22 @@ extension/
 
 ## 📦 Required Models & Binaries
 
-The system verifies existing files in `Desktop\workspace\browser-form-fill\` and skips downloading if they already exist:
+The companion script checks and auto-downloads missing binaries and models:
 
 | Component | Target Location | Description |
 | :--- | :--- | :--- |
-| **CrispASR Engine** | `bin\crispasr.exe` | Multi-backend ASR & TTS server |
-| **llama-server Engine** | `bin\llama-server.exe` | llama.cpp server with CPU AVX2 acceleration |
-| **Nemotron ASR Model** | `models\nemotron-3.5-asr-streaming-0.6b-q4_k.gguf` | 0.6B streaming Speech-to-Text model |
-| **Piper TTS Model** | `models\hi_IN-rohan-medium.gguf` | Hindi voice synthesis model |
-| **Gemma 4 LLM** | `models\gemma-4-E2B-it-UD-Q4_K_XL.gguf` | 2.6B parameter command correction model |
-| **Silero VAD** | `extension\silero_vad.onnx` | Bundled WebAssembly Voice Activity Detector |
+| **CrispASR Engine** | `bin/crispasr` (`.exe` on Win) | Multi-backend ASR & TTS server |
+| **llama-server Engine** | `bin/llama-server` (`.exe` on Win) | llama.cpp server with CPU AVX2 acceleration |
+| **Nemotron ASR Model** | `models/nemotron-3.5-asr-streaming-0.6b-q4_k.gguf` | 0.6B streaming Speech-to-Text model |
+| **Piper TTS Model** | `models/<lang>-medium.gguf` | Piper voice model matching selected language |
+| **Gemma 4 LLM** | `models/gemma-4-E2B-it-UD-Q4_K_XL.gguf` | 2.6B parameter command correction model |
+| **Silero VAD** | `extension/silero_vad.onnx` | Bundled WebAssembly Voice Activity Detector |
 
 ---
 
 ## 🌐 Supported Languages (15 Languages / 19 Locales)
 
-The assistant features full end-to-end localization across UI elements, conversational TTS dictation templates, Gemma 4 LLM intent classification/value extraction prompts, and speech heuristics. Piper voice models in GGUF format are fetched from [LocalAI-Community/piper-voices-GGUF](https://huggingface.co/LocalAI-Community/piper-voices-GGUF/tree/main):
+The assistant features full end-to-end localization across UI elements, conversational TTS dictation templates, Gemma 4 LLM intent classification/value extraction prompts, and speech heuristics. Piper voice models in GGUF format are fetched automatically from [LocalAI-Community/piper-voices-GGUF](https://huggingface.co/LocalAI-Community/piper-voices-GGUF/tree/main):
 
 | Language | Locales | TTS Voice Model (GGUF) |
 | :--- | :--- | :--- |
@@ -197,75 +197,83 @@ The assistant features full end-to-end localization across UI elements, conversa
 
 ## 🚀 Step-by-Step Installation & Setup
 
-### Step 1: Companion Orchestrator Setup (Cross-Platform)
+### Step 1 — Start the Companion Orchestrator
 
-#### 🪟 Windows Setup
-* **1-Click Protocol Registration (Recommended):**
-  Double-click `companion\register_protocol.bat`
-* **Manual Launcher:**
-  Double-click `companion\start_companion.bat` *(auto-installs Node.js LTS via winget if missing)*
+The companion server manages all 3 AI backend processes (ASR, TTS, LLM) and proxies their APIs to bypass CORS.
 
-#### 🐧 Linux Setup
-* **1-Click Protocol Registration:**
-  ```bash
-  chmod +x companion/*.sh
-  ./companion/register_protocol.sh
-  ```
-* **Manual Launcher:**
-  ```bash
-  ./companion/start_companion.sh
-  ```
+#### 🪟 Windows
+```cmd
+companion\start_companion.bat
+```
+> Auto-installs Node.js LTS via `winget` if missing.
 
-#### 🍎 macOS Setup
-* **1-Click Protocol Registration:**
-  ```bash
-  chmod +x companion/*.sh
-  ./companion/register_protocol.sh
-  ```
-* **Manual Launcher:**
-  ```bash
-  ./companion/start_companion.sh
-  ```
+#### 🐧 Linux / 🍎 macOS
+```bash
+chmod +x companion/*.sh
+./companion/start_companion.sh
+```
+> Requires Node.js v18+. Checks and prints installation instructions if missing.
 
-The companion starts listening on `http://127.0.0.1:8000/`.
+The companion starts at **`http://127.0.0.1:8000`** and runs continuously in that terminal window.
 
 ---
 
-### Step 2: Load the Extension in Google Chrome
-1. Open Google Chrome and navigate to:
-   ```
-   chrome://extensions
-   ```
-2. Enable **Developer mode** via the toggle switch in the top-right corner.
-3. Click the **Load unpacked** button in the top-left corner.
-4. Browse and select the extension folder:
-   ```
-   Desktop\workspace\browser-form-fill\streaming_demos\extension
-   ```
-5. **Local Voice ASR & Form Assistant** will now appear in your active extensions list.
+### Step 2 — Register the Protocol Handler (One-time setup, optional)
+
+Enables the **⚡ Launch Companion** button inside the Side Panel to auto-start the server directly from Chrome.
+
+| Platform | Command |
+| :--- | :--- |
+| **Windows** | Double-click `companion\register_protocol.bat` |
+| **Linux** | `./companion/register_protocol.sh` |
+| **macOS** | `./companion/register_protocol.sh` |
 
 ---
 
-### Step 3: Grant Microphone Permission (One-Time Setup)
-Because Chrome Side Panels do not have a URL bar to display permission bubbles:
-1. Open the Side Panel by clicking the extension icon in Chrome's toolbar.
-2. Click **`🎙️ माइक अनुमति`** (or click **सेशन शुरू करें**).
-3. A permission tab will automatically open asking:
-   > *"Local Voice ASR & Form Assistant wants to: Use your microphone"* &rarr; Click **Allow**.
-4. The tab displays `✅ अनुमति मिल गई!` and closes itself. Microphone permission is now permanently granted to the extension origin!
+### Step 3 — Load the Extension in Google Chrome
+
+1. Open Chrome and navigate to `chrome://extensions`.
+2. Enable **Developer mode** via the top-right toggle switch.
+3. Click **Load unpacked** and select the `extension/` folder from this repository.
+4. **Local Voice ASR & Form Assistant** will appear in your extensions list.
+5. Click the puzzle-piece icon in Chrome's toolbar &rarr; pin the extension &rarr; click it to open the **Side Panel**.
 
 ---
 
-### Step 4: Boot AI Services, Scan Forms & Begin Voice Fill
-1. In the Side Panel, click **🚀 स्टार्ट सर्विसेज**.
-2. The companion will boot the 3 local AI processes. Within a few seconds, all three indicators turn green (**READY**).
-3. Open any webpage with form inputs (e.g. contact forms, registration forms).
-4. Click **🔍 फ़ॉर्म स्कैन करें** (Scan Form). The extension automatically identifies all text fields, email inputs, textareas, etc.
-5. Click **▶️ वॉइस से भरें** (Start Voice Filling).
-6. The assistant highlights each field on the page and prompts you via TTS:
-   > *"अगला फ़ील्ड है [नाम]। कृपया बताएं इसमें क्या भरना है?"*
-7. Speak your answer in Hindi or English. The assistant fills the field, verifies with you (*"क्या यह सही है?"*), and moves to the next field upon confirmation!
-8. Click **⏹️ सत्र समाप्त करें** anytime to immediately stop all listening and activity.
+### Step 4 — Grant Microphone Permission (One-Time Setup)
+
+Chrome Side Panels cannot render microphone permission bubbles directly:
+1. In the Side Panel, click **`🎙️ माइक अनुमति`** (Mic Permission).
+2. A dedicated browser tab opens requesting microphone access &rarr; click **Allow**.
+3. The tab displays `✅ अनुमति मिल गई!` and closes automatically.
+
+---
+
+### Step 5 — Choose Your Language & Handle Service Restarts
+
+Select your preferred language from the **Language Selector** dropdown at the top of the Side Panel.
+
+> [!IMPORTANT]
+> **Selecting a new language automatically hot-restarts the ASR and TTS backend services** (the LLM remains running). Expect a ~5–15 second transition period while the new language's voice models are initialized. If selected for the first time, the companion automatically fetches the corresponding Piper TTS voice GGUF model (~50–150 MB).
+
+**How language switching works under the hood:**
+- The extension sends a request to `POST /api/language` on the companion server.
+- The companion persists your choice in `companion/config.json` and triggers a restart of only the ASR + TTS processes.
+- Service indicators in the Side Panel briefly transition to **STARTING** before returning to **READY**.
+- Your language preference is saved across sessions and automatically restored whenever you restart the companion.
+
+---
+
+### Step 6 — Start AI Services & Begin Voice Filling
+
+1. In the Side Panel, click **🚀 स्टार्ट सर्विसेज (Start Services)**.
+2. All three service cards (Nemotron ASR, Piper TTS, Gemma 4 LLM) will turn green (**READY**).
+3. Open any webpage containing form fields (contact form, registration, survey, etc.).
+4. Click **🔍 फ़ॉर्म स्कैन करें (Scan Form)** — the extension maps and lists all detectable input fields.
+5. Click **▶️ वॉइस से भरें (Start Voice Filling)** — the assistant prompts each field in your selected language via local TTS and listens for your spoken response.
+6. The assistant populates the input, verifies (*"क्या यह सही है?"*), and advances to the next field.
+7. Click **⏹️ सत्र समाप्त करें (Stop Session)** anytime to halt all listening, playback, and form-filling activities.
+
 
 ---
 
