@@ -24,17 +24,19 @@ const LLM_PORT = 8084;
 
 // Resolve models/bin root directory:
 // 1. COMPANION_ROOT environment variable (if set and exists)
-// 2. Parent directory (e.g. dev workspace Desktop/workspace/browser-form-fill) if it has models/ or bin/
-// 3. Project root (streaming_demos) so new downloads remain completely self-contained
+// 2. Default: ~/Downloads/signal (keeps binaries out of the source tree)
 function resolveRootDir() {
     if (process.env.COMPANION_ROOT && fs.existsSync(process.env.COMPANION_ROOT)) {
         return path.resolve(process.env.COMPANION_ROOT);
     }
-    const parentRoot = path.resolve(__dirname, '..', '..');
-    if (fs.existsSync(path.join(parentRoot, 'models')) || fs.existsSync(path.join(parentRoot, 'bin'))) {
-        return parentRoot;
+    const homeDir = process.env.USERPROFILE || process.env.HOME || require('os').homedir();
+    const signalDir = path.join(homeDir, 'Downloads', 'signal');
+    // Ensure directory structure exists
+    for (const sub of ['', 'models', 'bin']) {
+        const dir = path.join(signalDir, sub);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     }
-    return path.resolve(__dirname, '..');
+    return signalDir;
 }
 
 const ROOT_DIR = resolveRootDir();
@@ -396,12 +398,57 @@ server.on('error', (err) => {
     process.exit(1);
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-    console.log(`\n======================================================`);
-    console.log(`  ✦  Companion Orchestrator & Proxy Running`);
-    console.log(`     API & Static: http://127.0.0.1:${PORT}/`);
-    console.log(`     TTS Proxy:    http://localhost:${PORT}/v1/audio/speech -> :8089`);
-    console.log(`     LLM Proxy:    http://localhost:${PORT}/v1/chat/completions -> :8084`);
-    console.log(`     ASR WS Port:  ws://127.0.0.1:8081`);
-    console.log(`======================================================\n`);
-});
+// ==========================================
+// AUTO-DOWNLOAD & STARTUP
+// ==========================================
+(async () => {
+    console.log(`\n[Startup] Checking assets in ${ROOT_DIR} ...`);
+    const assetCheck = downloader.checkAssets();
+
+    if (!assetCheck.allPresent) {
+        const missing = assetCheck.assets.filter(a => !a.exists);
+        console.log(`[Startup] ${missing.length} core asset(s) missing:`);
+        for (const m of missing) {
+            console.log(`  \u2022 ${m.name} (${m.relPath})`);
+        }
+        console.log('[Startup] Downloading missing core assets...\n');
+        try {
+            await downloader.downloadMissingAssets(
+                (item) => console.log(`[Download Start]    ${item.name}`),
+                (item, p) => {
+                    process.stdout.write(`\r[Download Progress] ${item.name}: ${p.percent}% (${downloader.formatBytes(p.downloadedBytes)} / ${downloader.formatBytes(p.totalBytes)})`);
+                },
+                (item) => console.log(`\n[Download Complete]  ${item.name}`)
+            );
+        } catch (err) {
+            console.error(`\n[Startup WARNING] Some downloads failed: ${err.message}`);
+            console.error('[Startup WARNING] The server will start, but some services may not work.\n');
+        }
+    } else {
+        console.log('[Startup] All core assets present. \u2713');
+    }
+
+    // Download TTS voice model for the currently selected language only
+    const currentLang = processManager.currentLanguage;
+    console.log(`[Startup] Ensuring TTS voice for selected language: "${currentLang}"...`);
+    try {
+        await downloader.ensureLanguageVoice(currentLang, (p) => {
+            process.stdout.write(`\r[TTS Voice] ${currentLang}: ${p.percent}% (${downloader.formatBytes(p.downloadedBytes)} / ${downloader.formatBytes(p.totalBytes)})`);
+        });
+        console.log(`[Startup] TTS voice for "${currentLang}" ready. \u2713`);
+    } catch (err) {
+        console.warn(`[Startup WARNING] TTS voice download for "${currentLang}" failed: ${err.message}`);
+    }
+
+    // Now start listening
+    server.listen(PORT, '127.0.0.1', () => {
+        console.log(`\n======================================================`);
+        console.log(`  \u2726  Companion Orchestrator & Proxy Running`);
+        console.log(`     API & Static: http://127.0.0.1:${PORT}/`);
+        console.log(`     TTS Proxy:    http://localhost:${PORT}/v1/audio/speech -> :8089`);
+        console.log(`     LLM Proxy:    http://localhost:${PORT}/v1/chat/completions -> :8084`);
+        console.log(`     ASR WS Port:  ws://127.0.0.1:8081`);
+        console.log(`     Models/Bins:  ${ROOT_DIR}`);
+        console.log(`======================================================\n`);
+    });
+})();

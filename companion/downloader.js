@@ -237,14 +237,14 @@ function getPlatformBinaries() {
     if (IS_WINDOWS) {
         return {
             crispasr: {
-                relPath: path.join('bin', 'crispasr.exe'),
+                relPath: path.join('bin', 'crispasr', 'crispasr.exe'),
                 url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.30/crispasr-windows-x86_64-cpu.zip',
                 isArchive: true,
                 archiveType: 'zip',
                 minSizeBytes: 5 * 1024 * 1024
             },
             llamaServer: {
-                relPath: path.join('bin', 'llama-server.exe'),
+                relPath: path.join('bin', 'llama_cpp', 'llama-server.exe'),
                 url: 'https://github.com/ggml-org/llama.cpp/releases/download/b10686/llama-b10686-bin-win-cpu-x64.zip',
                 isArchive: true,
                 archiveType: 'zip',
@@ -260,14 +260,14 @@ function getPlatformBinaries() {
 
         return {
             crispasr: {
-                relPath: path.join('bin', 'crispasr'),
+                relPath: path.join('bin', 'crispasr', 'crispasr'),
                 url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.30/crispasr-macos.tar.gz',
                 isArchive: true,
                 archiveType: 'tar.gz',
                 minSizeBytes: 5 * 1024 * 1024
             },
             llamaServer: {
-                relPath: path.join('bin', 'llama-server'),
+                relPath: path.join('bin', 'llama_cpp', 'llama-server'),
                 url: llamaMacUrl,
                 isArchive: true,
                 archiveType: 'zip',
@@ -279,14 +279,14 @@ function getPlatformBinaries() {
     // Default Linux (x86_64)
     return {
         crispasr: {
-            relPath: path.join('bin', 'crispasr'),
+            relPath: path.join('bin', 'crispasr', 'crispasr'),
             url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.30/crispasr-linux-x86_64.tar.gz',
             isArchive: true,
             archiveType: 'tar.gz',
             minSizeBytes: 5 * 1024 * 1024
         },
         llamaServer: {
-            relPath: path.join('bin', 'llama-server'),
+            relPath: path.join('bin', 'llama_cpp', 'llama-server'),
             url: 'https://github.com/ggml-org/llama.cpp/releases/download/b10686/llama-b10686-bin-ubuntu-x64.zip',
             isArchive: true,
             archiveType: 'zip',
@@ -319,24 +319,7 @@ const ASSETS_MANIFEST = [
         isArchive: platformBins.llamaServer.isArchive,
         archiveType: platformBins.llamaServer.archiveType
     },
-    {
-        id: 'tts_model_hi',
-        name: 'Piper Hindi TTS Model (Rohan GGUF)',
-        type: 'model',
-        relPath: path.join('models', 'hi_IN-rohan-medium.gguf'),
-        minSizeBytes: 20 * 1024 * 1024,
-        url: 'https://huggingface.co/pronoobie/piper-voices-hindi/resolve/main/hi_IN-rohan-medium.gguf',
-        isArchive: false
-    },
-    {
-        id: 'tts_model_en',
-        name: 'Piper English TTS Model (Lessac GGUF)',
-        type: 'model',
-        relPath: path.join('models', 'piper-en_US-lessac-medium-f16.gguf'),
-        minSizeBytes: 20 * 1024 * 1024,
-        url: PIPER_GGUF_BASE_URL + 'piper-en_US-lessac-medium-f16.gguf',
-        isArchive: false
-    },
+
     {
         id: 'asr_model',
         name: 'Nemotron 3.5 Streaming ASR (GGUF)',
@@ -621,26 +604,57 @@ class AssetDownloader {
             const destPath = item.absPath;
 
             if (manifestItem.isArchive) {
-                // Download archive to temporary file and extract
+                // Download archive to temporary file and extract into the binary's own subdirectory
                 const archiveExt = manifestItem.archiveType === 'tar.gz' ? '.tar.gz' : '.zip';
-                const archiveTempPath = path.join(this.rootDir, 'bin', `temp_download${archiveExt}`);
+                // Extract into the parent directory of the expected binary path
+                // e.g. bin/crispasr/ for bin/crispasr/crispasr.exe
+                const extractDir = path.dirname(destPath);
+                if (!fs.existsSync(extractDir)) fs.mkdirSync(extractDir, { recursive: true });
+                const archiveTempPath = path.join(extractDir, `temp_download${archiveExt}`);
                 
                 await this.downloadFile(manifestItem.url, archiveTempPath, (p) => {
                     if (onItemProgress) onItemProgress(manifestItem, p);
                 });
 
-                const binDir = path.join(this.rootDir, 'bin');
                 try {
-                    await this.extractArchive(archiveTempPath, binDir, manifestItem.archiveType);
+                    await this.extractArchive(archiveTempPath, extractDir, manifestItem.archiveType);
                 } finally {
                     try { if (fs.existsSync(archiveTempPath)) fs.unlinkSync(archiveTempPath); } catch (_) {}
                 }
 
-                // Chmod all binaries in bin on POSIX
-                if (!IS_WINDOWS && fs.existsSync(binDir)) {
-                    const files = fs.readdirSync(binDir);
+                // Post-extraction: flatten binary and its dependent sibling files (e.g. openblas.dll)
+                // from nested subdirectories (e.g. crispasr-windows-x86_64-cpu/) to expected path
+                if (!fs.existsSync(destPath)) {
+                    const targetBasename = path.basename(destPath);
+                    const found = this._findFileRecursive(extractDir, targetBasename);
+                    if (found) {
+                        try {
+                            const subDir = path.dirname(found);
+                            // Copy all sibling files (like openblas.dll) from the nested folder to extractDir
+                            if (subDir !== extractDir && fs.existsSync(subDir)) {
+                                const siblings = fs.readdirSync(subDir, { withFileTypes: true });
+                                for (const sib of siblings) {
+                                    if (sib.isFile()) {
+                                        const src = path.join(subDir, sib.name);
+                                        const dst = path.join(extractDir, sib.name);
+                                        fs.copyFileSync(src, dst);
+                                    }
+                                }
+                                console.log(`[Downloader] Flattened files and dependencies from ${path.relative(extractDir, subDir)} to ${extractDir}`);
+                            } else {
+                                fs.copyFileSync(found, destPath);
+                            }
+                        } catch (cpErr) {
+                            console.warn(`[Downloader] Could not flatten ${targetBasename} dependencies: ${cpErr.message}`);
+                        }
+                    }
+                }
+
+                // Chmod all binaries on POSIX
+                if (!IS_WINDOWS && fs.existsSync(extractDir)) {
+                    const files = fs.readdirSync(extractDir);
                     for (const f of files) {
-                        try { fs.chmodSync(path.join(binDir, f), 0o755); } catch (_) {}
+                        try { fs.chmodSync(path.join(extractDir, f), 0o755); } catch (_) {}
                     }
                 }
             } else {
@@ -667,6 +681,27 @@ class AssetDownloader {
         }
 
         return this.checkAssets();
+    }
+
+    /**
+     * Recursively searches a directory for a file by basename.
+     * Returns the absolute path of the first match, or null.
+     */
+    _findFileRecursive(dir, filename) {
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                const full = path.join(dir, entry.name);
+                if (entry.isFile() && entry.name === filename) {
+                    return full;
+                }
+                if (entry.isDirectory()) {
+                    const found = this._findFileRecursive(full, filename);
+                    if (found) return found;
+                }
+            }
+        } catch (_) {}
+        return null;
     }
 
     formatBytes(bytes) {

@@ -5,6 +5,7 @@ cd /d "%~dp0"
 
 echo ========================================================
 echo   Companion Orchestrator ^& Proxy Server
+echo   Models/Binaries: %%USERPROFILE%%\Downloads\signal
 echo ========================================================
 echo.
 

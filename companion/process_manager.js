@@ -15,8 +15,8 @@ const net = require('net');
 const http = require('http');
 
 const IS_WINDOWS = process.platform === 'win32';
-const CRISPASR_BIN_NAME = IS_WINDOWS ? 'crispasr.exe' : 'crispasr';
-const LLAMA_SERVER_BIN_NAME = IS_WINDOWS ? 'llama-server.exe' : 'llama-server';
+const CRISPASR_BIN_NAME = IS_WINDOWS ? path.join('crispasr', 'crispasr.exe') : path.join('crispasr', 'crispasr');
+const LLAMA_SERVER_BIN_NAME = IS_WINDOWS ? path.join('llama_cpp', 'llama-server.exe') : path.join('llama_cpp', 'llama-server');
 
 const LANGUAGE_CONFIG = {
     // Hindi (already done)
