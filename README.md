@@ -197,7 +197,7 @@ After registration, the **⚡ Launch Companion** button in the extension side pa
 4. The **Local Voice ASR & Form Assistant** extension will appear in your extensions list.
 5. Click the puzzle-piece icon → pin the extension → click it to open the **Side Panel**.
 
-![Extension Loaded in Chrome and Side Panel Services Ready](.extension/docs/images/service_orchestration_overview.png)
+![Extension Loaded in Chrome and Side Panel Services Ready](./extension/docs/images/service_orchestration_overview.png)
 
 ---
 
