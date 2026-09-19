@@ -108,27 +108,63 @@ The system verifies existing files in `Desktop\workspace\browser-form-fill\` and
 
 ---
 
+## 🌐 Supported Languages (15 Languages / 19 Locales)
+
+The assistant features full end-to-end localization across UI elements, conversational TTS dictation templates, Gemma 4 LLM intent classification/value extraction prompts, and speech heuristics. Piper voice models in GGUF format are fetched from [LocalAI-Community/piper-voices-GGUF](https://huggingface.co/LocalAI-Community/piper-voices-GGUF/tree/main):
+
+| Language | Locales | TTS Voice Model (GGUF) |
+| :--- | :--- | :--- |
+| **Hindi** | `hi-IN` (Default) | `hi_IN-rohan-medium.gguf` |
+| **English** | `en-US`, `en-GB` | `piper-en_US-lessac-medium-f16.gguf` / `piper-en_GB-cori-medium-f16.gguf` |
+| **Spanish** | `es-ES`, `es-US` | `piper-es_ES-davefx-medium-f16.gguf` / `piper-es_MX-ald-medium-f16.gguf` |
+| **French** | `fr-FR`, `fr-CA` | `piper-fr_FR-siwis-medium-f16.gguf` / `piper-fr_FR-tom-medium-f16.gguf` |
+| **Italian** | `it-IT` | `piper-it_IT-paola-medium-f16.gguf` |
+| **Portuguese**| `pt-BR`, `pt-PT` | `piper-pt_BR-faber-medium-f16.gguf` / `piper-pt_PT-tugão-medium-f16.gguf` |
+| **Dutch** | `nl-NL` | `piper-nl_NL-alex-medium-f16.gguf` |
+| **German** | `de-DE` | `piper-de_DE-thorsten-medium-f16.gguf` |
+| **Turkish** | `tr-TR` | `piper-tr_TR-dfki-medium-f16.gguf` |
+| **Russian** | `ru-RU` | `piper-ru_RU-denis-medium-f16.gguf` |
+| **Arabic** | `ar-AR` | `piper-ar_JO-kareem-medium-f16.gguf` |
+| **Japanese**| `ja-JP` | Multilingual ASR & LLM prompts |
+| **Korean** | `ko-KR` | Multilingual ASR & LLM prompts |
+| **Vietnamese**| `vi-VN` | `piper-vi_VN-vais1000-medium-f16.gguf` |
+| **Ukrainian** | `uk-UA` | `piper-uk_UA-lada-x_low-f16.gguf` |
+
+---
+
 ## 🚀 Step-by-Step Installation & Setup
 
-### Step 1: Companion Orchestrator Setup (1-Click or Manual)
+### Step 1: Companion Orchestrator Setup (Cross-Platform)
 
-* **Option A: Enable 1-Click Launch from Chrome Extension (Recommended)**
-  Run the one-time registration script (no administrator privileges needed):
-  ```cmd
-  streaming_demos\companion\register_protocol.bat
+#### 🪟 Windows Setup
+* **1-Click Protocol Registration (Recommended):**
+  Double-click `companion\register_protocol.bat`
+* **Manual Launcher:**
+  Double-click `companion\start_companion.bat` *(auto-installs Node.js LTS via winget if missing)*
+
+#### 🐧 Linux Setup
+* **1-Click Protocol Registration:**
+  ```bash
+  chmod +x companion/*.sh
+  ./companion/register_protocol.sh
   ```
-  Once registered, you can start the companion directly from inside the Chrome Extension side panel by clicking **⚡ कम्पैनियन चालू करें (Launch Companion)**!
-
-* **Option B: Manual Launcher**
-  Open Windows File Explorer and double-click:
-  ```cmd
-  streaming_demos\companion\start_companion.bat
+* **Manual Launcher:**
+  ```bash
+  ./companion/start_companion.sh
   ```
-  *(Or run `cd streaming_demos\companion && start_companion.bat`)*.
 
-> 💡 **Automatic Node.js Installation**: If Node.js is not detected on the machine, `start_companion.bat` automatically installs the official **Node.js LTS** via the Windows Package Manager (`winget`) so you don't have to download or configure installers manually.
+#### 🍎 macOS Setup
+* **1-Click Protocol Registration:**
+  ```bash
+  chmod +x companion/*.sh
+  ./companion/register_protocol.sh
+  ```
+* **Manual Launcher:**
+  ```bash
+  ./companion/start_companion.sh
+  ```
 
-The companion starts listening at `http://127.0.0.1:8000/`.
+The companion starts listening on `http://127.0.0.1:8000/`.
 
 ---
 

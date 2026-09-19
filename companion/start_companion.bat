@@ -72,6 +72,10 @@ if %errorlevel% neq 0 (
 echo [OK] Node.js detected:
 node -v
 echo.
+echo [*] Cleaning up any stale companion or backend processes...
+node cleanup_ports.js
+
+echo.
 echo ========================================================
 echo   Starting Companion Server (http://127.0.0.1:8000)...
 echo ========================================================
@@ -81,3 +85,4 @@ if %errorlevel% neq 0 (
     echo [!] Companion process exited with code %errorlevel%.
     pause
 )
+

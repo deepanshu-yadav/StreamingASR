@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>कम्पैनियन चालू किया जा रहा है — Voice Assistant</title>
+    <title>Starting Companion Orchestrator — Voice Assistant</title>
     <style>
         body {
             background-color: #0c0e14;
@@ -96,24 +96,40 @@
 <body>
     <div class="card">
         <div class="icon" id="statusIcon">⚡</div>
-        <h1 id="titleText">कम्पैनियन चालू किया जा रहा है...</h1>
-        <p id="descText">
-            यदि ऊपर ब्राउज़र में <b>"Open Companion Orchestrator"</b> का डायलॉग आए, तो कृपया <b>"Open"</b> चुनें।
+        <h1 id="titleText" data-i18n="launchTitle">Starting Companion Orchestrator...</h1>
+        <p id="descText" data-i18n="launchDesc">
+            If a browser dialog asks to <b>"Open Companion Orchestrator"</b>, please select <b>"Open"</b>.
         </p>
 
-        <div class="status-box" id="statusBox">
-            ⏳ कम्पैनियन सर्वर से जुड़ने की प्रतीक्षा…
+        <div class="status-box" id="statusBox" data-i18n="launchStatusWaiting">
+            ⏳ Waiting to connect with companion server…
         </div>
 
-        <a id="manualLaunchLink" class="btn" href="voice-companion://start">
-            🚀 यदि अपने आप न खुले तो यहाँ क्लिक करें
+        <a id="manualLaunchLink" class="btn" href="voice-companion://start" data-i18n="launchManualBtn">
+            🚀 Click here if it does not open automatically
         </a>
 
-        <div class="hint">
-            यदि कुछ भी न हो, तो कृपया सुनिश्चित करें कि <kbd>register_protocol.bat</kbd> एक बार चला लिया गया है।
+        <div class="hint" id="hintText" data-i18n="launchHint">
+            If nothing happens, please ensure <kbd>register_protocol.bat</kbd> has been run once.
         </div>
     </div>
 
+    <script src="locales/hi.js"></script>
+    <script src="locales/en.js"></script>
+    <script src="locales/es.js"></script>
+    <script src="locales/fr.js"></script>
+    <script src="locales/it.js"></script>
+    <script src="locales/pt.js"></script>
+    <script src="locales/nl.js"></script>
+    <script src="locales/de.js"></script>
+    <script src="locales/tr.js"></script>
+    <script src="locales/ru.js"></script>
+    <script src="locales/ar.js"></script>
+    <script src="locales/ja.js"></script>
+    <script src="locales/ko.js"></script>
+    <script src="locales/vi.js"></script>
+    <script src="locales/uk.js"></script>
+    <script src="i18n.js"></script>
     <script src="launch.js"></script>
 </body>
 </html>

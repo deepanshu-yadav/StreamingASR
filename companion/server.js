@@ -14,7 +14,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { AssetDownloader } = require('./downloader');
-const { ProcessManager } = require('./process_manager');
+const { ProcessManager, LANGUAGE_CONFIG } = require('./process_manager');
 
 const PORT = 8000;
 const TTS_HOST = '127.0.0.1';
@@ -44,7 +44,7 @@ console.log(`[Companion] Workspace root: ${ROOT_DIR}`);
 console.log(`[Companion] Static UI dir:  ${STATIC_DIR}`);
 
 const downloader = new AssetDownloader(ROOT_DIR);
-const processManager = new ProcessManager(ROOT_DIR);
+const processManager = new ProcessManager(ROOT_DIR, downloader);
 
 function setCors(res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -159,11 +159,53 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
             allReady: assetStatus.allPresent && procStatus.allReady,
+            language: procStatus.language,
             assets: assetStatus,
             services: procStatus.services,
             rootDir: ROOT_DIR
         }));
         return;
+    }
+
+    // ==========================================
+    // REST API: GET / POST /api/language
+    // ==========================================
+    if (pathname === '/api/language') {
+        if (req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                language: processManager.currentLanguage,
+                supportedLanguages: Object.keys(LANGUAGE_CONFIG)
+            }));
+            return;
+        }
+        if (req.method === 'POST') {
+            const chunks = [];
+            req.on('data', c => chunks.push(c));
+            req.on('end', async () => {
+                try {
+                    const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+                    const targetLang = body.language || 'hi-IN';
+
+                    // Ensure voice model exists for this language, downloading if needed
+                    try {
+                        await downloader.ensureLanguageVoice(targetLang, (p) => {
+                            console.log(`[Companion] Downloading voice for ${targetLang}: ${p.percent}%`);
+                        });
+                    } catch (dlErr) {
+                        console.warn(`[Companion] Voice download notice for ${targetLang}:`, dlErr.message);
+                    }
+
+                    const result = await processManager.setLanguage(targetLang);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, ...result }));
+                } catch (err) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: err.message }));
+                }
+            });
+            return;
+        }
     }
 
     // ==========================================
@@ -207,6 +249,36 @@ const server = http.createServer(async (req, res) => {
             success: true,
             status: procStatus
         }));
+        return;
+    }
+
+    // ==========================================
+    // 5b. REST API: POST /api/shutdown
+    // ==========================================
+    if (pathname === '/api/shutdown' && req.method === 'POST') {
+        const chunks = [];
+        req.on('data', c => chunks.push(c));
+        req.on('end', async () => {
+            try {
+                const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+                if (body.language) {
+                    processManager.saveLanguageConfig(body.language);
+                    console.log(`[Companion] Persisted new language "${body.language}" for upcoming restart`);
+                }
+            } catch (_) {}
+
+            console.log('[Companion] Received shutdown request from extension. Terminating services and exiting...');
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                message: 'Companion server is shutting down.'
+            }));
+
+            setTimeout(async () => {
+                try { await processManager.stopAll(); } catch (_) {}
+                process.exit(0);
+            }, 300);
+        });
         return;
     }
 
@@ -313,6 +385,15 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': contentType });
         fs.createReadStream(filePath).pipe(res);
     });
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`[Companion] Error: Port ${PORT} is already in use by another process.`);
+    } else {
+        console.error('[Companion] Server error:', err);
+    }
+    process.exit(1);
 });
 
 server.listen(PORT, '127.0.0.1', () => {

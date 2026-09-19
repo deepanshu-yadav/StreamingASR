@@ -6,18 +6,60 @@
     <title>वॉइस फ़ॉर्म असिस्टेंट — Local ASR & LLM</title>
     <link rel="stylesheet" href="sidepanel.css" />
     <script src="lib/ort.min.js"></script>
+    <script src="locales/hi.js"></script>
+    <script src="locales/en.js"></script>
+    <script src="locales/es.js"></script>
+    <script src="locales/fr.js"></script>
+    <script src="locales/it.js"></script>
+    <script src="locales/pt.js"></script>
+    <script src="locales/nl.js"></script>
+    <script src="locales/de.js"></script>
+    <script src="locales/tr.js"></script>
+    <script src="locales/ru.js"></script>
+    <script src="locales/ar.js"></script>
+    <script src="locales/ja.js"></script>
+    <script src="locales/ko.js"></script>
+    <script src="locales/vi.js"></script>
+    <script src="locales/uk.js"></script>
+    <script src="i18n.js"></script>
 </head>
 <body>
     <div class="grain"></div>
     <div class="app-container">
         <!-- ===== HEADER ===== -->
         <header class="app-header">
-            <div class="brand">
-                <span class="pulse-dot"></span>
-                <span class="brand-title">VOICE FORM ASSISTANT &bull; NEMOTRON & GEMMA</span>
+            <div class="header-top-row">
+                <div class="brand">
+                    <span class="pulse-dot"></span>
+                    <span class="brand-title" data-i18n="brandTitle">VOICE FORM ASSISTANT &bull; NEMOTRON & GEMMA</span>
+                </div>
+                <div class="lang-selector-wrapper">
+                    <label for="languageSelect" class="lang-label" title="भाषा चुनें / Select Language">🌐</label>
+                    <select id="languageSelect" class="lang-dropdown">
+                        <option value="en-US">English (US)</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="es-ES">Español (España)</option>
+                        <option value="es-US">Español (EE. UU.)</option>
+                        <option value="fr-FR">Français (France)</option>
+                        <option value="fr-CA">Français (Canada)</option>
+                        <option value="it-IT">Italiano (Italia)</option>
+                        <option value="pt-BR">Português (Brasil)</option>
+                        <option value="pt-PT">Português (Portugal)</option>
+                        <option value="nl-NL">Nederlands (Nederland)</option>
+                        <option value="de-DE">Deutsch (Deutschland)</option>
+                        <option value="tr-TR">Türkçe (Türkiye)</option>
+                        <option value="ru-RU">Русский (Россия)</option>
+                        <option value="ar-AR">العربية (Arabic)</option>
+                        <option value="hi-IN" selected>हिन्दी (भारत)</option>
+                        <option value="ja-JP">日本語 (日本)</option>
+                        <option value="ko-KR">한국어 (대한민국)</option>
+                        <option value="vi-VN">Tiếng Việt (Việt Nam)</option>
+                        <option value="uk-UA">Українська (Україна)</option>
+                    </select>
+                </div>
             </div>
-            <h1>सिग्नल — वॉइस फ़ॉर्म असिस्टेंट</h1>
-            <p class="tagline">वेबसाइट फ़ॉर्म्स को वॉइस द्वारा स्वचालित रूप से स्कैन करें और भरें</p>
+            <h1 data-i18n="appTitle">सिग्नल — वॉइस फ़ॉर्म असिस्टेंट</h1>
+            <p class="tagline" data-i18n="tagline">वेबसाइट फ़ॉर्म्स को वॉइस द्वारा स्वचालित रूप से स्कैन करें और भरें</p>
         </header>
 
         <!-- ===== COMPANION ORCHESTRATOR CARD ===== -->
@@ -25,11 +67,11 @@
             <div class="card-header">
                 <div class="card-title">
                     <span class="icon">⚡</span>
-                    <span>बैकएंड सर्विसेज (Orchestrator)</span>
+                    <span data-i18n="orchestratorTitle">बैकएंड सर्विसेज (Orchestrator)</span>
                 </div>
                 <div id="companionPill" class="badge badge-disconnected" data-state="offline">
                     <span class="dot"></span>
-                    <span id="companionStatusText">Companion Offline</span>
+                    <span id="companionStatusText" data-i18n="companionOffline">Companion Offline</span>
                 </div>
             </div>
 
@@ -38,15 +80,15 @@
                 <div class="service-item" id="svc-asr" data-status="stopped">
                     <div class="svc-icon">🎙️</div>
                     <div class="svc-info">
-                        <div class="svc-name">Nemotron ASR</div>
-                        <div class="svc-port">WS :8082 &bull; HTTP :8080</div>
+                        <div class="svc-name" data-i18n="svsAsrName">Nemotron ASR</div>
+                        <div class="svc-port">WS :8081 &bull; HTTP :8080</div>
                     </div>
                     <span class="svc-badge">stopped</span>
                 </div>
                 <div class="service-item" id="svc-tts" data-status="stopped">
                     <div class="svc-icon">🗣️</div>
                     <div class="svc-info">
-                        <div class="svc-name">Piper TTS</div>
+                        <div class="svc-name" data-i18n="svsTtsName">Piper TTS</div>
                         <div class="svc-port">Port :8089</div>
                     </div>
                     <span class="svc-badge">stopped</span>
@@ -54,7 +96,7 @@
                 <div class="service-item" id="svc-llm" data-status="stopped">
                     <div class="svc-icon">🧠</div>
                     <div class="svc-info">
-                        <div class="svc-name">Gemma 4 LLM</div>
+                        <div class="svc-name" data-i18n="svsLlmName">Gemma 4 LLM</div>
                         <div class="svc-port">Port :8084</div>
                     </div>
                     <span class="svc-badge">stopped</span>
@@ -62,24 +104,24 @@
             </div>
 
             <div class="orchestrator-actions">
-                <button id="btnStartServices" class="btn btn-services-start" title="Start all 3 backend components">
+                <button id="btnStartServices" class="btn btn-services-start" title="Start all 3 backend components" data-i18n-title="btnStartServices">
                     <span class="btn-icon">🚀</span>
-                    <span>स्टार्ट सर्विसेज</span>
+                    <span data-i18n="btnStartServices">स्टार्ट सर्विसेज</span>
                 </button>
-                <button id="btnStopServices" class="btn btn-services-stop" title="Stop all 3 backend components">
+                <button id="btnStopServices" class="btn btn-services-stop" title="Stop all 3 backend components" data-i18n-title="btnStopServices">
                     <span class="btn-icon">⏹️</span>
-                    <span>स्टॉप</span>
+                    <span data-i18n="btnStopServices">स्टॉप</span>
                 </button>
-                <button id="btnCheckAssets" class="btn btn-services-check" title="Verify binaries and models">
+                <button id="btnCheckAssets" class="btn btn-services-check" title="Verify binaries and models" data-i18n-title="btnCheckAssets">
                     <span class="btn-icon">🔍</span>
-                    <span>चेक फाइल्स</span>
+                    <span data-i18n="btnCheckAssets">चेक फाइल्स</span>
                 </button>
             </div>
             <div id="companionOfflineBanner" class="companion-offline-box" style="display: none;">
-                <button id="btnLaunchCompanion" class="btn btn-launch" title="Launch Companion Orchestrator Server">
-                    <span>⚡ कम्पैनियन चालू करें (Launch Companion)</span>
+                <button id="btnLaunchCompanion" class="btn btn-launch" title="Launch Companion Orchestrator Server" data-i18n-title="btnLaunchCompanion">
+                    <span data-i18n="btnLaunchCompanion">⚡ कम्पैनियन चालू करें (Launch Companion)</span>
                 </button>
-                <div id="orchestratorNotice" class="orchestrator-notice">
+                <div id="orchestratorNotice" class="orchestrator-notice" data-i18n="orchestratorNotice">
                     यदि यह पहली बार है, तो सुनिश्चित करें कि <kbd>register_protocol.bat</kbd> चला लिया गया है।
                 </div>
             </div>
@@ -94,32 +136,32 @@
                         <span class="led"></span>
                         <span id="statusText">idle</span>
                     </div>
-                    <a href="#" id="linkMicPerm" class="mic-perm-badge" title="माइक्रोफ़ोन अनुमति जाँचें या दें">
+                    <a href="#" id="linkMicPerm" class="mic-perm-badge" title="माइक्रोफ़ोन अनुमति जाँचें या दें" data-i18n-title="micPermLink">
                         <span>🎙️</span>
-                        <span>माइक अनुमति</span>
+                        <span data-i18n="micPermLink">माइक अनुमति</span>
                     </a>
                 </div>
                 <div class="toolbar-right">
-                    <button id="interruptBtn" class="btn-interrupt" title="चल रहे TTS आवाज़ को तुरंत रोकें">
-                        <span>🔇 म्यूट TTS</span>
+                    <button id="interruptBtn" class="btn-interrupt" title="चल रहे TTS आवाज़ को तुरंत रोकें" data-i18n-title="interruptBtn">
+                        <span data-i18n="interruptBtn">🔇 म्यूट TTS</span>
                     </button>
                 </div>
             </div>
 
             <!-- MAIN ACTION HERO BUTTONS -->
             <div class="form-hero-actions">
-                <button id="btnScanPage" class="btn btn-hero-scan" title="वर्तमान टैब के सभी फ़ील्ड्स को स्कैन करें">
+                <button id="btnScanPage" class="btn btn-hero-scan" title="वर्तमान टैब के सभी फ़ील्ड्स को स्कैन करें" data-i18n-title="btnScanPage">
                     <span class="btn-icon">🔍</span>
-                    <span class="btn-title">फ़ॉर्म स्कैन करें</span>
+                    <span class="btn-title" data-i18n="btnScanPage">फ़ॉर्म स्कैन करें</span>
                 </button>
                 <div class="form-flow-actions">
-                    <button id="btnStartFormFlow" class="btn btn-hero-fill" disabled title="स्कैन किए गए फ़ील्ड्स को वॉइस द्वारा भरें">
+                    <button id="btnStartFormFlow" class="btn btn-hero-fill" disabled title="स्कैन किए गए फ़ील्ड्स को वॉइस द्वारा भरें" data-i18n-title="btnStartFormFlow">
                         <span class="btn-icon">▶️</span>
-                        <span class="btn-title">वॉइस से भरें</span>
+                        <span class="btn-title" data-i18n="btnStartFormFlow">वॉइस से भरें</span>
                     </button>
-                    <button id="btnStopFormFlow" class="btn btn-hero-stop" disabled title="सभी गतिविधियाँ और माइक तुरंत बंद करें">
+                    <button id="btnStopFormFlow" class="btn btn-hero-stop" disabled title="सभी गतिविधियाँ और माइक तुरंत बंद करें" data-i18n-title="btnStopFormFlow">
                         <span class="btn-icon">⏹️</span>
-                        <span class="btn-title">सत्र समाप्त करें</span>
+                        <span class="btn-title" data-i18n="btnStopFormFlow">सत्र समाप्त करें</span>
                     </button>
                 </div>
             </div>
@@ -127,7 +169,7 @@
             <!-- Page & Scan Info Banner -->
             <div class="form-page-info" id="formPageInfo" style="display: none;">
                 <div class="page-info-row">
-                    <span class="form-url-label">पृष्ठ:</span>
+                    <span class="form-url-label" data-i18n="pageLabel">पृष्ठ:</span>
                     <span id="formTabUrl" class="form-tab-url" title="">-</span>
                     <div id="formScanBadge" class="badge badge-neutral" data-state="ready">
                         <span class="dot"></span>
@@ -146,7 +188,7 @@
                     <span class="tts-dot"></span>
                     <span id="ttsStatusText">tts idle</span>
                 </div>
-                <div id="micMutedBadge" class="mic-muted-badge">🔇 mic muted — assistant speaking</div>
+                <div id="micMutedBadge" class="mic-muted-badge" data-i18n="micMutedBadge">🔇 mic muted — assistant speaking</div>
             </div>
 
             <!-- Signal & Toast Feedback -->
@@ -157,30 +199,30 @@
             <div id="formActiveSpotlight" class="form-spotlight-box" style="display: none;">
                 <div class="spotlight-header">
                     <span id="spotlightStep" class="spotlight-step">फ़ील्ड 1 / 1</span>
-                    <span id="spotlightStatus" class="spotlight-status-badge" data-phase="asking">पूछ रहे हैं…</span>
+                    <span id="spotlightStatus" class="spotlight-status-badge" data-phase="asking" data-i18n="spotlightPhaseAsking">पूछ रहे हैं…</span>
                 </div>
                 <div class="spotlight-body">
                     <div class="spotlight-label-row">
                         <span id="spotlightLabel" class="spotlight-label">फ़ील्ड नाम</span>
-                        <span id="spotlightRequired" class="spotlight-req-tag" style="display: none;">*आवश्यक</span>
+                        <span id="spotlightRequired" class="spotlight-req-tag" style="display: none;" data-i18n="spotlightRequired">*आवश्यक</span>
                     </div>
-                    <div class="spotlight-prompt" id="spotlightPrompt">सुन रहे हैं: अपना उत्तर बोलें…</div>
+                    <div class="spotlight-prompt" id="spotlightPrompt" data-i18n="spotlightPromptListening">सुन रहे हैं: अपना उत्तर बोलें…</div>
                     <div class="spotlight-value-preview" id="spotlightValueBox">
-                        <span class="val-label">प्राप्त मान:</span>
-                        <span id="spotlightValue" class="val-text empty">अभी कोई उत्तर नहीं</span>
+                        <span class="val-label" data-i18n="spotlightValLabel">प्राप्त मान:</span>
+                        <span id="spotlightValue" class="val-text empty" data-i18n="spotlightNoValYet">अभी कोई उत्तर नहीं</span>
                     </div>
                 </div>
 
                 <!-- Navigation Controls for active field -->
                 <div id="formStepControls" class="form-step-controls">
-                    <button id="btnPrevField" class="btn btn-step" title="पिछले फ़ील्ड पर जाएं">
-                        <span>⏮️ पिछला</span>
+                    <button id="btnPrevField" class="btn btn-step" title="पिछले फ़ील्ड पर जाएं" data-i18n-title="btnPrevField">
+                        <span data-i18n="btnPrevField">⏮️ पिछला</span>
                     </button>
-                    <button id="btnReaskField" class="btn btn-step" title="इस फ़ील्ड को दोबारा पूछें">
-                        <span>🔄 दोबारा पूछें</span>
+                    <button id="btnReaskField" class="btn btn-step" title="इस फ़ील्ड को दोबारा पूछें" data-i18n-title="btnReaskField">
+                        <span data-i18n="btnReaskField">🔄 दोबारा पूछें</span>
                     </button>
-                    <button id="btnSkipField" class="btn btn-step" title="इस फ़ील्ड को छोड़ कर अगले पर जाएं">
-                        <span>⏭️ छोड़ें</span>
+                    <button id="btnSkipField" class="btn btn-step" title="इस फ़ील्ड को छोड़ कर अगले पर जाएं" data-i18n-title="btnSkipField">
+                        <span data-i18n="btnSkipField">⏭️ छोड़ें</span>
                     </button>
                 </div>
             </div>
@@ -188,16 +230,16 @@
             <!-- Live Streaming Transcription Box -->
             <div class="transcript-zone">
                 <div class="zone-header">
-                    <span class="zone-label">🎙️ लाइव वॉइस ट्रांसक्रिप्शन (Streaming STT)</span>
+                    <span class="zone-label" data-i18n="transcriptLabel">🎙️ लाइव वॉइस ट्रांसक्रिप्शन (Streaming STT)</span>
                 </div>
-                <div id="liveLine" class="live-line empty">फ़ॉर्म भरने के लिए "वॉइस से भरें" दबाएं…</div>
+                <div id="liveLine" class="live-line empty" data-i18n="transcriptIdle">फ़ॉर्म भरने के लिए "वॉइस से भरें" दबाएं…</div>
             </div>
 
             <!-- Scanned Fields List Accordion -->
             <details id="formFieldsAccordion" class="form-fields-accordion" style="display: none;">
                 <summary>
-                    <span>📋 स्कैन किए गए फ़ील्ड्स (<b id="scannedFieldsCount">0</b>)</span>
-                    <span class="accordion-hint">क्लिक कर चुनें</span>
+                    <span id="scannedFieldsSummaryLabel">📋 स्कैन किए गए फ़ील्ड्स (<b id="scannedFieldsCount">0</b>)</span>
+                    <span class="accordion-hint" data-i18n="accordionHint">क्लिक कर चुनें</span>
                 </summary>
                 <div class="fields-list" id="fieldsListContainer">
                     <!-- Dynamic field items rendered here -->
@@ -206,39 +248,52 @@
 
             <!-- TUNING SETTINGS ACCORDION -->
             <details class="tuning">
-                <summary>⚙️ सेटिंग्स और ट्यूनिंग (Settings)</summary>
+                <summary data-i18n="tuningTitle">⚙️ सेटिंग्स और ट्यूनिंग (Settings)</summary>
                 <div class="tuning-body">
                     <div class="slider-row">
-                        <label><span>WebSocket URL</span></label>
-                        <input id="wsUrl" class="ws-input" style="width:100%" value="ws://127.0.0.1:8082/v1/realtime" spellcheck="false" />
+                        <label><span data-i18n="settingWsUrl">WebSocket URL</span></label>
+                        <input id="wsUrl" class="ws-input" style="width:100%" value="ws://127.0.0.1:8081" spellcheck="false" />
                     </div>
                     <div class="slider-row">
-                        <label><span>Silero Speech Threshold</span><span id="thresholdVal">0.50</span></label>
+                        <label><span data-i18n="settingThreshold">Silero Speech Threshold</span><span id="thresholdVal">0.50</span></label>
                         <input type="range" id="thresholdSlider" min="0.10" max="0.90" step="0.05" value="0.50" />
                     </div>
                     <div class="slider-row">
-                        <label><span>Silence Before Turn Finalizes</span><span id="silenceVal">800 ms</span></label>
+                        <label><span data-i18n="settingSilence">Silence Before Turn Finalizes</span><span id="silenceVal">800 ms</span></label>
                         <input type="range" id="silenceSlider" min="200" max="2000" step="50" value="800" />
                     </div>
                     <div class="slider-row">
-                        <label><span>Max Utterance Hard Cap</span><span id="maxTurnVal">12000 ms</span></label>
+                        <label><span data-i18n="settingMaxTurn">Max Utterance Hard Cap</span><span id="maxTurnVal">12000 ms</span></label>
                         <input type="range" id="maxTurnSlider" min="3000" max="25000" step="500" value="12000" />
                     </div>
                     <div class="slider-row">
-                        <label><span>Pre-roll Padding</span><span id="padVal">200 ms</span></label>
+                        <label><span data-i18n="settingPadding">Pre-roll Padding</span><span id="padVal">200 ms</span></label>
                         <input type="range" id="padSlider" min="0" max="500" step="20" value="200" />
                     </div>
                     <div class="slider-row">
-                        <label><span>LLM Proxy Server URL</span></label>
+                        <label><span data-i18n="settingLlmUrl">LLM Proxy Server URL</span></label>
                         <input type="text" id="llmUrl" class="ws-input" style="width:100%" value="http://127.0.0.1:8000/v1/chat/completions" spellcheck="false" />
                     </div>
                     <div class="slider-row">
-                        <label><span>Confirmation Debounce</span><span id="debounceVal">1000 ms</span></label>
+                        <label><span data-i18n="settingDebounce">Confirmation Debounce</span><span id="debounceVal">1000 ms</span></label>
                         <input type="range" id="debounceSlider" min="400" max="2000" step="50" value="1000" />
                     </div>
                 </div>
             </details>
         </main>
+    <!-- Language Change Confirmation Modal -->
+    <div id="restartModalOverlay" class="modal-overlay" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-icon">🔄</div>
+            <h3 id="restartModalTitle" class="modal-title" data-i18n="restartModalTitle">Restart Companion Server?</h3>
+            <p id="restartModalDesc" class="modal-desc" data-i18n="restartModalDesc">
+                Changing language requires restarting the Companion Server with the new language setting. Existing processes will be stopped and a new Command Prompt window will launch.
+            </p>
+            <div class="modal-actions">
+                <button id="btnModalCancel" class="btn btn-secondary" data-i18n="btnRestartCancel">Cancel</button>
+                <button id="btnModalConfirm" class="btn btn-primary" data-i18n="btnRestartConfirm">Restart Server</button>
+            </div>
+        </div>
     </div>
 
     <script src="sidepanel.js"></script>

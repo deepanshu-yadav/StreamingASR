@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>सैंपल रजिस्ट्रेशन फ़ॉर्म (Sample Test Form)</title>
+    <title id="pageTitle">सैंपल रजिस्ट्रेशन फ़ॉर्म (Sample Test Form)</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -16,7 +16,7 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Devanagari", sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -27,25 +27,57 @@
         }
         .container {
             width: 100%;
-            max-width: 540px;
+            max-width: 560px;
             background: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 28px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 4px;
         }
         h1 {
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 700;
-            margin-bottom: 8px;
+            color: var(--text);
+            line-height: 1.3;
+        }
+        .lang-switch {
+            display: flex;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #ffffff;
         }
         p.subtitle {
             font-size: 13px;
             color: var(--text-muted);
-            margin-bottom: 24px;
+            margin-bottom: 22px;
+            line-height: 1.4;
         }
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
         label {
             display: block;
@@ -58,7 +90,7 @@
             color: #ef4444;
             margin-left: 2px;
         }
-        input, textarea {
+        input, textarea, select {
             width: 100%;
             padding: 10px 14px;
             border-radius: 8px;
@@ -68,14 +100,15 @@
             font-size: 14px;
             outline: none;
             transition: all 0.2s ease;
+            font-family: inherit;
         }
-        input:focus, textarea:focus {
+        input:focus, textarea:focus, select:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px var(--primary-glow);
         }
         textarea {
             resize: vertical;
-            min-height: 80px;
+            min-height: 75px;
         }
         .btn-submit {
             width: 100%;
@@ -88,7 +121,7 @@
             font-size: 15px;
             cursor: pointer;
             transition: background 0.2s;
-            margin-top: 10px;
+            margin-top: 8px;
         }
         .btn-submit:hover {
             background: #2563eb;
@@ -97,54 +130,174 @@
 </head>
 <body>
     <div class="container">
-        <h1>सदस्यता पंजीकरण (Registration Form)</h1>
-        <p class="subtitle">यह पेज Voice ASR & Form Assistant Chrome Extension की फ़ील्ड स्कैनिंग और भरने की जाँच के लिए है।</p>
+        <div class="header-row">
+            <h1 id="formHeading">सदस्यता पंजीकरण (Registration Form)</h1>
+            <div class="lang-switch">
+                <button type="button" class="lang-btn" id="btnLangEn" onclick="switchFormLang('en')">EN</button>
+                <button type="button" class="lang-btn active" id="btnLangHi" onclick="switchFormLang('hi')">HI</button>
+            </div>
+        </div>
+        <p class="subtitle" id="formSubtitle">यह पेज Voice ASR & Form Assistant Chrome Extension की फ़ील्ड स्कैनिंग और भरने की जाँच के लिए है।</p>
 
-        <form id="registrationForm" onsubmit="event.preventDefault(); alert('फ़ॉर्म सबमिट हुआ!');">
+        <form id="registrationForm" onsubmit="event.preventDefault(); alert(currentLang === 'hi' ? 'फ़ॉर्म सबमिट हुआ!' : 'Form submitted successfully!');">
             <div class="form-group">
-                <label for="fullName">पूरा नाम (Full Name)<span class="req">*</span></label>
+                <label for="fullName"><span id="lblFullName">पूरा नाम</span><span class="req">*</span></label>
                 <input type="text" id="fullName" name="fullName" placeholder="उदा. राहुल शर्मा" required />
             </div>
 
             <div class="form-group">
-                <label for="email">ईमेल पता (Email Address)<span class="req">*</span></label>
+                <label for="email"><span id="lblEmail">ईमेल पता</span><span class="req">*</span></label>
                 <input type="email" id="email" name="email" placeholder="name@example.com" required />
             </div>
 
             <div class="form-group">
-                <label for="phone">मोबाइल नंबर (Phone Number)</label>
+                <label for="phone"><span id="lblPhone">मोबाइल नंबर</span></label>
                 <input type="tel" id="phone" name="phone" placeholder="9876543210" />
             </div>
 
             <div class="form-group">
-                <label for="aadhaarNo">आधार संख्या (Aadhaar Number)<span class="req">*</span></label>
+                <label for="aadhaarNo"><span id="lblAadhaar">आधार संख्या</span><span class="req">*</span></label>
                 <input type="password" id="aadhaarNo" name="aadhaarNo" placeholder="12 अंकों का आधार नंबर" maxlength="12" required />
             </div>
 
             <div class="form-group">
-                <label for="state">राज्य (State)<span class="req">*</span></label>
-                <select id="state" name="state" required style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:#0f172a;color:var(--text);font-size:14px;outline:none;">
-                    <option value="">-- राज्य चुनें (Select State) --</option>
-                    <option value="UP">उत्तर प्रदेश (Uttar Pradesh)</option>
-                    <option value="MH">महाराष्ट्र (Maharashtra)</option>
-                    <option value="DL">दिल्ली (Delhi)</option>
-                    <option value="BR">बिहार (Bihar)</option>
-                    <option value="RJ">राजस्थान (Rajasthan)</option>
+                <label for="state"><span id="lblState">राज्य</span><span class="req">*</span></label>
+                <select id="state" name="state" required>
+                    <!-- Options populated dynamically -->
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="city">शहर का नाम (City)</label>
+                <label for="city"><span id="lblCity">शहर का नाम</span></label>
                 <input type="text" id="city" name="city" placeholder="उदा. नई दिल्ली" />
             </div>
 
             <div class="form-group">
-                <label for="notes">अतिरिक्त विवरण या टिप्पणी (Notes / Comments)</label>
+                <label for="notes"><span id="lblNotes">अतिरिक्त विवरण या टिप्पणी</span></label>
                 <textarea id="notes" name="notes" placeholder="यहाँ अपनी आवश्यकता या विवरण लिखें…"></textarea>
             </div>
 
-            <button type="submit" class="btn-submit">सबमिट करें (Submit)</button>
+            <button type="submit" class="btn-submit" id="btnSubmit">सबमिट करें (Submit)</button>
         </form>
     </div>
+
+    <script>
+        const I18N_FORM = {
+            hi: {
+                pageTitle: 'सैंपल रजिस्ट्रेशन फ़ॉर्म (Sample Test Form)',
+                heading: 'सदस्यता पंजीकरण (Registration Form)',
+                subtitle: 'यह पेज Voice ASR & Form Assistant Chrome Extension की फ़ील्ड स्कैनिंग और भरने की जाँच के लिए है।',
+                lblFullName: 'पूरा नाम (Full Name)',
+                phFullName: 'उदा. राहुल शर्मा',
+                lblEmail: 'ईमेल पता (Email Address)',
+                phEmail: 'name@example.com',
+                lblPhone: 'मोबाइल नंबर (Phone Number)',
+                phPhone: '9876543210',
+                lblAadhaar: 'आधार संख्या (Aadhaar Number)',
+                phAadhaar: '12 अंकों का आधार नंबर',
+                lblState: 'राज्य (State)',
+                stateOptions: [
+                    { val: '', text: '-- राज्य चुनें (Select State) --' },
+                    { val: 'UP', text: 'उत्तर प्रदेश (Uttar Pradesh)' },
+                    { val: 'MH', text: 'महाराष्ट्र (Maharashtra)' },
+                    { val: 'DL', text: 'दिल्ली (Delhi)' },
+                    { val: 'BR', text: 'बिहार (Bihar)' },
+                    { val: 'RJ', text: 'राजस्थान (Rajasthan)' }
+                ],
+                lblCity: 'शहर का नाम (City)',
+                phCity: 'उदा. नई दिल्ली',
+                lblNotes: 'अतिरिक्त विवरण या टिप्पणी (Notes / Comments)',
+                phNotes: 'यहाँ अपनी आवश्यकता या विवरण लिखें…',
+                btnSubmit: 'सबमिट करें (Submit)'
+            },
+            en: {
+                pageTitle: 'Registration Form — Voice Assistant Demo',
+                heading: 'Membership Registration Form',
+                subtitle: 'This page tests form scanning and sequential voice-filling with the Voice Form Assistant.',
+                lblFullName: 'Full Name',
+                phFullName: 'e.g. John Doe',
+                lblEmail: 'Email Address',
+                phEmail: 'john.doe@example.com',
+                lblPhone: 'Phone Number',
+                phPhone: '9876543210',
+                lblAadhaar: 'Aadhaar / ID Number',
+                phAadhaar: '12-digit ID number',
+                lblState: 'State',
+                stateOptions: [
+                    { val: '', text: '-- Select State --' },
+                    { val: 'CA', text: 'California (CA)' },
+                    { val: 'NY', text: 'New York (NY)' },
+                    { val: 'TX', text: 'Texas (TX)' },
+                    { val: 'FL', text: 'Florida (FL)' },
+                    { val: 'IL', text: 'Illinois (IL)' },
+                    { val: 'UP', text: 'Uttar Pradesh (UP)' },
+                    { val: 'DL', text: 'Delhi (DL)' }
+                ],
+                lblCity: 'City',
+                phCity: 'e.g. San Francisco',
+                lblNotes: 'Additional Notes / Comments',
+                phNotes: 'Write your notes or special instructions here…',
+                btnSubmit: 'Submit Registration'
+            }
+        };
+
+        let currentLang = 'hi';
+
+        function switchFormLang(lang) {
+            if (!I18N_FORM[lang]) return;
+            currentLang = lang;
+            document.documentElement.lang = lang;
+
+            const t = I18N_FORM[lang];
+            document.getElementById('pageTitle').textContent = t.pageTitle;
+            document.getElementById('formHeading').textContent = t.heading;
+            document.getElementById('formSubtitle').textContent = t.subtitle;
+
+            document.getElementById('lblFullName').textContent = t.lblFullName;
+            document.getElementById('fullName').placeholder = t.phFullName;
+
+            document.getElementById('lblEmail').textContent = t.lblEmail;
+            document.getElementById('email').placeholder = t.phEmail;
+
+            document.getElementById('lblPhone').textContent = t.lblPhone;
+            document.getElementById('phone').placeholder = t.phPhone;
+
+            document.getElementById('lblAadhaar').textContent = t.lblAadhaar;
+            document.getElementById('aadhaarNo').placeholder = t.phAadhaar;
+
+            document.getElementById('lblState').textContent = t.lblState;
+            const stateSelect = document.getElementById('state');
+            const curVal = stateSelect.value;
+            stateSelect.innerHTML = '';
+            t.stateOptions.forEach(opt => {
+                const o = document.createElement('option');
+                o.value = opt.val;
+                o.textContent = opt.text;
+                stateSelect.appendChild(o);
+            });
+            if (curVal) stateSelect.value = curVal;
+
+            document.getElementById('lblCity').textContent = t.lblCity;
+            document.getElementById('city').placeholder = t.phCity;
+
+            document.getElementById('lblNotes').textContent = t.lblNotes;
+            document.getElementById('notes').placeholder = t.phNotes;
+
+            document.getElementById('btnSubmit').textContent = t.btnSubmit;
+
+            document.getElementById('btnLangEn').classList.toggle('active', lang === 'en');
+            document.getElementById('btnLangHi').classList.toggle('active', lang === 'hi');
+        }
+
+        // Listen for language changes dispatched by the Chrome Extension content script
+        window.addEventListener('vff_language_changed', (e) => {
+            if (e.detail && e.detail.language) {
+                switchFormLang(e.detail.language);
+            }
+        });
+
+        // Initialize with default language
+        switchFormLang('hi');
+    </script>
 </body>
 </html>

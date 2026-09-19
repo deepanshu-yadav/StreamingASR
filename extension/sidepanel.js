@@ -67,10 +67,17 @@
         formFieldsAccordion: document.getElementById('formFieldsAccordion'),
         scannedFieldsCount: document.getElementById('scannedFieldsCount'),
         fieldsListContainer: document.getElementById('fieldsListContainer'),
+        languageSelect: document.getElementById('languageSelect'),
     };
 
     // ---------- HELPERS ----------
-    function stripTags(s) { if (!s) return ''; return s.toString().replace(/<[^>]+>/g, '').trim(); }
+    function stripTags(s) {
+        if (!s) return '';
+        return s.toString()
+            .replace(/<[a-zA-Z]{2,}(?:-[a-zA-Z0-9]+)?\s*>?/g, '')
+            .replace(/<[^>]+>/g, '')
+            .trim();
+    }
 
     function escapeHtml(s) {
         return s.replace(/[&<>"']/g, c => ({
@@ -102,8 +109,9 @@
     function looksLikeConfirmation(text) {
         const lower = text.toLowerCase().trim();
         if (!lower) return false;
-        const confirmWords = ['हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल', 'ठीक', 'ठीक है', 'theek hai', 'सही है', 'sahi hai', 'सही', 'sahi', 'आगे बढ़ो', 'बढ़ो', 'continue', 'confirm'];
-        const negWords = ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change', 'sudhar', 'सुधार', 'बदलो', 'बदल', 'नहि', 'ना', 'न'];
+        const heuristics = window.i18n ? window.i18n.getHeuristics() : null;
+        const confirmWords = heuristics?.confirmWords || ['हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल', 'ठीक', 'ठीक है', 'theek hai', 'सही है', 'sahi hai', 'सही', 'sahi', 'आगे बढ़ो', 'बढ़ो', 'continue', 'confirm'];
+        const negWords = heuristics?.negationWords || ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change', 'sudhar', 'सुधार', 'बदलो', 'बदल', 'नहि', 'ना', 'न'];
         const hasConfirm = confirmWords.some(w => lower.includes(w));
         const hasNegate = negWords.some(w => lower.includes(w));
         return hasConfirm && !hasNegate;
@@ -112,7 +120,8 @@
     function looksLikeSkip(text) {
         const lower = text.toLowerCase().trim();
         if (!lower) return false;
-        const skipWords = [
+        const heuristics = window.i18n ? window.i18n.getHeuristics() : null;
+        const skipWords = heuristics?.skipPhrases || [
             'छोड़ दो', 'छोड़ो', 'छोड़', 'आगे बढ़ें', 'आगे बढ़ो', 'आगे चलो', 'आगे',
             'अगला', 'अगली', 'skip', 'next', 'pass', 'baad me', 'बाद में', 'कैंसिल'
         ];
@@ -122,26 +131,30 @@
     // Helper to detect whether an utterance is purely a rejection/negation without a replacement value
     function isPureRejection(text) {
         if (!text) return true;
-        const negationTokens = new Set([
+        const heuristics = window.i18n ? window.i18n.getHeuristics() : null;
+        const defaultNegationTokens = new Set([
             'नहीं', 'नही', 'ना', 'गलत', 'सही', 'ठीक', 'है', 'हैं', 'यह', 'ये', 'था', 'थी', 'गया', 'गई',
             'हो', 'अरे', 'बिल्कुल', 'बदलो', 'सुधारो', 'सुधार', 'गलती', 'बोल', 'दिया', 'का', 'के', 'की',
             'इसको', 'इसे', 'करना', 'करो', 'मुझे', 'आप', 'तो', 'भी', 'no', 'not', 'wrong', 'incorrect',
-            'false', 'nope', 'nah', 'it', 'is', 'this', 'that'
+            'false', 'nope', 'nah', 'it', 'is', 'this', 'that', 'change', 'fix'
         ]);
         const tokens = text.toLowerCase()
             .replace(/[।.,!?\-]/g, ' ')
             .split(/\s+/)
             .filter(Boolean);
         if (tokens.length === 0) return true;
-        return tokens.every(w => negationTokens.has(w));
+        const pureWords = heuristics?.pureRejectionWords ? new Set(heuristics.pureRejectionWords) : defaultNegationTokens;
+        return tokens.every(w => defaultNegationTokens.has(w) || pureWords.has(w));
     }
 
-    // Clean ASR tags (<hi-IN>, <en-US>) and commas that split digit sequences
+    // Clean ASR tags (<hi-IN>, <en-US>), commas, and trailing dandas / periods
     function cleanSpokenTranscript(text) {
         if (!text) return '';
         return text
+            .replace(/<[a-zA-Z]{2,}(?:-[a-zA-Z0-9]+)?\s*>?/g, '')
             .replace(/<[^>]+>/g, '')
             .replace(/[,，]/g, ' ')
+            .replace(/[।\.]+\s*$/, '')
             .replace(/\s+/g, ' ')
             .trim();
     }
@@ -249,7 +262,7 @@
     // ---------- QUEUE ----------
     function queueTranscript(text) {
         transcriptQueue.push(text);
-        showToast('कृपया प्रतीक्षा करें, प्रक्रिया जारी है…');
+        showToast(window.i18n ? window.i18n.t('pleaseWaitToast') : 'Please wait, processing…');
     }
 
     function drainTranscriptQueue() {
@@ -272,7 +285,7 @@
         if (!clean) return;
         formConfirmReplyBuffer = formConfirmReplyBuffer ? (formConfirmReplyBuffer + ' ' + clean) : clean;
         clearTimeout(formConfirmDebounceTimer);
-        setTurnMode('finalizing', 'पुष्टि जाँच रहे हैं…');
+        setTurnMode('finalizing', window.i18n ? window.i18n.t('checkingConfirmation') : 'checking confirmation…');
         formConfirmDebounceTimer = setTimeout(() => {
             const merged = formConfirmReplyBuffer;
             formConfirmReplyBuffer = '';
@@ -521,25 +534,18 @@
         const cleanReply = stripTags(replyText);
         console.log('[LLM] classifyIntentWithLLM() raw="' + replyText + '" clean="' + cleanReply + '" url=' + url);
         const lower = cleanReply.toLowerCase();
-        const negationPhrases = [
+        const heuristics = window.i18n ? window.i18n.getHeuristics() : {};
+        const negationPhrases = heuristics.negationWords || [
             'नहीं', 'नही', 'गलत', 'सुधार', 'बदल', 'ठीक नहीं', 'सही नहीं', 'गलती',
-            'wrong', 'incorrect', 'change', 'not right'
+            'wrong', 'incorrect', 'change', 'not right', 'no', 'not'
         ];
         if (negationPhrases.some(w => lower.includes(w))) {
             console.log('[LLM] Heuristic found negation → CORRECT');
             return 'CORRECT';
         }
-        const system = 'आप एक वर्गीकरण सहायक (intent classifier) हैं।\n' +
-            'उपयोगकर्ता से पूछा गया है कि क्या उनका बोला गया वाक्य सही है।\n\n' +
-            'नियम:\n' +
-            '1. यदि उपयोगकर्ता हाँ, ठीक, बिल्कुल, आगे बढ़ो, या पुष्टि करता है → केवल "CONFIRM" लिखें।\n' +
-            '2. यदि उपयोगकर्ता नहीं, सही नहीं है, गलत है, बदलाव चाहता है, सुधार बताता है, या नया निर्देश देता है → केवल "CORRECT" लिखें।\n\n' +
-            'महत्वपूर्ण:\n' +
-            '- "सही नहीं है", "नहीं", "गलत", "change", "sudhar" जैसे शब्द CORRECT का संकेत हैं।\n' +
-            '- केवल "सही है", "हाँ", "ठीक" जैसे शब्द CONFIRM का संकेत हैं।\n' +
-            '- किसी भी संदेह में CORRECT चुनें।\n\n' +
-            'केवल एक शब्द उत्तर दें: CONFIRM या CORRECT।';
-        const user = `उपयोगकर्ता का जवाब: "${cleanReply}"\nनिर्णय:`;
+        const prompts = window.i18n ? window.i18n.getPrompts() : {};
+        const system = prompts.intentClassifierSystem || 'Reply ONLY "CONFIRM" or "CORRECT".';
+        const user = prompts.intentClassifierUser ? prompts.intentClassifierUser(cleanReply) : `User reply: "${cleanReply}"\nDecision:`;
         try {
             const resp = await fetch(url, {
                 method: 'POST',
@@ -561,21 +567,13 @@
         } catch (e) {
             console.log('[LLM] Classifier error, fallback to heuristic:', e);
             const lower2 = cleanReply.toLowerCase();
-            const neg = ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change', 'sudhar', 'सुधार',
-                'बदलो', 'बदल'
-            ];
+            const neg = heuristics.negationWords || ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change'];
             if (neg.some(w => lower2.includes(w))) {
                 console.log('[LLM] Fallback heuristic → CORRECT');
                 return 'CORRECT';
             }
-            const pos = ['हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल',
-                'ठीक'
-            ];
+            const pos = heuristics.confirmWords || ['हाँ', 'हां', 'हा', 'जी', 'yes', 'ok', 'proceed', 'next'];
             if (pos.some(w => lower2.includes(w))) {
-                console.log('[LLM] Fallback heuristic → CONFIRM');
-                return 'CONFIRM';
-            }
-            if (lower2.includes('सही है') || lower2.includes('sahi hai')) {
                 console.log('[LLM] Fallback heuristic → CONFIRM');
                 return 'CONFIRM';
             }
@@ -589,19 +587,18 @@
         const isAadhaar = /aadhaar|आधार/i.test(fieldLabel);
         const isPhone = /phone|mobile|फोन|फ़ोन|मोबाइल/i.test(fieldLabel);
 
-        // If already very short and clean (1-2 words), use directly
-        if (cleanSpoken.split(/\s+/).length <= 2 && !cleanSpoken.includes('मेरा') && !cleanSpoken.includes('नाम')) {
-            return cleanSpoken;
+        // If already very short and clean (1-2 words), use directly (unless speech contains Devanagari in English mode)
+        const curLang = window.i18n ? window.i18n.getLanguage() : 'en';
+        const hasDevanagari = /[\u0900-\u097F]/.test(cleanSpoken);
+        const conversationalTokens = ['मेरा', 'नाम', 'है', 'लिख', 'my', 'name', 'is', 'please', 'enter', 'write'];
+        if ((curLang === 'hi' || !hasDevanagari) && cleanSpoken.split(/\s+/).length <= 2 && !conversationalTokens.some(t => cleanSpoken.toLowerCase().includes(t))) {
+            return cleanSpoken.replace(/[।\.]+\s*$/, '').trim();
         }
         const url = el.llmUrl.value.trim();
         console.log(`[LLM] extractFormFieldValueWithLLM() field="${fieldLabel}" input="${cleanSpoken}"`);
-        const system = `आप एक फ़ॉर्म डेटा निष्कर्षण सहायक (Form Field Extractor) हैं।
-उपयोगकर्ता ने फ़ील्ड के लिए बोला है। बोली गई बात में से केवल फ़ील्ड का शुद्ध मान (Clean Value) निकालें।
-बातचीत के शब्द (जैसे "मेरा नाम ... है", "लिख दीजिए", "भर दो", "यह है") हटा दें।
-नियम:
-1. यदि फ़ील्ड आधार (Aadhaar), मोबाइल (Phone/Mobile), पिन कोड (PIN/ZIP) या संख्यात्मक (Number) है, और उपयोगकर्ता ने अंक शब्दों में बोले हैं (जैसे 'एक दो तीन...'), तो उन्हें अंकों (Digits, जैसे '123...') में बदलें।
-2. केवल शुद्ध मान लिखें। कोई व्याख्या या उद्धरण चिह्न नहीं।`;
-        const user = `फ़ॉर्म फ़ील्ड: ${fieldLabel}\nबोला गया उत्तर: "${cleanSpoken}"\nशुद्ध मान:`;
+        const prompts = window.i18n ? window.i18n.getPrompts() : {};
+        const system = prompts.extractorSystem || 'Extract ONLY the clean value for the form field without conversational filler.';
+        const user = prompts.extractorUser ? prompts.extractorUser(fieldLabel, cleanSpoken) : `Field: ${fieldLabel}\nSpoken: "${cleanSpoken}"\nClean Value:`;
         try {
             const resp = await fetch(url, {
                 method: 'POST',
@@ -619,17 +616,18 @@
             if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
             const data = await resp.json();
             let content = (data?.choices?.[0]?.message?.content || '').trim();
-            content = content.replace(/^शुद्ध मान\s*[:：\-]\s*/, '').trim();
+            content = content.replace(/^(?:शुद्ध मान|Clean Value|Value)\s*[:：\-]\s*/i, '').trim();
             content = content.replace(/^["']|["']$/g, '').trim();
+            content = content.replace(/[।\.]+\s*$/, '').trim();
             if (isAadhaar || isPhone) {
                 const digits = content.replace(/\D/g, '');
                 if (digits) content = digits;
             }
             console.log(`[LLM] Extracted clean value: "${content}"`);
-            return content || cleanSpoken;
+            return content || cleanSpoken.replace(/[।\.]+\s*$/, '').trim();
         } catch (e) {
             console.warn('[LLM] Extraction failed, using raw:', e);
-            return cleanSpoken;
+            return cleanSpoken.replace(/[।\.]+\s*$/, '').trim();
         }
     }
 
@@ -643,35 +641,9 @@
         const isPhone = /phone|mobile|फोन|फ़ोन|मोबाइल/i.test(fieldLabel);
         const isNumeric = isAadhaar || isPhone || /pin|पिन|zip|number|संख्या/i.test(fieldLabel);
 
-        const system = `आप एक अत्यंत कुशल फ़ॉर्म फ़ील्ड सुधार सहायक हैं।
-उपयोगकर्ता फ़ॉर्म भरते समय पिछली प्रविष्टि (Previous Value) में सुधार बता रहा है।
-वाक्-पहचान (STT) के कारण अंक शब्दों में हो सकते हैं (जैसे 'एक एक शून्य एक' = 1101, 'एक शून्य एक' = 101) और बीच में विराम या बातचीत हो सकती है।
-
-निर्देश:
-1. उपयोगकर्ता के सुधार निर्देश को समझें:
-   - यदि वह किसी हिस्से को बदलने को कहे (जैसे "X की जगह Y होगा" / "X नहीं Y" / "replace X with Y"), तो पिछले मान में X की जगह Y लगाएँ।
-   - यदि वह पूरा नया मान बोले (जैसे "नहीं मेरा आधार 1234... है"), तो वह पूरा नया मान निकालें।
-   - यदि ईमेल में डॉट हटाने को कहे, तो यूज़रनेम से डॉट हटाएँ।
-2. यदि फ़ील्ड आधार (Aadhaar), मोबाइल (Phone/Mobile) या संख्यात्मक है, तो अंतिम मान में केवल अंक (Digits: 0-9) लिखें।
-3. उत्तर में केवल और केवल अंतिम शुद्ध मान (Clean Value) लिखें। कोई व्याख्या या उद्धरण चिह्न नहीं।
-
-उदाहरण:
-फ़ील्ड: Enter Aadhaar No
-पिछला मान: 1234567891101
-सुधार निर्देश: नही एक एक शून्य एक की जगह एक शून्य एक होगा
-शुद्ध मान: 123456789101
-
-फ़ील्ड: Mobile Number
-पिछला मान: 9876543210
-सुधार निर्देश: लास्ट में दस नहीं ग्यारह है
-शुद्ध मान: 9876543211
-
-फ़ील्ड: Full Name
-पिछला मान: Rohan Sharma
-सुधार निर्देश: शर्मा की जगह यादव कर दो
-शुद्ध मान: Rohan Yadav`;
-
-        const user = `फ़ील्ड: ${fieldLabel}\nपिछला मान: ${cleanOriginal}\nसुधार निर्देश: ${cleanInstruction}\nशुद्ध मान:`;
+        const prompts = window.i18n ? window.i18n.getPrompts() : {};
+        const system = prompts.correctorSystem || 'You are a form field correction assistant. Apply the user correction instruction to the previous value. Output ONLY the new clean value.';
+        const user = prompts.correctorUser ? prompts.correctorUser(fieldLabel, cleanOriginal, cleanInstruction) : `Field: ${fieldLabel}\nPrevious: ${cleanOriginal}\nInstruction: "${cleanInstruction}"\nClean Value:`;
 
         try {
             const resp = await fetch(url, {
@@ -692,6 +664,7 @@
             let content = (data?.choices?.[0]?.message?.content || '').trim();
             content = content.replace(/^(?:शुद्ध मान|Clean Value|Corrected Value)\s*[:：\-]\s*/i, '').trim();
             content = content.replace(/^["']|["']$/g, '').trim();
+            content = content.replace(/[।\.\?!,،;:]+\s*$/, '').trim();
             if (isNumeric) {
                 const digits = content.replace(/\D/g, '');
                 if (digits) content = digits;
@@ -730,14 +703,21 @@
     function renderScannedFieldsList() {
         if (!el.fieldsListContainer || !el.scannedFieldsCount) return;
 
+        const emptyMsg = window.i18n ? window.i18n.t('noFieldsFound') : 'कोई फ़ील्ड नहीं मिला।';
+        const reqTagText = window.i18n ? window.i18n.t('spotlightRequired') : '*आवश्यक';
+
         if (!scannedFields || scannedFields.length === 0) {
-            el.fieldsListContainer.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px;">कोई फ़ील्ड नहीं मिला।</div>';
+            el.fieldsListContainer.innerHTML = `<div style="color:var(--text-muted);font-size:11px;padding:4px;">${emptyMsg}</div>`;
             el.scannedFieldsCount.textContent = '0';
             if (el.formFieldsAccordion) el.formFieldsAccordion.style.display = 'none';
             return;
         }
 
         el.scannedFieldsCount.textContent = scannedFields.length;
+        const summaryLabel = document.getElementById('scannedFieldsSummaryLabel');
+        if (summaryLabel) {
+            summaryLabel.innerHTML = window.i18n ? window.i18n.t('scannedFieldsTitle', { count: scannedFields.length }) : `📋 स्कैन किए गए फ़ील्ड्स (<b id="scannedFieldsCount">${scannedFields.length}</b>)`;
+        }
         if (el.formFieldsAccordion) el.formFieldsAccordion.style.display = 'block';
 
         let html = '';
@@ -756,7 +736,7 @@
                         <span class="field-index-chip">#${idx + 1}</span>
                         <span class="field-label-text" title="${escapeHtml(f.label)}">${escapeHtml(f.label)}</span>
                         <span class="field-type-pill">${escapeHtml(f.type || f.tagName)}</span>
-                        ${f.required ? '<span class="spotlight-req-tag">*आवश्यक</span>' : ''}
+                        ${f.required ? `<span class="spotlight-req-tag">${reqTagText}</span>` : ''}
                     </div>
                     <div class="field-item-right">
                         ${valPreview ? `<span class="field-val-badge" title="${valPreview}">${valPreview}</span>` : ''}
@@ -804,18 +784,19 @@
     }
 
     async function scanActivePage(showToastNotice = true) {
-        setFormScanBadge('pending', 'स्कैन हो रहा है…');
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        setFormScanBadge('pending', t('scanningBadge'));
         const tab = await getActiveTab();
         if (!tab || !tab.id) {
-            if (showToastNotice) showToast('सक्रिय टैब नहीं मिला');
-            setFormScanBadge('error', 'टैब नहीं मिला');
+            if (showToastNotice) showToast(t('activeTabNotFoundToast'));
+            setFormScanBadge('error', t('tabNotFoundBadge'));
             return;
         }
 
         // Restrict chrome:// or edge:// pages
         if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:'))) {
-            if (showToastNotice) showToast('ब्राउज़र आंतरिक पृष्ठों को स्कैन नहीं किया जा सकता');
-            setFormScanBadge('error', 'अमान्य पृष्ठ');
+            if (showToastNotice) showToast(t('cannotScanInternalToast'));
+            setFormScanBadge('error', t('invalidPageBadge'));
             return;
         }
 
@@ -838,21 +819,21 @@
         const response = await requestScanWithRetry(tab.id, 2);
         if (!response || !Array.isArray(response.fields)) {
             console.warn('[VFF] Scan message failed after retries');
-            setFormScanBadge('error', 'स्कैन विफल');
-            if (showToastNotice) showToast('फ़ॉर्म स्कैन करने में असमर्थ');
+            setFormScanBadge('error', t('scanFailedBadge'));
+            if (showToastNotice) showToast(t('unableToScanToast'));
             return;
         }
 
         scannedFields = response.fields;
         console.log(`[VFF] Scanned ${scannedFields.length} fields from ${response.url}`);
         if (scannedFields.length === 0) {
-            setFormScanBadge('ready', '0 फ़ील्ड मिले');
+            setFormScanBadge('ready', t('fieldsZeroBadge'));
             if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = true;
-            if (showToastNotice) showToast('इस पृष्ठ पर कोई टेक्स्ट फ़ील्ड नहीं मिला');
+            if (showToastNotice) showToast(t('noFieldsFound'));
         } else {
-            setFormScanBadge('success', `${scannedFields.length} फ़ील्ड मिले`);
+            setFormScanBadge('success', t('fieldsScannedBadge', { count: scannedFields.length }));
             if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
-            if (showToastNotice) showToast(`${scannedFields.length} फ़ील्ड सफलतापूर्वक स्कैन किए गए`);
+            if (showToastNotice) showToast(t('fieldsScannedSuccess', { count: scannedFields.length }));
         }
         renderScannedFieldsList();
     }
@@ -883,7 +864,8 @@
         if (!msg || !Array.isArray(msg.fields)) return;
         console.log('[VFF] MutationObserver detected DOM change. New field count:', msg.fields.length);
         scannedFields = msg.fields;
-        setFormScanBadge('success', `${scannedFields.length} फ़ील्ड`);
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        setFormScanBadge('success', t('fieldsScannedBadge', { count: scannedFields.length }));
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
         renderScannedFieldsList();
         if (formFlowActive && currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length) {
@@ -921,7 +903,7 @@
         if (scannedFields.length === 0) {
             await scanActivePage(false);
             if (scannedFields.length === 0) {
-                showToast('भरने के लिए कोई फ़ील्ड उपलब्ध नहीं है');
+                showToast(window.i18n ? window.i18n.t('noFieldsFound') : 'No fields found');
                 return;
             }
         }
@@ -956,7 +938,7 @@
         flowState = 'idle';
         setTurnMode('idle', 'idle');
         renderScannedFieldsList();
-        showToast('फ़ॉर्म भरण प्रक्रिया रोक दी गई');
+        showToast(window.i18n ? window.i18n.t('sessionStoppedToast') : 'Form filling stopped');
     }
 
     async function finishFormFlow() {
@@ -968,11 +950,13 @@
             chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => {});
         }
         renderScannedFieldsList();
-        setFormScanBadge('success', 'सभी फ़ील्ड पूर्ण!');
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        const dict = window.i18n ? window.i18n.getDictation() : {};
+        setFormScanBadge('success', t('allFieldsComplete'));
         flowState = 'busy';
-        await speak('बहुत बढ़िया! इस पृष्ठ के सभी फ़ील्ड पूरे हो चुके हैं।');
+        await speak(dict.sessionFinished || 'बहुत बढ़िया! इस पृष्ठ के सभी फ़ील्ड पूरे हो चुके हैं।');
         flowState = 'idle';
-        setTurnMode('idle', 'सत्र पूर्ण');
+        setTurnMode('idle', t('allFieldsComplete'));
     }
 
     async function askField(index, isRepeat = false) {
@@ -984,6 +968,8 @@
         currentFieldIndex = index;
         const f = scannedFields[index];
         const myEpoch = flowEpoch;
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        const dict = window.i18n ? window.i18n.getDictation() : {};
 
         // Focus & highlight on page
         if (currentScannedTabId) {
@@ -991,14 +977,14 @@
         }
 
         // Update spotlight UI
-        if (el.spotlightStep) el.spotlightStep.textContent = `फ़ील्ड ${index + 1} / ${scannedFields.length}`;
+        if (el.spotlightStep) el.spotlightStep.textContent = t('spotlightStep', { current: index + 1, total: scannedFields.length });
         if (el.spotlightLabel) el.spotlightLabel.textContent = f.label;
         if (el.spotlightRequired) el.spotlightRequired.style.display = f.required ? 'inline-block' : 'none';
         if (el.spotlightStatus) {
             el.spotlightStatus.dataset.phase = 'asking';
-            el.spotlightStatus.textContent = 'पूछ रहे हैं…';
+            el.spotlightStatus.textContent = t('spotlightPhaseAsking');
         }
-        if (el.spotlightPrompt) el.spotlightPrompt.textContent = 'सुन रहे हैं: अपना उत्तर बोलें…';
+        if (el.spotlightPrompt) el.spotlightPrompt.textContent = t('spotlightPromptListening');
 
         const existingVal = fieldValues[f.id]?.value || f.currentValue || '';
         currentFieldCorrections = [];
@@ -1008,7 +994,7 @@
                 el.spotlightValue.textContent = existingVal;
                 el.spotlightValue.classList.remove('empty');
             } else {
-                el.spotlightValue.textContent = 'अभी कोई उत्तर नहीं';
+                el.spotlightValue.textContent = t('spotlightNoValYet');
                 el.spotlightValue.classList.add('empty');
             }
         }
@@ -1018,13 +1004,13 @@
         // Formulate spoken prompt
         let prompt = '';
         if (isRepeat) {
-            prompt = `कृपया ${f.label} के लिए अपना उत्तर बताएं।`;
+            prompt = dict.askFieldRepeat ? dict.askFieldRepeat(f.label) : `कृपया ${f.label} के लिए अपना उत्तर बताएं।`;
         } else if (existingVal) {
-            prompt = `अगला फ़ील्ड है ${f.label}। इसका वर्तमान मान है ${existingVal}। क्या आप इसे बदलना चाहते हैं? नया मान बोलें या हाँ कहें।`;
+            prompt = dict.askFieldExisting ? dict.askFieldExisting(f.label, existingVal) : `अगला फ़ील्ड है ${f.label}। इसका वर्तमान मान है ${existingVal}। क्या आप इसे बदलना चाहते हैं? नया मान बोलें या हाँ कहें।`;
         } else if (f.type === 'select') {
-            prompt = `अगला फ़ील्ड है ${f.label}। ${f.required ? 'यह आवश्यक है।' : ''} कृपया बताएं इसमें क्या चुनना है?`;
+            prompt = dict.askFieldSelect ? dict.askFieldSelect(f.label, f.required) : `अगला फ़ील्ड है ${f.label}। ${f.required ? 'यह आवश्यक है।' : ''} कृपया बताएं इसमें क्या चुनना है?`;
         } else {
-            prompt = `अगला फ़ील्ड है ${f.label}। ${f.required ? 'यह आवश्यक है।' : ''} कृपया बताएं इसमें क्या भरना है?`;
+            prompt = dict.askFieldDefault ? dict.askFieldDefault(f.label, f.required) : `अगला फ़ील्ड है ${f.label}। ${f.required ? 'यह आवश्यक है।' : ''} कृपया बताएं इसमें क्या भरना है?`;
         }
 
         flowState = 'busy';
@@ -1035,16 +1021,16 @@
         flowState = 'form_awaiting_input';
         if (el.spotlightStatus) {
             el.spotlightStatus.dataset.phase = 'listening';
-            el.spotlightStatus.textContent = 'सुन रहे हैं…';
+            el.spotlightStatus.textContent = t('spotlightPhaseListening');
         }
-        setTurnMode('listening', 'उत्तर बोलें: ' + f.label);
-        resetLiveLine(`${f.label} के लिए उत्तर बोलें…`);
+        setTurnMode('listening', f.label);
+        resetLiveLine(t('transcriptListeningPrompt', { label: f.label }));
         drainTranscriptQueue();
     }
 
     async function handleFormFieldInput(text) {
         const myEpoch = flowEpoch;
-        const clean = stripTags(text).trim();
+        const clean = cleanSpokenTranscript(text).replace(/[।\.\?!,،;:]+\s*$/, '').trim();
         if (!clean) return;
 
         console.log(`[VFF] Field input received for #${currentFieldIndex}: "${clean}"`);
@@ -1056,6 +1042,8 @@
         }
 
         const f = scannedFields[currentFieldIndex];
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        const dict = window.i18n ? window.i18n.getDictation() : {};
 
         // Extract clean field value using LLM if conversational
         let cleanValue = clean;
@@ -1065,6 +1053,8 @@
             console.warn('[VFF] LLM extraction fallback:', e);
         }
         if (myEpoch !== flowEpoch) return;
+
+        cleanValue = (cleanValue || clean).replace(/[।\.\?!,،;:]+\s*$/, '').trim();
 
         if (!currentFieldOriginalValue) currentFieldOriginalValue = cleanValue;
         pendingFieldValue = cleanValue;
@@ -1080,18 +1070,18 @@
         flowState = 'busy';
         if (el.spotlightStatus) {
             el.spotlightStatus.dataset.phase = 'confirming';
-            el.spotlightStatus.textContent = 'पुष्टि पूछ रहे हैं…';
+            el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
         }
-        setTurnMode('confirming', 'पुष्टि बोल रहे हैं…');
+        setTurnMode('confirming', f.label);
 
-        const confirmPrompt = `${f.label} के लिए: ${cleanValue}। क्या यह सही है? हाँ बोलें, या बताएं कि क्या सुधारना है।`;
+        const confirmPrompt = dict.confirmField ? dict.confirmField(f.label, cleanValue) : `${f.label} के लिए: ${cleanValue}। क्या यह सही है? हाँ बोलें, या बताएं कि क्या सुधारना है।`;
         await speak(confirmPrompt);
         if (myEpoch !== flowEpoch) return;
 
         flowState = 'form_awaiting_confirmation';
-        if (el.spotlightStatus) el.spotlightStatus.textContent = 'पुष्टि करें (हाँ / सुधार)';
-        setTurnMode('listening', 'पुष्टि: हाँ या सुधार बताएं');
-        resetLiveLine('हाँ बोलें या सुधार बताएं…');
+        if (el.spotlightStatus) el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
+        setTurnMode('listening', f.label);
+        resetLiveLine(t('transcriptConfirmPrompt'));
         drainTranscriptQueue();
     }
 
@@ -1109,8 +1099,11 @@
             return;
         }
 
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        const dict = window.i18n ? window.i18n.getDictation() : {};
+
         flowState = 'evaluating_intent';
-        setTurnMode('finalizing', 'जाँच रहे हैं…');
+        setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
 
         const intent = await classifyIntentWithLLM(cleanReply);
         if (myEpoch !== flowEpoch) return;
@@ -1143,13 +1136,13 @@
             // Update UI
             if (el.spotlightStatus) {
                 el.spotlightStatus.dataset.phase = 'confirmed';
-                el.spotlightStatus.textContent = '✓ सत्यापित';
+                el.spotlightStatus.textContent = t('spotlightPhaseConfirmed');
             }
             renderScannedFieldsList();
 
             // Speak brief confirmation
             flowState = 'busy';
-            await speak(`ठीक है, ${f.label} दर्ज हो गया।`);
+            await speak(dict.fieldRecorded ? dict.fieldRecorded(f.label) : `ठीक है, ${f.label} दर्ज हो गया।`);
             if (myEpoch !== flowEpoch) return;
 
             // Move to next field!
@@ -1174,19 +1167,19 @@
                 flowState = 'busy';
                 if (el.spotlightStatus) {
                     el.spotlightStatus.dataset.phase = 'asking';
-                    el.spotlightStatus.textContent = 'सुधार पूछ रहे हैं…';
+                    el.spotlightStatus.textContent = t('spotlightPhaseAsking');
                 }
-                setTurnMode('confirming', 'सुधार पूछ रहे हैं…');
-                await speak(`कृपया सुधार बताएं, ${f.label} में क्या भरना है?`);
+                setTurnMode('confirming', f.label);
+                await speak(dict.askCorrection ? dict.askCorrection(f.label) : `कृपया सुधार बताएं, ${f.label} में क्या भरना है?`);
                 if (myEpoch !== flowEpoch) return;
 
                 flowState = 'form_awaiting_correction';
                 if (el.spotlightStatus) {
                     el.spotlightStatus.dataset.phase = 'listening';
-                    el.spotlightStatus.textContent = 'सुधार बताएं…';
+                    el.spotlightStatus.textContent = t('spotlightPhaseListening');
                 }
-                setTurnMode('listening', 'सुधार बताएं: ' + f.label);
-                resetLiveLine('सुधार बोलें…');
+                setTurnMode('listening', f.label);
+                resetLiveLine(t('transcriptConfirmPrompt'));
                 drainTranscriptQueue();
             } else {
                 // User already provided the correction phrase (e.g. "नहीं, 8178524055", "डॉट हटा दो", "remove dot")
@@ -1216,6 +1209,8 @@
         }
 
         const f = scannedFields[currentFieldIndex];
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        const dict = window.i18n ? window.i18n.getDictation() : {};
 
         // If the user spoke only a pure rejection without giving the new value, ask for the new value again
         if (isPureRejection(clean)) {
@@ -1223,25 +1218,25 @@
             flowState = 'busy';
             if (el.spotlightStatus) {
                 el.spotlightStatus.dataset.phase = 'asking';
-                el.spotlightStatus.textContent = 'नया मान पूछ रहे हैं…';
+                el.spotlightStatus.textContent = t('spotlightPhaseAsking');
             }
-            setTurnMode('confirming', 'सुधार पूछ रहे हैं…');
-            await speak(`कृपया ${f.label} के लिए नया या सही मान बोलें।`);
+            setTurnMode('confirming', f.label);
+            await speak(dict.clarifyValue ? dict.clarifyValue(f.label) : `कृपया ${f.label} के लिए नया या सही मान बोलें।`);
             if (myEpoch !== flowEpoch) return;
 
             flowState = 'form_awaiting_correction';
             if (el.spotlightStatus) {
                 el.spotlightStatus.dataset.phase = 'listening';
-                el.spotlightStatus.textContent = 'सुधार बताएं…';
+                el.spotlightStatus.textContent = t('spotlightPhaseListening');
             }
-            setTurnMode('listening', 'सुधार बोलें: ' + f.label);
-            resetLiveLine('नया मान बोलें…');
+            setTurnMode('listening', f.label);
+            resetLiveLine(t('transcriptConfirmPrompt'));
             drainTranscriptQueue();
             return;
         }
 
         flowState = 'correcting';
-        setTurnMode('finalizing', 'सुधार लागू कर रहे हैं…');
+        setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
 
         try {
             const corrected = await correctFormFieldWithLLM(f.label, pendingFieldValue, clean);
@@ -1252,19 +1247,19 @@
                 flowState = 'busy';
                 if (el.spotlightStatus) {
                     el.spotlightStatus.dataset.phase = 'asking';
-                    el.spotlightStatus.textContent = 'सुधार समझ नहीं आया';
+                    el.spotlightStatus.textContent = t('spotlightPhaseAsking');
                 }
-                setTurnMode('confirming', 'सुधार समझ नहीं आया');
-                await speak(`क्षमा करें, सुधार समझ नहीं आया। कृपया ${f.label} के लिए सही मान दोबारा बोलें।`);
+                setTurnMode('confirming', f.label);
+                await speak(dict.clarifyValue ? dict.clarifyValue(f.label) : `कृपया ${f.label} के लिए सही मान दोबारा बोलें।`);
                 if (myEpoch !== flowEpoch) return;
 
                 flowState = 'form_awaiting_correction';
                 if (el.spotlightStatus) {
                     el.spotlightStatus.dataset.phase = 'listening';
-                    el.spotlightStatus.textContent = 'सुधार बताएं…';
+                    el.spotlightStatus.textContent = t('spotlightPhaseListening');
                 }
-                setTurnMode('listening', 'सुधार बोलें: ' + f.label);
-                resetLiveLine('सही मान बोलें…');
+                setTurnMode('listening', f.label);
+                resetLiveLine(t('transcriptConfirmPrompt'));
                 drainTranscriptQueue();
                 return;
             }
@@ -1280,35 +1275,36 @@
             flowState = 'busy';
             if (el.spotlightStatus) {
                 el.spotlightStatus.dataset.phase = 'confirming';
-                el.spotlightStatus.textContent = 'पुष्टि पूछ रहे हैं…';
+                el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
             }
-            await speak(`सुधारा गया: ${corrected}। क्या यह सही है?`);
+            await speak(dict.confirmCorrection ? dict.confirmCorrection(corrected) : `सुधारा गया: ${corrected}।`);
             if (myEpoch !== flowEpoch) return;
 
             flowState = 'form_awaiting_confirmation';
             if (el.spotlightStatus) {
                 el.spotlightStatus.dataset.phase = 'confirming';
-                el.spotlightStatus.textContent = 'पुष्टि करें (हाँ / सुधार)';
+                el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
             }
-            setTurnMode('listening', 'पुष्टि: हाँ बोलें या सुधार बताएं');
-            resetLiveLine('हाँ बोलें या सुधार बताएं…');
+            setTurnMode('listening', f.label);
+            resetLiveLine(t('transcriptConfirmPrompt'));
             drainTranscriptQueue();
         } catch (err) {
             console.warn('[VFF] Correction error:', err);
             flowState = 'busy';
-            await speak(`कृपया ${f.label} के लिए सही मान दोबारा बोलें।`);
+            await speak(dict.clarifyValue ? dict.clarifyValue(f.label) : `कृपया ${f.label} के लिए सही मान दोबारा बोलें।`);
             if (myEpoch !== flowEpoch) return;
             flowState = 'form_awaiting_correction';
-            setTurnMode('listening', 'सुधार बोलें');
+            setTurnMode('listening', f.label);
             drainTranscriptQueue();
         }
     }
 
     async function skipField() {
         const f = scannedFields[currentFieldIndex];
+        const dict = window.i18n ? window.i18n.getDictation() : {};
         console.log(`[VFF] Skipping field #${currentFieldIndex} "${f?.label}"`);
         flowState = 'busy';
-        await speak('ठीक है, इस फ़ील्ड को छोड़ रहे हैं।');
+        await speak(dict.fieldSkipped ? dict.fieldSkipped(f?.label) : 'ठीक है, इस फ़ील्ड को छोड़ रहे हैं।');
         currentFieldIndex++;
         if (currentFieldIndex < scannedFields.length) {
             await askField(currentFieldIndex);
@@ -1322,7 +1318,7 @@
             currentFieldIndex--;
             await askField(currentFieldIndex);
         } else {
-            showToast('यह पहला फ़ील्ड है');
+            showToast(window.i18n ? window.i18n.t('firstFieldToast') : 'This is the first field');
         }
     }
 
@@ -1360,7 +1356,7 @@
             };
             socket.onclose = (ev) => {
                 setStatus('idle', 'disconnected');
-                if (sessionActive) endSession('कनेक्शन बंद हो गया');
+                if (sessionActive) endSession(window.i18n ? window.i18n.t('connectionClosed') : 'Connection closed');
             };
             socket.onmessage = (ev) => {
                 let msg; try { msg = JSON.parse(ev.data); } catch { return; }
@@ -1374,7 +1370,7 @@
         if (msg.error) {
             console.error('[WS Error]', msg.error);
             const errText = typeof msg.error === 'string' ? msg.error : (msg.error.message || JSON.stringify(msg.error));
-            showToast('ASR त्रुटि: ' + errText);
+            showToast((window.i18n ? window.i18n.t('asrError') : 'ASR error: ') + errText);
             return;
         }
         if (!msg.type || msg.type === 'session.created') return;
@@ -1618,7 +1614,7 @@
                         if (!speaking) {
                             speaking = true;
                             turnStartedAt = performance.now();
-                            resetLiveLine('सुन रहा हूँ…');
+                            resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
                             setTurnMode('speaking', 'speaking');
                         }
                         lastSpeechAt = performance.now();
@@ -1656,7 +1652,7 @@
             if (!speaking) {
                 speaking = true;
                 turnStartedAt = now;
-                resetLiveLine('सुन रहा हूँ…');
+                resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
                 setTurnMode('speaking', 'speaking');
             }
             lastSpeechAt = now;
@@ -1676,14 +1672,14 @@
 
     // ---------- SESSION ----------
     async function startSession() {
-        resetLiveLine('… सुन रहा हूँ');
+        resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
         showToast('');
         flowEpoch++;
         pendingTranscript = '';
         transcriptQueue = [];
         clearDebounceBuffers();
         try { await connectWs(); } catch (e) {
-            showToast('WebSocket से कनेक्ट नहीं हो सका');
+            showToast(window.i18n ? window.i18n.t('wsConnectFailed') : 'Could not connect to WebSocket');
             return;
         }
         try { await initSileroVAD(); } catch (e) {
@@ -1702,12 +1698,12 @@
             console.error('[Mic Error]', e);
             const isPerm = e.name === 'NotAllowedError' || (e.message && (e.message.includes('dismissed') || e.message.includes('Permission')));
             if (isPerm) {
-                showToast('माइक्रोफ़ोन अनुमति टैब खोला गया — कृपया "Allow" चुनें');
+                showToast(window.i18n ? window.i18n.t('micPermTabOpened') : 'Microphone permission tab opened — please click "Allow"');
                 if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
                     chrome.tabs.create({ url: chrome.runtime.getURL('permission.html') });
                 }
             } else {
-                showToast('माइक्रोफ़ोन एक्सेस नहीं मिला: ' + e.message);
+                showToast((window.i18n ? window.i18n.t('micAccessDenied') : 'Microphone access denied: ') + e.message);
             }
             if (ws) ws.close();
             return;
@@ -1800,8 +1796,8 @@
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
         if (reason) showToast(reason);
-        else showToast('सत्र समाप्त — सभी गतिविधियाँ बंद कर दी गईं ✓');
-        if (!liveText) resetLiveLine('फ़ॉर्म भरने के लिए "वॉइस से भरें" दबाएं…');
+        else showToast(window.i18n ? window.i18n.t('sessionEndedToast') : 'Session ended');
+        if (!liveText) resetLiveLine(window.i18n ? window.i18n.t('transcriptIdle') : 'Click "Fill with Voice" to begin…');
     }
 
     // ---------- EVENT BINDING ----------
@@ -1817,7 +1813,7 @@
         startFormFlow();
     });
     if (el.btnStopFormFlow) el.btnStopFormFlow.addEventListener('click', () => {
-        endSession('सत्र समाप्त — सभी गतिविधियाँ बंद कर दी गईं');
+        endSession(window.i18n ? window.i18n.t('sessionEndedToast') : 'Session ended');
     });
     if (el.btnSkipField) el.btnSkipField.addEventListener('click', () => skipField());
     if (el.btnPrevField) el.btnPrevField.addEventListener('click', () => prevField());
@@ -1856,7 +1852,8 @@
         // Chrome extension side panels cannot directly navigate to custom protocols.
         // Opening launch.html in a top-level tab triggers the Windows OS protocol handler cleanly.
         if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
-            chrome.tabs.create({ url: chrome.runtime.getURL('launch.html') });
+            const lang = window.i18n ? window.i18n.getLanguage() : 'en';
+            chrome.tabs.create({ url: chrome.runtime.getURL(`launch.html?lang=${encodeURIComponent(lang)}`) });
             return;
         }
         window.location.href = url;
@@ -1865,9 +1862,10 @@
     let launchPollTimer = null;
     if (compEl.btnLaunchCompanion) {
         compEl.btnLaunchCompanion.addEventListener('click', () => {
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
             compEl.btnLaunchCompanion.disabled = true;
-            compEl.btnLaunchCompanion.innerHTML = '<span>⏳ चालू हो रहा है… (Starting…)</span>';
-            showToast('कम्पैनियन शुरू किया जा रहा है…');
+            compEl.btnLaunchCompanion.innerHTML = `<span>${t('companionStartingBtn')}</span>`;
+            showToast(t('companionStartingToast'));
 
             triggerProtocolLaunch('voice-companion://start');
 
@@ -1881,9 +1879,9 @@
                         clearInterval(launchPollTimer);
                         launchPollTimer = null;
                         compEl.btnLaunchCompanion.disabled = false;
-                        compEl.btnLaunchCompanion.innerHTML = '<span>⚡ कम्पैनियन चालू करें (Launch Companion)</span>';
+                        compEl.btnLaunchCompanion.innerHTML = `<span>${t('companionReadyBtn')}</span>`;
                         checkCompanion();
-                        showToast('कम्पैनियन ऑनलाइन हो गया है ✓');
+                        showToast(t('companionOnlineToast'));
                         return;
                     }
                 } catch (_) {}
@@ -1892,10 +1890,51 @@
                     clearInterval(launchPollTimer);
                     launchPollTimer = null;
                     compEl.btnLaunchCompanion.disabled = false;
-                    compEl.btnLaunchCompanion.innerHTML = '<span>⚡ कम्पैनियन चालू करें (Launch Companion)</span>';
-                    showToast('कम्पैनियन चालू नहीं हुआ? register_protocol.bat चलाएं');
+                    compEl.btnLaunchCompanion.innerHTML = `<span>${t('companionReadyBtn')}</span>`;
+                    showToast(t('companionFailedToast'));
                 }
             }, 1000);
+        });
+    }
+
+    let isCompanionOnline = false;
+    let previousAppLanguage = 'hi-IN';
+
+    const modalEl = {
+        overlay: document.getElementById('restartModalOverlay'),
+        title: document.getElementById('restartModalTitle'),
+        desc: document.getElementById('restartModalDesc'),
+        btnCancel: document.getElementById('btnModalCancel'),
+        btnConfirm: document.getElementById('btnModalConfirm')
+    };
+
+    function showRestartConfirmationDialog(chosenCode, chosenName) {
+        return new Promise((resolve) => {
+            if (!modalEl.overlay) {
+                const confirmed = window.confirm(`Changing language to ${chosenName} requires restarting the Companion Server. Existing processes will be stopped and a new Command Prompt window will launch.\n\nRestart now?`);
+                return resolve(confirmed);
+            }
+
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+            if (modalEl.title) modalEl.title.textContent = t('restartModalTitle');
+            if (modalEl.desc) modalEl.desc.textContent = t('restartModalDesc', { name: chosenName });
+            if (modalEl.btnCancel) modalEl.btnCancel.textContent = t('btnRestartCancel');
+            if (modalEl.btnConfirm) modalEl.btnConfirm.textContent = t('btnRestartConfirm');
+
+            modalEl.overlay.style.display = 'flex';
+
+            const cleanup = (result) => {
+                modalEl.overlay.style.display = 'none';
+                if (modalEl.btnCancel) modalEl.btnCancel.removeEventListener('click', onCancel);
+                if (modalEl.btnConfirm) modalEl.btnConfirm.removeEventListener('click', onConfirm);
+                resolve(result);
+            };
+
+            const onCancel = () => cleanup(false);
+            const onConfirm = () => cleanup(true);
+
+            if (modalEl.btnCancel) modalEl.btnCancel.addEventListener('click', onCancel);
+            if (modalEl.btnConfirm) modalEl.btnConfirm.addEventListener('click', onConfirm);
         });
     }
 
@@ -1904,6 +1943,8 @@
             const resp = await fetch(`${COMPANION_BASE}/api/status`, { cache: 'no-store' });
             if (!resp.ok) throw new Error();
             const data = await resp.json();
+            isCompanionOnline = true;
+
             if (compEl.companionPill) {
                 compEl.companionPill.className = 'badge badge-connected';
                 compEl.companionStatusText.textContent = 'Companion Online';
@@ -1929,6 +1970,7 @@
                 }
             }
         } catch (_) {
+            isCompanionOnline = false;
             if (compEl.companionPill) {
                 compEl.companionPill.className = 'badge badge-disconnected';
                 compEl.companionStatusText.textContent = 'Companion Offline';
@@ -1942,13 +1984,14 @@
 
     if (compEl.btnStartServices) {
         compEl.btnStartServices.addEventListener('click', async () => {
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
             compEl.btnStartServices.disabled = true;
-            showToast('सर्विस शुरू हो रही हैं…');
+            showToast(t('servicesStartingToast'));
             try {
                 await fetch(`${COMPANION_BASE}/api/start`, { method: 'POST' });
-                showToast('सर्विस शुरू की गईं');
+                showToast(t('servicesStartedToast'));
             } catch (e) {
-                showToast('स्टार्ट विफल: ' + e.message);
+                showToast(t('servicesStartFailedToast') + e.message);
             } finally {
                 compEl.btnStartServices.disabled = false;
                 checkCompanion();
@@ -1958,12 +2001,13 @@
 
     if (compEl.btnStopServices) {
         compEl.btnStopServices.addEventListener('click', async () => {
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
             compEl.btnStopServices.disabled = true;
             try {
                 await fetch(`${COMPANION_BASE}/api/stop`, { method: 'POST' });
-                showToast('सर्विस बंद कर दी गईं');
+                showToast(t('servicesStoppedToast'));
             } catch (e) {
-                showToast('स्टॉप विफल: ' + e.message);
+                showToast(t('servicesStopFailedToast') + e.message);
             } finally {
                 compEl.btnStopServices.disabled = false;
                 checkCompanion();
@@ -1973,13 +2017,128 @@
 
     if (compEl.btnCheckAssets) {
         compEl.btnCheckAssets.addEventListener('click', async () => {
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
             try {
                 const resp = await fetch(`${COMPANION_BASE}/api/status`);
                 const d = await resp.json();
-                showToast(d.assets?.allPresent ? 'सभी मॉडल्स उपलब्ध हैं ✓' : 'कुछ मॉडल्स गायब हैं');
+                showToast(d.assets?.allPresent ? t('modelsAllPresentToast') : t('modelsMissingToast'));
             } catch (e) {
-                showToast('चेक विफल: ' + e.message);
+                showToast(t('checkFailedToast') + e.message);
             }
+        });
+    }
+
+    // ---------- MULTILINGUAL I18N SUPPORT ----------
+    async function setAppLanguage(lang, syncCompanion = false) {
+        if (window.i18n) {
+            await window.i18n.setLanguage(lang);
+        }
+        if (el.languageSelect) {
+            el.languageSelect.value = lang;
+        }
+        renderScannedFieldsList();
+
+        // Update companion backend with active language if requested
+        if (syncCompanion && isCompanionOnline) {
+            try {
+                await fetch(`${COMPANION_BASE}/api/language`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language: lang })
+                });
+            } catch (e) {
+                console.warn('[VFF] Failed to inform companion of language change:', e);
+            }
+        }
+
+        // Notify active tab content script if any
+        const tab = await getActiveTab();
+        if (tab && tab.id) {
+            chrome.tabs.sendMessage(tab.id, { type: 'VFF_SET_LANGUAGE', language: lang }).catch(() => {});
+        }
+    }
+
+    async function restartCompanionWithLanguage(chosenCode) {
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        const localeObj = window.__LOCALES__?.[chosenCode] || {};
+        const chosenName = localeObj.name || chosenCode;
+
+        showToast(t('restartingToast', { name: chosenName }) || `Restarting companion in ${chosenName}...`);
+
+        // 1. Update language locally in extension and UI
+        await setAppLanguage(chosenCode, false);
+
+        // 2. Instruct running companion server to shut down and persist the target language
+        try {
+            await fetch(`${COMPANION_BASE}/api/shutdown`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ language: chosenCode })
+            });
+        } catch (_) {}
+
+        // 3. Wait briefly for companion process to fully release ports
+        await new Promise(r => setTimeout(r, 800));
+
+        // 4. Trigger protocol launch to open a new interactive Command Prompt window
+        triggerProtocolLaunch(`voice-companion://start?lang=${encodeURIComponent(chosenCode)}`);
+
+        // 5. Poll until companion is back online
+        let pollCount = 0;
+        const restartPoll = setInterval(async () => {
+            pollCount++;
+            try {
+                const resp = await fetch(`${COMPANION_BASE}/api/status`, { cache: 'no-store' });
+                if (resp.ok) {
+                    clearInterval(restartPoll);
+                    showToast(`Companion Online (${chosenName})`);
+                    checkCompanion();
+                    // Auto-start backend services with new language
+                    try {
+                        await fetch(`${COMPANION_BASE}/api/start`, { method: 'POST' });
+                    } catch (_) {}
+                    checkCompanion();
+                }
+            } catch (_) {}
+            if (pollCount > 35) clearInterval(restartPoll);
+        }, 1000);
+    }
+
+    if (el.languageSelect) {
+        el.languageSelect.addEventListener('change', async (e) => {
+            const chosen = e.target.value;
+            if (chosen === previousAppLanguage) return;
+
+            const localeObj = window.__LOCALES__?.[chosen] || {};
+            const chosenName = localeObj.name || chosen;
+
+            if (isCompanionOnline) {
+                // Companion server is running! Ask for user confirmation before stopping and restarting
+                const confirmed = await showRestartConfirmationDialog(chosen, chosenName);
+                if (!confirmed) {
+                    // User canceled: Revert select dropdown back to previous language
+                    el.languageSelect.value = previousAppLanguage;
+                    return;
+                }
+
+                // User confirmed: Kill existing companion server and launch a fresh Command Prompt window
+                await restartCompanionWithLanguage(chosen);
+                previousAppLanguage = chosen;
+            } else {
+                // Companion is not currently running: Just set the language locally
+                await setAppLanguage(chosen, false);
+                previousAppLanguage = chosen;
+                showToast(`Language: ${chosenName}`);
+            }
+        });
+    }
+
+    // Initialize i18n
+    if (window.i18n) {
+        window.i18n.init().then(async (curLang) => {
+            previousAppLanguage = curLang;
+            if (el.languageSelect) el.languageSelect.value = curLang;
+            renderScannedFieldsList();
         });
     }
 

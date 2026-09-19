@@ -387,6 +387,12 @@
         sendResponse({ success: ok, fieldId: message.fieldId, value: message.value });
         return true;
       }
+
+      if (message.type === 'VFF_SET_LANGUAGE') {
+        window.dispatchEvent(new CustomEvent('vff_language_changed', { detail: { language: message.language } }));
+        sendResponse({ success: true, language: message.language });
+        return true;
+      }
     });
   }
 

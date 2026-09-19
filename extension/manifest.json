@@ -61,6 +61,8 @@
         "worklet-processor.js",
         "scanner-highlight.css",
         "form-field-scanner.js",
+        "i18n.js",
+        "locales/*",
         "lib/*"
       ],
       "matches": [
