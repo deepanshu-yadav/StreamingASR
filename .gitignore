@@ -2,3 +2,5 @@ commands_demo/*.onnx
 commands_demo/*.wav
 extension/*.onnx
 models/*
+companion/user_config.json
+*.log

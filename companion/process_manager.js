@@ -422,12 +422,23 @@ class ProcessManager {
 
     loadLanguageConfig() {
         try {
+            // 1. Check user-specific runtime settings outside git repo (rootDir/user_config.json)
+            const userCfg = this.rootDir ? path.join(this.rootDir, 'user_config.json') : null;
+            if (userCfg && fs.existsSync(userCfg)) {
+                const data = JSON.parse(fs.readFileSync(userCfg, 'utf8'));
+                if (data.language && LANGUAGE_CONFIG[data.language]) {
+                    this.currentLanguage = data.language;
+                    console.log(`[ProcessManager] Loaded persisted language from user config: "${this.currentLanguage}"`);
+                    return;
+                }
+            }
+            // 2. Fallback: read default language from repository config.json (never modified by code)
             const cfgFile = path.join(__dirname, 'config.json');
             if (fs.existsSync(cfgFile)) {
                 const data = JSON.parse(fs.readFileSync(cfgFile, 'utf8'));
                 if (data.language && LANGUAGE_CONFIG[data.language]) {
                     this.currentLanguage = data.language;
-                    console.log(`[ProcessManager] Loaded persisted language: "${this.currentLanguage}"`);
+                    console.log(`[ProcessManager] Loaded default language: "${this.currentLanguage}"`);
                 }
             }
         } catch (_) {}
@@ -435,8 +446,13 @@ class ProcessManager {
 
     saveLanguageConfig(lang) {
         try {
-            const cfgFile = path.join(__dirname, 'config.json');
-            fs.writeFileSync(cfgFile, JSON.stringify({ language: lang }, null, 2), 'utf8');
+            // Persist ONLY to user-specific directory (rootDir/user_config.json)
+            // NEVER modify git-tracked companion/config.json to keep repository clean
+            if (this.rootDir) {
+                const userCfg = path.join(this.rootDir, 'user_config.json');
+                fs.writeFileSync(userCfg, JSON.stringify({ language: lang }, null, 2), 'utf8');
+                console.log(`[ProcessManager] Persisted language "${lang}" to ${userCfg}`);
+            }
         } catch (_) {}
     }
 

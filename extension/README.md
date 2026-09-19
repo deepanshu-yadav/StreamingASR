@@ -258,7 +258,7 @@ Select your preferred language from the **Language Selector** dropdown at the to
 
 **How language switching works under the hood:**
 - The extension sends a request to `POST /api/language` on the companion server.
-- The companion persists your choice in `companion/config.json` and triggers a restart of only the ASR + TTS processes.
+- The companion persists your choice in the user data directory (`user_config.json`) and triggers a hot-restart of only the ASR + TTS processes (leaving `companion/config.json` clean in git).
 - Service indicators in the Side Panel briefly transition to **STARTING** before returning to **READY**.
 - Your language preference is saved across sessions and automatically restored whenever you restart the companion.
 

@@ -355,11 +355,11 @@
                 ttsSettleTimer = null;
             }
             if (ttsAbortController) {
-                try { ttsAbortController.abort(); } catch (e) {}
+                try { ttsAbortController.abort(); } catch (e) { }
                 ttsAbortController = null;
             }
             if (ttsSourceNode) {
-                try { ttsSourceNode.stop(); } catch (e) {}
+                try { ttsSourceNode.stop(); } catch (e) { }
                 ttsSourceNode = null;
             }
 
@@ -387,7 +387,7 @@
                 if (myToken !== ttsCurrentToken) return;
                 ttsPlaying = false;
                 if (ttsSourceNode) {
-                    try { ttsSourceNode.stop(); } catch (e) {}
+                    try { ttsSourceNode.stop(); } catch (e) { }
                     ttsSourceNode = null;
                 }
                 setTTSStatus('idle', 'tts done');
@@ -410,7 +410,7 @@
                 if (myToken === ttsCurrentToken && (ttsPlaying || ttsMicMuted)) {
                     console.warn('[TTS] Synthesis timeout reached for token', myToken, '- Aborting TTS fetch.');
                     if (ttsAbortController) {
-                        try { ttsAbortController.abort(); } catch (e) {}
+                        try { ttsAbortController.abort(); } catch (e) { }
                     }
                     cleanupTTS();
                 }
@@ -446,7 +446,7 @@
 
                 ensureTTSContext();
                 if (ttsPlaybackCtx.state === 'suspended') {
-                    await ttsPlaybackCtx.resume().catch(() => {});
+                    await ttsPlaybackCtx.resume().catch(() => { });
                 }
 
                 const buf = ttsPlaybackCtx.createBuffer(1, f32.length, TTS_SAMPLE_RATE);
@@ -508,11 +508,11 @@
             ttsSettleTimer = null;
         }
         if (ttsAbortController) {
-            try { ttsAbortController.abort(); } catch (e) {}
+            try { ttsAbortController.abort(); } catch (e) { }
             ttsAbortController = null;
         }
         if (ttsSourceNode) {
-            try { ttsSourceNode.stop(); } catch (e) {}
+            try { ttsSourceNode.stop(); } catch (e) { }
             ttsSourceNode = null;
         }
         ttsPlaying = false;
@@ -810,7 +810,7 @@
 
         // Ensure background registers session
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-            chrome.runtime.sendMessage({ type: 'VFF_START_SESSION', tabId: tab.id }).catch(() => {});
+            chrome.runtime.sendMessage({ type: 'VFF_START_SESSION', tabId: tab.id }).catch(() => { });
         }
 
         // Ensure script injection if page was loaded before extension
@@ -872,7 +872,7 @@
             // Re-highlight active field if DOM mutated
             const f = scannedFields[currentFieldIndex];
             if (currentScannedTabId) {
-                chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => {});
+                chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => { });
             }
         }
     }
@@ -891,7 +891,7 @@
         currentFieldIndex = index;
         const f = scannedFields[index];
         if (currentScannedTabId) {
-            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => {});
+            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => { });
         }
         renderScannedFieldsList();
         if (formFlowActive) {
@@ -933,7 +933,7 @@
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'none';
         if (currentScannedTabId) {
-            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => {});
+            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => { });
         }
         flowState = 'idle';
         setTurnMode('idle', 'idle');
@@ -947,7 +947,7 @@
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'none';
         if (currentScannedTabId) {
-            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => {});
+            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => { });
         }
         renderScannedFieldsList();
         const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
@@ -973,7 +973,7 @@
 
         // Focus & highlight on page
         if (currentScannedTabId) {
-            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => {});
+            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => { });
         }
 
         // Update spotlight UI
@@ -1127,7 +1127,7 @@
                     type: 'VFF_SET_FIELD_VALUE',
                     fieldId: f.id,
                     value: confirmedVal
-                }).catch(() => {});
+                }).catch(() => { });
             }
 
             currentFieldCorrections = [];
@@ -1884,7 +1884,7 @@
                         showToast(t('companionOnlineToast'));
                         return;
                     }
-                } catch (_) {}
+                } catch (_) { }
 
                 if (attempts >= 18) {
                     clearInterval(launchPollTimer);
@@ -1899,44 +1899,7 @@
 
     let isCompanionOnline = false;
     let previousAppLanguage = 'hi-IN';
-
-    const modalEl = {
-        overlay: document.getElementById('restartModalOverlay'),
-        title: document.getElementById('restartModalTitle'),
-        desc: document.getElementById('restartModalDesc'),
-        btnCancel: document.getElementById('btnModalCancel'),
-        btnConfirm: document.getElementById('btnModalConfirm')
-    };
-
-    function showRestartConfirmationDialog(chosenCode, chosenName) {
-        return new Promise((resolve) => {
-            if (!modalEl.overlay) {
-                const confirmed = window.confirm(`Changing language to ${chosenName} requires restarting the Companion Server. Existing processes will be stopped and a new Command Prompt window will launch.\n\nRestart now?`);
-                return resolve(confirmed);
-            }
-
-            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
-            if (modalEl.title) modalEl.title.textContent = t('restartModalTitle');
-            if (modalEl.desc) modalEl.desc.textContent = t('restartModalDesc', { name: chosenName });
-            if (modalEl.btnCancel) modalEl.btnCancel.textContent = t('btnRestartCancel');
-            if (modalEl.btnConfirm) modalEl.btnConfirm.textContent = t('btnRestartConfirm');
-
-            modalEl.overlay.style.display = 'flex';
-
-            const cleanup = (result) => {
-                modalEl.overlay.style.display = 'none';
-                if (modalEl.btnCancel) modalEl.btnCancel.removeEventListener('click', onCancel);
-                if (modalEl.btnConfirm) modalEl.btnConfirm.removeEventListener('click', onConfirm);
-                resolve(result);
-            };
-
-            const onCancel = () => cleanup(false);
-            const onConfirm = () => cleanup(true);
-
-            if (modalEl.btnCancel) modalEl.btnCancel.addEventListener('click', onCancel);
-            if (modalEl.btnConfirm) modalEl.btnConfirm.addEventListener('click', onConfirm);
-        });
-    }
+    let isSyncingLanguage = false;
 
     async function checkCompanion() {
         try {
@@ -1967,6 +1930,24 @@
             if (data.allReady) {
                 if (el.btnStartFormFlow && scannedFields.length > 0 && !formFlowActive) {
                     el.btnStartFormFlow.disabled = false;
+                }
+            }
+
+            // Sync companion backend language with active extension language if they differ
+            const curLang = window.i18n ? window.i18n.getLanguage() : 'hi-IN';
+            if (data.language && curLang && data.language !== curLang && !isSyncingLanguage) {
+                isSyncingLanguage = true;
+                try {
+                    console.log(`[VFF] Synchronizing companion language (${data.language} -> ${curLang})...`);
+                    await fetch(`${COMPANION_BASE}/api/language`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ language: curLang })
+                    });
+                } catch (syncErr) {
+                    console.warn('[VFF] Language sync failed:', syncErr);
+                } finally {
+                    isSyncingLanguage = false;
                 }
             }
         } catch (_) {
@@ -2054,54 +2035,8 @@
         // Notify active tab content script if any
         const tab = await getActiveTab();
         if (tab && tab.id) {
-            chrome.tabs.sendMessage(tab.id, { type: 'VFF_SET_LANGUAGE', language: lang }).catch(() => {});
+            chrome.tabs.sendMessage(tab.id, { type: 'VFF_SET_LANGUAGE', language: lang }).catch(() => { });
         }
-    }
-
-    async function restartCompanionWithLanguage(chosenCode) {
-        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
-        const localeObj = window.__LOCALES__?.[chosenCode] || {};
-        const chosenName = localeObj.name || chosenCode;
-
-        showToast(t('restartingToast', { name: chosenName }) || `Restarting companion in ${chosenName}...`);
-
-        // 1. Update language locally in extension and UI
-        await setAppLanguage(chosenCode, false);
-
-        // 2. Instruct running companion server to shut down and persist the target language
-        try {
-            await fetch(`${COMPANION_BASE}/api/shutdown`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ language: chosenCode })
-            });
-        } catch (_) {}
-
-        // 3. Wait briefly for companion process to fully release ports
-        await new Promise(r => setTimeout(r, 800));
-
-        // 4. Trigger protocol launch to open a new interactive Command Prompt window
-        triggerProtocolLaunch(`voice-companion://start?lang=${encodeURIComponent(chosenCode)}`);
-
-        // 5. Poll until companion is back online
-        let pollCount = 0;
-        const restartPoll = setInterval(async () => {
-            pollCount++;
-            try {
-                const resp = await fetch(`${COMPANION_BASE}/api/status`, { cache: 'no-store' });
-                if (resp.ok) {
-                    clearInterval(restartPoll);
-                    showToast(`Companion Online (${chosenName})`);
-                    checkCompanion();
-                    // Auto-start backend services with new language
-                    try {
-                        await fetch(`${COMPANION_BASE}/api/start`, { method: 'POST' });
-                    } catch (_) {}
-                    checkCompanion();
-                }
-            } catch (_) {}
-            if (pollCount > 35) clearInterval(restartPoll);
-        }, 1000);
     }
 
     if (el.languageSelect) {
@@ -2112,24 +2047,15 @@
             const localeObj = window.__LOCALES__?.[chosen] || {};
             const chosenName = localeObj.name || chosen;
 
-            if (isCompanionOnline) {
-                // Companion server is running! Ask for user confirmation before stopping and restarting
-                const confirmed = await showRestartConfirmationDialog(chosen, chosenName);
-                if (!confirmed) {
-                    // User canceled: Revert select dropdown back to previous language
-                    el.languageSelect.value = previousAppLanguage;
-                    return;
-                }
+            previousAppLanguage = chosen;
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+            showToast(t('restartingToast', { name: chosenName }) || `Switching to ${chosenName}...`);
 
-                // User confirmed: Kill existing companion server and launch a fresh Command Prompt window
-                await restartCompanionWithLanguage(chosen);
-                previousAppLanguage = chosen;
-            } else {
-                // Companion is not currently running: Just set the language locally
-                await setAppLanguage(chosen, false);
-                previousAppLanguage = chosen;
-                showToast(`Language: ${chosenName}`);
-            }
+            // 1. Update UI, stored language in extension & active tab
+            // 2. If companion is online, hot-restart ASR/TTS backend services via POST /api/language
+            await setAppLanguage(chosen, true);
+            await checkCompanion();
+            showToast(`Language: ${chosenName}`);
         });
     }
 

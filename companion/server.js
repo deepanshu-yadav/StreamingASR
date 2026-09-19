@@ -267,7 +267,7 @@ const server = http.createServer(async (req, res) => {
                     processManager.saveLanguageConfig(body.language);
                     console.log(`[Companion] Persisted new language "${body.language}" for upcoming restart`);
                 }
-            } catch (_) {}
+            } catch (_) { }
 
             console.log('[Companion] Received shutdown request from extension. Terminating services and exiting...');
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -277,7 +277,7 @@ const server = http.createServer(async (req, res) => {
             }));
 
             setTimeout(async () => {
-                try { await processManager.stopAll(); } catch (_) {}
+                try { await processManager.stopAll(); } catch (_) { }
                 process.exit(0);
             }, 300);
         });
