@@ -34,9 +34,9 @@ An end-to-end, high-performance local AI voice interaction suite that runs nativ
 
 Watch the complete end-to-end demo showing service orchestration, real-time streaming Hindi ASR, Silero VAD turn detection, local LLM confirmation, and neural TTS:
 
-[![Part 1: Chrome Extension Offline Voice Assistant Demo](https://img.youtube.com/vi/UFkk_t15yq0/maxresdefault.jpg)](https://youtu.be/UFkk_t15yq0?si=5JYoG76DC6ZGNNsp "Click to Watch Part 1: Chrome Extension Offline Voice Assistant Demo")
+[![Part 1: Chrome Extension Offline Voice Assistant Demo](https://img.youtube.com/vi/OhwYXN5-U4U/maxresdefault.jpg)](https://youtu.be/OhwYXN5-U4U?si=09XclHlTsWhWUbKv "Click to Watch Part 1: Chrome Extension Offline Voice Assistant Demo")
 
-> 🔗 **Watch Video on YouTube**: [https://youtu.be/UFkk_t15yq0?si=5JYoG76DC6ZGNNsp](https://youtu.be/UFkk_t15yq0?si=5JYoG76DC6ZGNNsp)
+> 🔗 **Watch Video on YouTube**: [https://youtu.be/OhwYXN5-U4U?si=09XclHlTsWhWUbKv](https://youtu.be/OhwYXN5-U4U?si=09XclHlTsWhWUbKv)
 
 ---
 
