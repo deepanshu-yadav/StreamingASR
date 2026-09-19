@@ -175,23 +175,23 @@ The companion script checks and auto-downloads missing binaries and models:
 
 The assistant features full end-to-end localization across UI elements, conversational TTS dictation templates, Gemma 4 LLM intent classification/value extraction prompts, and speech heuristics. Piper voice models in GGUF format are fetched automatically from [LocalAI-Community/piper-voices-GGUF](https://huggingface.co/LocalAI-Community/piper-voices-GGUF/tree/main):
 
-| Language | Locales | TTS Voice Model (GGUF) |
-| :--- | :--- | :--- |
-| **Hindi** | `hi-IN` (Default) | `hi_IN-rohan-medium.gguf` |
-| **English** | `en-US`, `en-GB` | `piper-en_US-lessac-medium-f16.gguf` / `piper-en_GB-cori-medium-f16.gguf` |
-| **Spanish** | `es-ES`, `es-US` | `piper-es_ES-davefx-medium-f16.gguf` / `piper-es_MX-ald-medium-f16.gguf` |
-| **French** | `fr-FR`, `fr-CA` | `piper-fr_FR-siwis-medium-f16.gguf` / `piper-fr_FR-tom-medium-f16.gguf` |
-| **Italian** | `it-IT` | `piper-it_IT-paola-medium-f16.gguf` |
-| **Portuguese**| `pt-BR`, `pt-PT` | `piper-pt_BR-faber-medium-f16.gguf` / `piper-pt_PT-tugão-medium-f16.gguf` |
-| **Dutch** | `nl-NL` | `piper-nl_NL-alex-medium-f16.gguf` |
-| **German** | `de-DE` | `piper-de_DE-thorsten-medium-f16.gguf` |
-| **Turkish** | `tr-TR` | `piper-tr_TR-dfki-medium-f16.gguf` |
-| **Russian** | `ru-RU` | `piper-ru_RU-denis-medium-f16.gguf` |
-| **Arabic** | `ar-AR` | `piper-ar_JO-kareem-medium-f16.gguf` |
-| **Japanese**| `ja-JP` | Multilingual ASR & LLM prompts |
-| **Korean** | `ko-KR` | Multilingual ASR & LLM prompts |
-| **Vietnamese**| `vi-VN` | `piper-vi_VN-vais1000-medium-f16.gguf` |
-| **Ukrainian** | `uk-UA` | `piper-uk_UA-lada-x_low-f16.gguf` |
+| Language       | Locales           | TTS Voice Model (GGUF)                                                    |
+| :---------------| :------------------| :--------------------------------------------------------------------------|
+| **Hindi**      | `hi-IN` (Default) | `hi_IN-rohan-medium.gguf`                                                 |
+| **English**    | `en-US`, `en-GB`  | `piper-en_US-lessac-medium-f16.gguf` / `piper-en_GB-cori-medium-f16.gguf` |
+| **Spanish**    | `es-ES`, `es-US`  | `piper-es_ES-davefx-medium-f16.gguf` / `piper-es_MX-ald-medium-f16.gguf`  |
+| **French**     | `fr-FR`, `fr-CA`  | `piper-fr_FR-siwis-medium-f16.gguf` / `piper-fr_FR-tom-medium-f16.gguf`   |
+| **Italian**    | `it-IT`           | `piper-it_IT-paola-medium-f16.gguf`                                       |
+| **Portuguese** | `pt-BR`, `pt-PT`  | `piper-pt_BR-faber-medium-f16.gguf` / `piper-pt_PT-tugão-medium-f16.gguf` |
+| **Dutch**      | `nl-NL`           | `piper-nl_NL-alex-medium-f16.gguf`                                        |
+| **German**     | `de-DE`           | `piper-de_DE-thorsten-medium-f16.gguf`                                    |
+| **Turkish**    | `tr-TR`           | `piper-tr_TR-dfki-medium-f16.gguf`                                        |
+| **Russian**    | `ru-RU`           | `piper-ru_RU-denis-medium-f16.gguf`                                       |
+| **Arabic**     | `ar-AR`           | `piper-ar_JO-kareem-medium-f16.gguf`                                      |
+| **Japanese**   | `ja-JP`           | Multilingual ASR & LLM prompts                                            |
+| **Korean**     | `ko-KR`           | Multilingual ASR & LLM prompts                                            |
+| **Vietnamese** | `vi-VN`           | `piper-vi_VN-vais1000-medium-f16.gguf`                                    |
+| **Ukrainian**  | `uk-UA`           | `piper-uk_UA-lada-x_low-f16.gguf`                                         |
 
 ---
 

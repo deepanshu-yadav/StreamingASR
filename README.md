@@ -197,6 +197,8 @@ After registration, the **⚡ Launch Companion** button in the extension side pa
 4. The **Local Voice ASR & Form Assistant** extension will appear in your extensions list.
 5. Click the puzzle-piece icon → pin the extension → click it to open the **Side Panel**.
 
+![Extension Loaded in Chrome and Side Panel Services Ready](.extension/docs/images/service_orchestration_overview.png)
+
 ---
 
 ### Step 4 — Grant Microphone Permission (One-Time Setup)
@@ -233,6 +235,7 @@ Select your preferred language from the **Language Selector** dropdown at the to
 6. The assistant populates the input, verifies (*"क्या यह सही है?"*), and advances to the next field.
 7. Click **⏹️ सत्र समाप्त करें (Stop Session)** anytime to halt all listening, playback, and form-filling activities.
 
+![Live Voice Session, VAD Tuning, and Spoken Confirmation Dialogue](./extension/docs/images/live_session_dialogue.png)
 
 ---
 
