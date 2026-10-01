@@ -238,7 +238,7 @@ function getPlatformBinaries() {
         return {
             crispasr: {
                 relPath: path.join('bin', 'crispasr', 'crispasr.exe'),
-                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.30/crispasr-windows-x86_64-cpu.zip',
+                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.39/crispasr-windows-x86_64-cpu.zip',
                 isArchive: true,
                 archiveType: 'zip',
                 minSizeBytes: 5 * 1024 * 1024
@@ -261,7 +261,7 @@ function getPlatformBinaries() {
         return {
             crispasr: {
                 relPath: path.join('bin', 'crispasr', 'crispasr'),
-                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.30/crispasr-macos.tar.gz',
+                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.39/crispasr-macos.tar.gz',
                 isArchive: true,
                 archiveType: 'tar.gz',
                 minSizeBytes: 5 * 1024 * 1024
@@ -280,7 +280,7 @@ function getPlatformBinaries() {
     return {
         crispasr: {
             relPath: path.join('bin', 'crispasr', 'crispasr'),
-            url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.30/crispasr-linux-x86_64.tar.gz',
+            url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.39/crispasr-linux-x86_64.tar.gz',
             isArchive: true,
             archiveType: 'tar.gz',
             minSizeBytes: 5 * 1024 * 1024
@@ -392,7 +392,7 @@ class AssetDownloader {
                         const stat = fs.statSync(absPath);
                         size = stat.size;
                         exists = size >= item.minSizeBytes;
-                    } catch (_) {}
+                    } catch (_) { }
                 }
             }
 
@@ -436,7 +436,7 @@ class AssetDownloader {
                 size = fs.statSync(absPath).size;
                 exists = size >= (v.minSizeBytes || 1024 * 1024);
             }
-        } catch (_) {}
+        } catch (_) { }
 
         return {
             supported: true,
@@ -565,7 +565,7 @@ class AssetDownloader {
 
                                 // Ensure execute permissions on Linux and macOS
                                 if (!IS_WINDOWS && (destPath.includes('/bin/') || destPath.includes('\\bin\\'))) {
-                                    try { fs.chmodSync(destPath, 0o755); } catch (_) {}
+                                    try { fs.chmodSync(destPath, 0o755); } catch (_) { }
                                 }
 
                                 resolve(destPath);
@@ -611,7 +611,7 @@ class AssetDownloader {
                 const extractDir = path.dirname(destPath);
                 if (!fs.existsSync(extractDir)) fs.mkdirSync(extractDir, { recursive: true });
                 const archiveTempPath = path.join(extractDir, `temp_download${archiveExt}`);
-                
+
                 await this.downloadFile(manifestItem.url, archiveTempPath, (p) => {
                     if (onItemProgress) onItemProgress(manifestItem, p);
                 });
@@ -619,7 +619,7 @@ class AssetDownloader {
                 try {
                     await this.extractArchive(archiveTempPath, extractDir, manifestItem.archiveType);
                 } finally {
-                    try { if (fs.existsSync(archiveTempPath)) fs.unlinkSync(archiveTempPath); } catch (_) {}
+                    try { if (fs.existsSync(archiveTempPath)) fs.unlinkSync(archiveTempPath); } catch (_) { }
                 }
 
                 // Post-extraction: flatten binary and its dependent sibling files (e.g. openblas.dll)
@@ -654,7 +654,7 @@ class AssetDownloader {
                 if (!IS_WINDOWS && fs.existsSync(extractDir)) {
                     const files = fs.readdirSync(extractDir);
                     for (const f of files) {
-                        try { fs.chmodSync(path.join(extractDir, f), 0o755); } catch (_) {}
+                        try { fs.chmodSync(path.join(extractDir, f), 0o755); } catch (_) { }
                     }
                 }
             } else {
@@ -676,7 +676,7 @@ class AssetDownloader {
                     if (fs.existsSync(path.dirname(extVad)) && !fs.existsSync(extVad)) {
                         fs.copyFileSync(destPath, extVad);
                     }
-                } catch (_) {}
+                } catch (_) { }
             }
         }
 
@@ -700,7 +700,7 @@ class AssetDownloader {
                     if (found) return found;
                 }
             }
-        } catch (_) {}
+        } catch (_) { }
         return null;
     }
 
