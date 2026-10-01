@@ -237,6 +237,7 @@ class ProcessManager {
             '--port', '8089',
             '-l', langConfig.ttsLang,
             '-t', '8',
+            '--cors-origin', '*',
             '--no-spoken-disclaimer',
             '--accept-marking-responsibility'
         ];

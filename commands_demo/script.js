@@ -319,111 +319,359 @@
     }
 
     // ---------- TTS ----------
+    let ttsCurrentToken = 0;
+    let ttsActiveSources = new Set();
+    let ttsNextStartTime = 0;
+    let ttsStreamRemainder = null;
+    let ttsWebSocket = null;
+    let ttsSafetyTimer = null;
+    let ttsSettleTimer = null;
+
+    function ensureTTSContext() {
+        const TTS_SAMPLE_RATE = 22050;
+        if (!ttsPlaybackCtx || ttsPlaybackCtx.state === 'closed') {
+            ttsPlaybackCtx = new (window.AudioContext || window.webkitAudioContext)({
+                sampleRate: TTS_SAMPLE_RATE
+            });
+        }
+        if (ttsPlaybackCtx.state === 'suspended') {
+            ttsPlaybackCtx.resume().catch((err) => console.warn('[TTS] AudioContext resume failed:', err));
+        }
+        return ttsPlaybackCtx;
+    }
+
+    function stopTTSPlayback() {
+        if (ttsWebSocket) {
+            try {
+                if (ttsWebSocket.readyState === WebSocket.OPEN) {
+                    ttsWebSocket.send(JSON.stringify({ action: 'stop' }));
+                    ttsWebSocket.close();
+                }
+            } catch (_) { }
+            ttsWebSocket = null;
+        }
+        for (const src of ttsActiveSources) {
+            try { src.stop(); } catch (_) { }
+        }
+        ttsActiveSources.clear();
+        ttsSourceNode = null;
+        ttsNextStartTime = 0;
+        ttsStreamRemainder = null;
+    }
+
+    function scheduleTTSAudioChunk(chunkData, sampleRate = 22050, onChunkEnded = null) {
+        if (!chunkData) return;
+        let bytes = chunkData instanceof Uint8Array ? chunkData : new Uint8Array(chunkData);
+        if (bytes.length === 0) return;
+
+        if (ttsStreamRemainder && ttsStreamRemainder.length > 0) {
+            const merged = new Uint8Array(ttsStreamRemainder.length + bytes.length);
+            merged.set(ttsStreamRemainder, 0);
+            merged.set(bytes, ttsStreamRemainder.length);
+            bytes = merged;
+            ttsStreamRemainder = null;
+        }
+
+        const sampleCount = Math.floor(bytes.length / 2);
+        if (sampleCount === 0) {
+            ttsStreamRemainder = bytes;
+            return;
+        }
+
+        const usableBytes = sampleCount * 2;
+        if (bytes.length > usableBytes) {
+            ttsStreamRemainder = bytes.slice(usableBytes);
+        }
+
+        // Safe DataView decoding: completely immune to any odd byteOffset alignment restrictions
+        const view = new DataView(bytes.buffer, bytes.byteOffset, usableBytes);
+        const f32 = new Float32Array(sampleCount);
+        for (let i = 0; i < sampleCount; i++) {
+            f32[i] = view.getInt16(i * 2, true) / 32768.0;
+        }
+
+        ensureTTSContext();
+        const chunkDuration = sampleCount / sampleRate;
+        const now = ttsPlaybackCtx.currentTime;
+
+        if (ttsNextStartTime < now) {
+            // First chunk or gap after CPU generation: schedule with small 25ms cushion
+            ttsNextStartTime = now + 0.025;
+        }
+
+        const buf = ttsPlaybackCtx.createBuffer(1, sampleCount, sampleRate);
+        buf.getChannelData(0).set(f32);
+
+        const src = ttsPlaybackCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ttsPlaybackCtx.destination);
+        src.start(ttsNextStartTime);
+
+        ttsActiveSources.add(src);
+        ttsSourceNode = src;
+        lastScheduledSource = src;
+
+        src.onended = () => {
+            ttsActiveSources.delete(src);
+            if (onChunkEnded) onChunkEnded(src);
+        };
+
+        ttsNextStartTime += chunkDuration;
+    }
+
     function speak(text) {
         const cleanText = stripTags(text);
         console.log('[TTS] speak() → "' + cleanText + '"');
-        return new Promise((resolve) => {
+        return new Promise(async (resolve) => {
             if (!cleanText || !cleanText.trim()) { resolve(); return; }
+
+            const myToken = ++ttsCurrentToken;
+
+            if (ttsSafetyTimer) {
+                clearTimeout(ttsSafetyTimer);
+                ttsSafetyTimer = null;
+            }
+            if (ttsSettleTimer) {
+                clearTimeout(ttsSettleTimer);
+                ttsSettleTimer = null;
+            }
             if (ttsAbortController) {
-                ttsAbortController.abort();
+                try { ttsAbortController.abort(); } catch (e) { }
                 ttsAbortController = null;
             }
-            if (ttsSourceNode) { try { ttsSourceNode.stop(); } catch (e) { } ttsSourceNode = null; }
+            stopTTSPlayback();
+
             ttsPlaying = true;
             ttsMicMuted = true;
+            ttsStreamEnded = false;
+            lastScheduledSource = null;
             vadSpeechFrames = 0;
             vadSilenceFrames = 0;
             vadTriggered = false;
             el.micMutedBadge.classList.add('visible');
             el.interruptBtn.classList.add('visible');
             setTTSStatus('playing', 'tts playing…');
+
             ttsAbortController = new AbortController();
             ttsResolve = resolve;
-            fetch('/v1/audio/speech', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'piper', input: cleanText, spoken_disclaimer: false,
-                    stream: true, response_format: 'pcm'
-                }),
-                signal: ttsAbortController.signal
-            })
-                .then(resp => {
-                    if (!resp.ok) throw new Error(`TTS error: ${resp.status}`);
-                    return resp.arrayBuffer();
-                })
-                .then(ab => {
-                    if (!ttsPlaying) {
-                        ttsResolve = null;
-                        resolve(); return;
-                    }
-                    const TTS_SAMPLE_RATE = 22050;
-                    const int16 = new Int16Array(ab);
-                    const f32 = new Float32Array(int16.length);
-                    for (let i = 0; i < int16.length; i++) f32[i] = int16[i] / 32768;
-                    if (!ttsPlaybackCtx || ttsPlaybackCtx.state === 'closed') {
-                        ttsPlaybackCtx = new (window.AudioContext || window.webkitAudioContext)({
-                            sampleRate: TTS_SAMPLE_RATE
-                        });
-                    }
-                    const buf = ttsPlaybackCtx.createBuffer(1, f32.length, TTS_SAMPLE_RATE);
-                    buf.getChannelData(0).set(f32);
-                    ttsSourceNode = ttsPlaybackCtx.createBufferSource();
-                    ttsSourceNode.buffer = buf;
-                    ttsSourceNode.connect(ttsPlaybackCtx.destination);
-                    ttsSourceNode.onended = () => {
-                        ttsPlaying = false;
-                        ttsSourceNode = null;
-                        setTTSStatus('idle', 'tts done');
-                        setTimeout(() => {
-                            ttsMicMuted = false;
-                            el.micMutedBadge.classList.remove('visible');
-                            drainTranscriptQueue();
-                        }, 300);
-                        el.interruptBtn.classList.remove('visible');
-                        if (ttsResolve) {
-                            const r = ttsResolve;
-                            ttsResolve = null;
-                            r();
-                        } else resolve();
-                    };
-                    ttsSourceNode.start();
-                })
-                .catch(e => {
-                    if (e.name === 'AbortError') {
-                        if (ttsResolve) {
-                            const r = ttsResolve;
-                            ttsResolve = null;
-                            r();
-                        } else resolve();
-                        return;
-                    }
-                    showToast('TTS error: ' + e.message);
+
+            function onAllPlaybackComplete() {
+                if (myToken !== ttsCurrentToken) return;
+                if (ttsSafetyTimer) {
+                    clearTimeout(ttsSafetyTimer);
+                    ttsSafetyTimer = null;
+                }
+                if (ttsSettleTimer) {
+                    clearTimeout(ttsSettleTimer);
+                    ttsSettleTimer = null;
+                }
+                // Brief 300ms acoustic settling buffer to prevent mic picking up speaker reverberation
+                ttsSettleTimer = setTimeout(() => {
+                    if (myToken !== ttsCurrentToken) return;
                     ttsPlaying = false;
-                    setTTSStatus('idle', 'tts error');
+                    setTTSStatus('idle', 'tts done');
                     ttsMicMuted = false;
                     el.micMutedBadge.classList.remove('visible');
                     el.interruptBtn.classList.remove('visible');
+                    drainTranscriptQueue();
                     if (ttsResolve) {
                         const r = ttsResolve;
                         ttsResolve = null;
                         r();
-                    } else resolve();
+                    }
+                }, 300);
+            }
+
+            function handleChunkEnded() {
+                if (ttsStreamEnded && ttsActiveSources.size === 0) {
+                    onAllPlaybackComplete();
+                }
+            }
+
+            function resetSafetyTimer() {
+                if (ttsSafetyTimer) clearTimeout(ttsSafetyTimer);
+                const currentRemaining = ttsPlaybackCtx ? Math.max(0, (ttsNextStartTime - ttsPlaybackCtx.currentTime) * 1000) : 0;
+                const timeoutMs = Math.max(25000, currentRemaining + 15000);
+                ttsSafetyTimer = setTimeout(() => {
+                    if (myToken === ttsCurrentToken && (ttsPlaying || ttsMicMuted)) {
+                        console.warn('[TTS] Synthesis/playback timeout reached for token', myToken);
+                        onAllPlaybackComplete();
+                    }
+                }, timeoutMs);
+            }
+
+            resetSafetyTimer();
+
+            // Attempt 1: WebSocket streaming
+            let streamedViaSocket = false;
+            try {
+                await new Promise((wsResolve, wsReject) => {
+                    let socket;
+                    try {
+                        socket = new WebSocket('ws://' + window.location.host + '/ws/tts');
+                    } catch (err) {
+                        return wsReject(err);
+                    }
+                    socket.binaryType = 'arraybuffer'; // Crucial: ensure synchronous binary delivery without async Blob delays
+                    ttsWebSocket = socket;
+
+                    const socketConnTimeout = setTimeout(() => {
+                        try { socket.close(); } catch (_) { }
+                        wsReject(new Error('TTS WebSocket connection timeout'));
+                    }, 1200);
+
+                    socket.onopen = () => {
+                        clearTimeout(socketConnTimeout);
+                        if (myToken !== ttsCurrentToken) {
+                            try { socket.close(); } catch (_) { }
+                            return wsReject(new Error('Aborted'));
+                        }
+                        streamedViaSocket = true;
+                        socket.send(JSON.stringify({
+                            model: 'piper',
+                            input: cleanText,
+                            spoken_disclaimer: false,
+                            stream: true,
+                            response_format: 'pcm'
+                        }));
+                    };
+
+                    socket.onmessage = (event) => {
+                        if (myToken !== ttsCurrentToken) return;
+                        resetSafetyTimer();
+
+                        if (typeof event.data === 'string') {
+                            try {
+                                const msg = JSON.parse(event.data);
+                                if (msg.event === 'done') {
+                                    wsResolve();
+                                } else if (msg.event === 'error') {
+                                    wsReject(new Error(msg.error || 'TTS WS error'));
+                                }
+                            } catch (_) { }
+                        } else {
+                            // Binary ArrayBuffer chunk received in exact sequence
+                            scheduleTTSAudioChunk(event.data, 22050, handleChunkEnded);
+                        }
+                    };
+
+                    socket.onerror = (e) => {
+                        clearTimeout(socketConnTimeout);
+                        wsReject(new Error('TTS WebSocket error'));
+                    };
+
+                    socket.onclose = () => {
+                        clearTimeout(socketConnTimeout);
+                        if (!streamedViaSocket) {
+                            wsReject(new Error('TTS WebSocket closed early'));
+                        } else {
+                            wsResolve();
+                        }
+                    };
                 });
+            } catch (wsErr) {
+                console.warn('[TTS] WebSocket streaming unavailable, falling back to HTTP chunked streaming:', wsErr.message);
+            }
+
+            if (myToken !== ttsCurrentToken) return;
+
+            // Attempt 2: HTTP fetch streaming
+            if (!streamedViaSocket) {
+                try {
+                    const resp = await fetch('/v1/audio/speech', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'piper', input: cleanText, spoken_disclaimer: false,
+                            stream: true, response_format: 'pcm'
+                        }),
+                        signal: ttsAbortController.signal
+                    });
+
+                    if (myToken !== ttsCurrentToken) return;
+                    if (!resp.ok) throw new Error(`TTS error: ${resp.status}`);
+
+                    if (!resp.body || !resp.body.getReader) {
+                        const ab = await resp.arrayBuffer();
+                        if (myToken !== ttsCurrentToken) return;
+                        scheduleTTSAudioChunk(ab, 22050, handleChunkEnded);
+                    } else {
+                        const reader = resp.body.getReader();
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            if (myToken !== ttsCurrentToken) {
+                                try { reader.cancel(); } catch (_) { }
+                                return;
+                            }
+                            resetSafetyTimer();
+                            scheduleTTSAudioChunk(value, 22050, handleChunkEnded);
+                        }
+                    }
+                } catch (e) {
+                    if (myToken !== ttsCurrentToken) return;
+                    if (e.name === 'AbortError') {
+                        stopTTSPlayback();
+                        onAllPlaybackComplete();
+                        return;
+                    }
+                    console.error('[TTS] Error:', e);
+                    showToast('TTS error: ' + e.message);
+                    stopTTSPlayback();
+                    onAllPlaybackComplete();
+                    return;
+                }
+            }
+
+            if (myToken !== ttsCurrentToken) return;
+
+            // Mark stream as complete
+            ttsStreamEnded = true;
+            ensureTTSContext();
+
+            // Check if all scheduled audio has finished playing
+            if (ttsActiveSources.size === 0) {
+                onAllPlaybackComplete();
+            } else {
+                const remainingPlayTimeMs = Math.max(0, (ttsNextStartTime - ttsPlaybackCtx.currentTime) * 1000);
+                console.log(`[TTS] Stream complete. Waiting for playback to finish (~${(remainingPlayTimeMs / 1000).toFixed(2)}s)`);
+
+                if (ttsSafetyTimer) {
+                    clearTimeout(ttsSafetyTimer);
+                    ttsSafetyTimer = null;
+                }
+
+                // Generous safety timer to prevent hanging if onended ever fails
+                ttsSafetyTimer = setTimeout(() => {
+                    if (myToken === ttsCurrentToken && (ttsPlaying || ttsMicMuted)) {
+                        console.warn('[TTS] Playback safety timer expired');
+                        onAllPlaybackComplete();
+                    }
+                }, Math.round(remainingPlayTimeMs + 5000));
+            }
         });
     }
 
     function interruptTTS() {
+        ttsCurrentToken++;
+        if (ttsSafetyTimer) {
+            clearTimeout(ttsSafetyTimer);
+            ttsSafetyTimer = null;
+        }
+        if (ttsSettleTimer) {
+            clearTimeout(ttsSettleTimer);
+            ttsSettleTimer = null;
+        }
         if (ttsAbortController) {
-            ttsAbortController.abort();
+            try { ttsAbortController.abort(); } catch (e) { }
             ttsAbortController = null;
         }
-        if (ttsSourceNode) { try { ttsSourceNode.stop(); } catch (e) { } ttsSourceNode = null; }
+        stopTTSPlayback();
         ttsPlaying = false;
-        setTTSStatus('idle', 'tts interrupted');
         ttsMicMuted = false;
         el.micMutedBadge.classList.remove('visible');
         el.interruptBtn.classList.remove('visible');
+        setTTSStatus('idle', 'tts interrupted');
         if (ttsResolve) {
             const r = ttsResolve;
             ttsResolve = null;
