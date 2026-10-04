@@ -178,10 +178,25 @@ Pas de correctie-instructie toe op de vorige waarde en geef UITSLUITEND de uitei
                 'ja', 'klopt', 'correct', 'prima', 'akkoord', 'goed', 'volgende', 'zeker', 'bevestigen', 'inderdaad'
             ],
             skipPhrases: [
-                'overslaan', 'sla over', 'volgend veld', 'laat maar', 'skip'
+                'overslaan', 'sla over', 'volgend veld', 'laat maar', 'skip', 'leeg laten', 'leeg'
             ],
             pureRejectionWords: [
-                'nee', 'fout', 'niet dit', 'verkeerd'
+                'nee', 'fout', 'klopt niet', 'verkeerd', 'onjuist'
+            ],
+            pauseWords: [
+                'pauze', 'wacht', 'even wachten', 'stop'
+            ],
+            submitWords: [
+                'verzenden', 'insturen', 'formulier verzenden', 'afronden', 'klaar'
+            ],
+            repeatWords: [
+                'herhaal', 'zeg nog eens', 'wat was het', 'nog een keer'
+            ],
+            previousWords: [
+                'vorige', 'terug', 'ga terug', 'vorig veld'
+            ],
+            correctionWords: [
+                'wijzig', 'wijzigen', 'verander', 'in plaats van', 'verbeter'
             ]
         }
     };

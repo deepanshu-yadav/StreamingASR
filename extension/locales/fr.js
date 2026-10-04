@@ -172,18 +172,31 @@ Appliquez l'instruction de correction à la valeur précédente et renvoyez UNIQ
 
         heuristics: {
             negationWords: [
-                'non', 'pas', 'faux', 'erreur', 'changer', 'remplacer', 'modifier',
-                'incorrect', 'mauvais', 'pas bon', 'rectifier', 'corrige'
+                'non', 'pas', 'faux', 'erreur', 'changer', 'remplacer', 'modifier', 'incorrect', 'mauvais', 'pas bon', 'rectifier', 'corrige'
             ],
             confirmWords: [
-                'oui', 'ouais', 'exact', 'correct', 'd\'accord', 'c\'est bon', 'parfait',
-                'suivant', 'continuer', 'valider', 'tout à fait', 'bien'
+                'oui', 'ouais', 'exact', 'correct', 'd\'accord', 'c\'est bon', 'parfait', 'suivant', 'continuer', 'valider', 'tout à fait', 'bien'
             ],
             skipPhrases: [
-                'passer', 'ignorer', 'laisser', 'suivant', 'champ suivant', 'saute'
+                'passer', 'ignorer', 'laisser', 'suivant', 'champ suivant', 'saute', 'laisser vide', 'vide', 'laisser en blanc', 'blanc'
             ],
             pureRejectionWords: [
-                'non', 'faux', 'pas ça', 'incorrect', 'mauvais'
+                'non', 'faux', 'pas ça', 'incorrect', 'mauvais', 'c\'est faux'
+            ],
+            pauseWords: [
+                'pause', 'attends', 'attendez', 'un instant', 'arrêter', 'stop'
+            ],
+            submitWords: [
+                'soumettre', 'envoyer', 'valider formulaire', 'terminer', 'formulaire terminé'
+            ],
+            repeatWords: [
+                'répéter', 'répète', 'redis', 'c\'était quoi', 'encore une fois'
+            ],
+            previousWords: [
+                'précédent', 'retour', 'en arrière', 'reculer', 'champ précédent'
+            ],
+            correctionWords: [
+                'changer', 'remplacer', 'modifier', 'au lieu de', 'corriger', 'enlever'
             ]
         }
     };

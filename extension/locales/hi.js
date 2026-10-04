@@ -163,7 +163,16 @@
             confirmCorrection: (corrected) => `संशोधित मान: ${corrected}। क्या यह अब सही है?`,
             clarifyValue: (label) => `कृपया ${label} के लिए पूरा मान स्पष्ट बोलिए।`,
             fieldSkipped: (label) => `ठीक है, ${label || 'यह फ़ील्ड'} छोड़ दिया गया।`,
-            reaskPrompt: (label) => `कृपया ${label} के लिए फिर से बोलें।`
+            reaskPrompt: (label) => `कृपया ${label} के लिए फिर से बोलें।`,
+
+            // Phase 1: Navigation & Intent-Driven prompts
+            jumpingToField: (label) => `${label} पर जा रहे हैं।`,
+            tentativeSaved: (label, val) => `${label} के लिए ${val} सुरक्षित किया गया। `,
+            historicalFieldUpdated: (targetLabel, newVal, currentLabel) => `${targetLabel} को ${newVal} कर दिया गया है। हम ${currentLabel || 'मौजूदा फ़ील्ड'} पर बने हुए हैं।`,
+            sessionPaused: 'सत्र रोक दिया गया है। तैयार होने पर "सुनो" कहें या रिज्यूम दबाएं।',
+            submitMissingWarning: (labels) => `कुछ आवश्यक फ़ील्ड खाली हैं: ${labels}। कृपया पहले इन्हें भरें।`,
+            submitSuccess: () => 'सभी आवश्यक फ़ील्ड पूरे हो चुके हैं। फ़ॉर्म जमा करने के लिए तैयार है।',
+            firstFieldSpoken: 'यह पहला फ़ील्ड है।'
         },
 
         // ===== 3. LLM PROMPTS (Gemma 4) =====
@@ -194,18 +203,13 @@
 
             extractorUser: (fieldLabel, cleanSpoken) => `फ़ॉर्म फ़ील्ड: ${fieldLabel}\nबोला गया उत्तर: "${cleanSpoken}"\nशुद्ध मान:`,
 
-            // Correction assistant
             correctorSystem:
                 `आप एक अत्यंत कुशल फ़ॉर्म फ़ील्ड सुधार सहायक हैं।
 उपयोगकर्ता फ़ॉर्म भरते समय पिछली प्रविष्टि (Previous Value) में सुधार बता रहा है।
-वाक्-पहचान (STT) के कारण अंक शब्दों में हो सकते हैं (जैसे 'एक एक शून्य एक' = 1101, 'एक शून्य एक' = 101) और बीच में विराम या बातचीत हो सकती है।
 
 निर्देश:
-1. उपयोगकर्ता के सुधार निर्देश को समझें:
-   - यदि वह किसी हिस्से को बदलने को कहे (जैसे "X की जगह Y होगा" / "X नहीं Y" / "replace X with Y"), तो पिछले मान में X की जगह Y लगाएँ।
-   - यदि वह पूरा नया मान बोले (जैसे "नहीं मेरा आधार 1234... है"), तो वह पूरा नया मान निकालें।
-   - यदि ईमेल में डॉट हटाने को कहे, तो यूज़रनेम से डॉट हटाएँ।
-2. यदि फ़ील्ड आधार (Aadhaar), मोबाइल (Phone/Mobile) या संख्यात्मक है, तो अंतिम मान में केवल अंक (Digits: 0-9) लिखें।
+1. उपयोगकर्ता के सुधार निर्देश को समझें और पिछले मान में उचित सुधार लागू करें।
+2. यदि फ़ील्ड आधार (Aadhaar), मोबाइल (Phone/Mobile), पिन कोड (PIN Code) या संख्यात्मक है, तो अंतिम मान में केवल अंक (Digits: 0-9) लिखें।
 3. उत्तर में केवल और केवल अंतिम शुद्ध मान (Clean Value) लिखें। कोई व्याख्या या उद्धरण चिह्न नहीं।`,
 
             correctorUser: (fieldLabel, cleanOriginal, cleanInstruction) =>
@@ -215,18 +219,31 @@
         // ===== 4. HEURISTICS & INTENT KEYWORDS =====
         heuristics: {
             negationWords: [
-                'नहीं', 'नही', 'गलत', 'सुधार', 'बदल', 'ठीक नहीं', 'सही नहीं', 'गलती',
-                'wrong', 'incorrect', 'change', 'not right', 'no', 'not', 'sudhar', 'बदलो'
+                'नहीं', 'नही', 'गलत', 'सुधार', 'बदल', 'ठीक नहीं', 'सही नहीं', 'गलती', 'wrong', 'incorrect', 'change', 'not right', 'no', 'not', 'sudhar', 'बदलो'
             ],
             confirmWords: [
-                'हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल',
-                'ठीक', 'सही है', 'sahi hai'
+                'हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल', 'ठीक', 'सही है', 'sahi hai', 'ठीक है', 'सही', 'आगे बढ़ो'
             ],
             skipPhrases: [
-                'छोड़ दो', 'छोड़ो', 'स्किप', 'skip', 'skip field', 'leave it', 'pass', 'आगे बढ़ो बिना'
+                'छोड़ दो', 'छोड़ो', 'छोड़िए', 'छोड़ना', 'स्किप', 'skip', 'skip field', 'leave it', 'pass', 'आगे बढ़ो', 'खाली छोड़ दो', 'खाली छोड़ो', 'खाली छोड़िए', 'खाली रखो', 'खाली रहने दो', 'ब्लैंक छोड़ दो', 'ब्लैंक छोड़ो', 'खाली', 'ब्लैंक'
             ],
             pureRejectionWords: [
-                'नहीं', 'नही', 'no', 'गलत', 'wrong', 'not this', 'incorrect', 'nah'
+                'नहीं', 'नही', 'no', 'गलत', 'wrong', 'not this', 'incorrect', 'nah', 'गलत है', 'सुधारो'
+            ],
+            pauseWords: [
+                'रुको', 'रुकिए', 'थोड़ा रुको', 'विराम', 'ठहरो', 'ठहरिए', 'pause', 'wait'
+            ],
+            submitWords: [
+                'जमा करो', 'सबमिट करो', 'फॉर्म जमा करो', 'सबमिट', 'पूर्ण करो', 'submit'
+            ],
+            repeatWords: [
+                'दोबारा बोलो', 'फिर से बोलो', 'क्या था', 'दोबारा पूछो', 'दोहराओ', 'repeat'
+            ],
+            previousWords: [
+                'पिछला', 'पिछली', 'पीछे', 'पीछे चलो', 'पिछले पर जाओ', 'previous', 'back'
+            ],
+            correctionWords: [
+                'बदलो', 'बदल कर', 'की जगह', 'के स्थान पर', 'हटा दो', 'हटाओ', 'सुधार', 'जोड़ दो', 'ठीक करो'
             ]
         }
     };

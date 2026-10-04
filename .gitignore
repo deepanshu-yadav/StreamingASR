@@ -5,3 +5,4 @@ models/*
 companion/user_config.json
 *.log
 PLAN.md
+scratch/*

@@ -178,10 +178,25 @@ Chỉ trích xuất giá trị sạch mà người dùng muốn nhập, loại b
                 'có', 'đúng', 'chuẩn', 'chính xác', 'được', 'ok', 'tiếp tục', 'chuẩn rồi', 'xong'
             ],
             skipPhrases: [
-                'bỏ qua', 'qua', 'tiếp', 'trường tiếp', 'kệ đi'
+                'bỏ qua', 'qua', 'tiếp', 'trường tiếp', 'kệ đi', 'để trống', 'trống', 'bỏ trống'
             ],
             pureRejectionWords: [
-                'không', 'sai', 'nhầm rồi', 'chưa đúng'
+                'không', 'sai', 'nhầm rồi', 'chưa đúng', 'không phải'
+            ],
+            pauseWords: [
+                'dừng', 'tạm dừng', 'chờ chút', 'đợi đã'
+            ],
+            submitWords: [
+                'gửi', 'nộp', 'gửi mẫu', 'nộp đơn', 'hoàn tất'
+            ],
+            repeatWords: [
+                'nhắc lại', 'lặp lại', 'nói lại', 'là gì vậy'
+            ],
+            previousWords: [
+                'trước', 'quay lại', 'trường trước', 'lùi lại'
+            ],
+            correctionWords: [
+                'sửa', 'đổi', 'thay đổi', 'thay vì', 'chỉnh'
             ]
         }
     };

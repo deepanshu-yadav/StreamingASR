@@ -172,16 +172,31 @@ Wenden Sie die Korrekturanweisung auf den vorherigen Wert an und geben Sie NUR d
 
         heuristics: {
             negationWords: [
-                'nein', 'nicht', 'falsch', 'korrektur', 'ändern', 'ändere', 'fehler', 'unrichtig', 'ersetze'
+                'nein', 'nicht', 'falsch', 'korrektur', 'ändern', 'ändere', 'fehler', 'unrichtig', 'ersetze', 'stimmt nicht'
             ],
             confirmWords: [
-                'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'weiter', 'in ordnung', 'passt', 'ok', 'sicher', 'perfekt'
+                'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'weiter', 'in ordnung', 'passt', 'ok', 'sicher', 'perfekt', 'bestätigen'
             ],
             skipPhrases: [
-                'überspringen', 'ueberspringen', 'weiter', 'nächstes feld', 'auslassen', 'skip'
+                'überspringen', 'ueberspringen', 'weiter', 'nächstes feld', 'auslassen', 'leer lassen', 'leer', 'frei lassen', 'skip'
             ],
             pureRejectionWords: [
-                'nein', 'falsch', 'stimmt nicht', 'nicht so'
+                'nein', 'falsch', 'stimmt nicht', 'nicht so', 'unrichtig'
+            ],
+            pauseWords: [
+                'pause', 'warte', 'kurz warten', 'stopp', 'anhalten', 'warte kurz'
+            ],
+            submitWords: [
+                'absenden', 'einreichen', 'abschicken', 'formular absenden', 'fertig'
+            ],
+            repeatWords: [
+                'wiederholen', 'wiederhole', 'nochmal', 'sag noch mal', 'was war das', 'noch einmal'
+            ],
+            previousWords: [
+                'zurück', 'vorherige', 'vorheriges', 'vorheriges feld', 'zurückgehen'
+            ],
+            correctionWords: [
+                'ändern', 'ändere', 'ersetzen', 'ersetze', 'statt', 'korrigieren', 'entfernen'
             ]
         }
     };

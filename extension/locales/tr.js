@@ -178,10 +178,25 @@ Düzeltme talimatını önceki değere uygula ve YALNIZCA nihai temiz değeri d�
                 'evet', 'doğru', 'dogru', 'tamam', 'olur', 'devam', 'onay', 'aynen', 'peki', 'iyi'
             ],
             skipPhrases: [
-                'atla', 'geç', 'gec', 'boş ver', 'bosver', 'sonraki alan', 'bırak'
+                'atla', 'geç', 'gec', 'boş ver', 'bosver', 'sonraki alan', 'bırak', 'boş bırak', 'bos birak', 'boş', 'bos'
             ],
             pureRejectionWords: [
-                'hayır', 'hayir', 'yanlış', 'olmaz', 'değil'
+                'hayır', 'hayir', 'yanlış', 'yanlis', 'bu değil', 'olmadı'
+            ],
+            pauseWords: [
+                'dur', 'bekle', 'durdur', 'mola'
+            ],
+            submitWords: [
+                'gönder', 'formu gönder', 'tamamla', 'bitti'
+            ],
+            repeatWords: [
+                'tekrar et', 'tekrarla', 'ne demiştin', 'bir daha söyle'
+            ],
+            previousWords: [
+                'önceki', 'geri', 'geri git', 'önceki alan'
+            ],
+            correctionWords: [
+                'değiştir', 'degistir', 'düzelt', 'yerine', 'kaldır'
             ]
         }
     };

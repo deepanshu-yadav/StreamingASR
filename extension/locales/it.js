@@ -178,10 +178,25 @@ Applica l'istruzione di correzione al valore precedente e restituisci SOLO il nu
                 'sì', 'si', 'esatto', 'corretto', 'ok', 'bene', 'va bene', 'procedi', 'avanti', 'perfetto', 'confermo'
             ],
             skipPhrases: [
-                'salta', 'ignora', 'passa', 'lascia stare', 'prossimo campo'
+                'salta', 'ignora', 'passa', 'lascia stare', 'prossimo campo', 'lascia vuoto', 'vuoto', 'lascia in bianco'
             ],
             pureRejectionWords: [
-                'no', 'sbagliato', 'errato', 'non questo'
+                'no', 'sbagliato', 'errato', 'non questo', 'è sbagliato'
+            ],
+            pauseWords: [
+                'pausa', 'aspetta', 'attendi', 'fermati', 'stop'
+            ],
+            submitWords: [
+                'invia', 'sottometti', 'invia modulo', 'termina', 'fatto'
+            ],
+            repeatWords: [
+                'ripeti', 'dimmi di nuovo', 'cos\'era', 'un\'altra volta'
+            ],
+            previousWords: [
+                'precedente', 'indietro', 'torna indietro', 'campo precedente'
+            ],
+            correctionWords: [
+                'cambia', 'modifica', 'sostituisci', 'invece di', 'correggi', 'rimuovi'
             ]
         }
     };

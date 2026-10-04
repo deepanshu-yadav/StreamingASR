@@ -178,10 +178,25 @@ Aplique a instrução de correção ao valor anterior e retorne APENAS o novo va
                 'sim', 'correto', 'certo', 'está certo', 'isso', 'ok', 'pode ser', 'prosseguir', 'avançar', 'perfeito', 'beleza'
             ],
             skipPhrases: [
-                'pular', 'passar', 'ignorar', 'deixar', 'próximo campo', 'proximo'
+                'pular', 'passar', 'ignorar', 'deixar', 'próximo campo', 'proximo', 'deixar em branco', 'em branco', 'deixar vazio', 'vazio'
             ],
             pureRejectionWords: [
-                'não', 'nao', 'errado', 'não é isso', 'ta errado'
+                'não', 'nao', 'errado', 'não é isso', 'está errado'
+            ],
+            pauseWords: [
+                'pausa', 'espere', 'espera', 'pare', 'parar'
+            ],
+            submitWords: [
+                'enviar', 'submeter', 'finalizar', 'enviar formulário', 'pronto'
+            ],
+            repeatWords: [
+                'repetir', 'repita', 'fale de novo', 'o que era', 'mais uma vez'
+            ],
+            previousWords: [
+                'anterior', 'voltar', 'campo anterior', 'para trás'
+            ],
+            correctionWords: [
+                'muda', 'mudar', 'trocar', 'troca', 'em vez de', 'corrige', 'conserta'
             ]
         }
     };

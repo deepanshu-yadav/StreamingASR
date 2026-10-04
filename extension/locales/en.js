@@ -163,7 +163,16 @@
             confirmCorrection: (corrected) => `Updated value: ${corrected}. Is this correct now?`,
             clarifyValue: (label) => `Please speak the full clean value clearly for ${label}.`,
             fieldSkipped: (label) => `Alright, skipped ${label || 'this field'}.`,
-            reaskPrompt: (label) => `Please repeat your answer for ${label}.`
+            reaskPrompt: (label) => `Please repeat your answer for ${label}.`,
+
+            // Phase 1: Navigation & Intent-Driven prompts
+            jumpingToField: (label) => `Moving to ${label}.`,
+            tentativeSaved: (label, val) => `Saved ${val} for ${label}. `,
+            historicalFieldUpdated: (targetLabel, newVal, currentLabel) => `Updated ${targetLabel} to ${newVal}. Continuing with ${currentLabel || 'the current field'}.`,
+            sessionPaused: 'Assistant paused. Say "Hey Assistant" or click Resume when ready.',
+            submitMissingWarning: (labels) => `Some required fields are missing: ${labels}. Please complete them first.`,
+            submitSuccess: () => 'All required fields are complete. Ready to submit form.',
+            firstFieldSpoken: 'This is the first field.'
         },
 
         // ===== 3. LLM PROMPTS (Gemma 4) =====
@@ -199,14 +208,10 @@ Rules:
             correctorSystem:
                 `You are an expert form field correction assistant.
 The user is correcting a previously recorded field value.
-Due to Speech-to-Text, numbers might be spoken as words, and there may be speech pauses or conversational filler.
 
 Instructions:
-1. Understand the user's correction instruction:
-   - If replacing a part (e.g. "replace X with Y" or "X should be Y"), replace X with Y in the previous value.
-   - If providing a whole new value (e.g. "no my phone is 9876..."), extract that full new value.
-   - If modifying email (e.g. "remove the dot in username"), apply that edit cleanly.
-2. If the field is a phone, ID, or numeric field, ensure the final value contains only digits.
+1. Understand the user's correction instruction and apply it to the previous value.
+2. If the field is a phone, PIN code, ID, or numeric field, ensure the final value contains only digits.
 3. Output ONLY the final clean value. No explanations or quotes.`,
 
             correctorUser: (fieldLabel, cleanOriginal, cleanInstruction) =>
@@ -216,18 +221,31 @@ Instructions:
         // ===== 4. HEURISTICS & INTENT KEYWORDS =====
         heuristics: {
             negationWords: [
-                'no', 'not', 'wrong', 'incorrect', 'change', 'replace', 'mistake', 'fix',
-                'not right', 'nope', 'nah', 'error', 'different', 'modify'
+                'no', 'not', 'wrong', 'incorrect', 'change', 'replace', 'mistake', 'fix', 'not right', 'nope', 'nah', 'error', 'different', 'modify'
             ],
             confirmWords: [
-                'yes', 'yeah', 'yep', 'correct', 'right', 'ok', 'okay', 'proceed', 'next',
-                'fine', 'perfect', 'sure', 'confirm', 'good', 'looks good', 'that is right', "that's right"
+                'yes', 'yeah', 'yep', 'correct', 'right', 'ok', 'okay', 'proceed', 'next', 'fine', 'perfect', 'sure', 'confirm', 'good', 'looks good', 'that is right', 'that\'s right'
             ],
             skipPhrases: [
-                'skip', 'skip field', 'leave it', 'pass', 'next field', 'move on', 'ignore'
+                'skip', 'skip field', 'leave it', 'pass', 'next field', 'move on', 'ignore', 'leave blank', 'leave it blank', 'blank', 'empty', 'leave empty', 'keep blank'
             ],
             pureRejectionWords: [
-                'no', 'wrong', 'not this', 'incorrect', 'nah', 'nope', 'not right'
+                'no', 'wrong', 'not this', 'incorrect', 'nah', 'nope', 'not right', 'that\'s wrong', 'it is wrong'
+            ],
+            pauseWords: [
+                'pause', 'wait', 'hold on', 'sleep', 'stop', 'stop for a moment', 'stop for a minute'
+            ],
+            submitWords: [
+                'submit', 'submit form', 'finish form', 'send form', 'finish', 'done'
+            ],
+            repeatWords: [
+                'repeat', 'say again', 'reask', 'what was it', 'again', 'once more'
+            ],
+            previousWords: [
+                'previous', 'prev', 'go back', 'back', 'step back', 'previous field'
+            ],
+            correctionWords: [
+                'replace', 'change', 'make it', 'instead of', 'remove', 'add', 'fix', 'update', 'modify'
             ]
         }
     };

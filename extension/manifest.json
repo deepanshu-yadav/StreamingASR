@@ -63,6 +63,7 @@
         "form-field-scanner.js",
         "i18n.js",
         "locales/*",
+        "classes/*",
         "lib/*"
       ],
       "matches": [

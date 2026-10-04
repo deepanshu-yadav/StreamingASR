@@ -105,48 +105,6 @@
         el.ttsStatusText.textContent = text;
     }
 
-    // FIX: Helper to detect if a raw string looks like a confirmation reply
-    function looksLikeConfirmation(text) {
-        const lower = text.toLowerCase().trim();
-        if (!lower) return false;
-        const heuristics = window.i18n ? window.i18n.getHeuristics() : null;
-        const confirmWords = heuristics?.confirmWords || ['हाँ', 'हां', 'हा', 'जी', 'yes', 'haan', 'ha', 'ok', 'proceed', 'next', 'बिल्कुल', 'ठीक', 'ठीक है', 'theek hai', 'सही है', 'sahi hai', 'सही', 'sahi', 'आगे बढ़ो', 'बढ़ो', 'continue', 'confirm'];
-        const negWords = heuristics?.negationWords || ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change', 'sudhar', 'सुधार', 'बदलो', 'बदल', 'नहि', 'ना', 'न'];
-        const hasConfirm = confirmWords.some(w => lower.includes(w));
-        const hasNegate = negWords.some(w => lower.includes(w));
-        return hasConfirm && !hasNegate;
-    }
-
-    function looksLikeSkip(text) {
-        const lower = text.toLowerCase().trim();
-        if (!lower) return false;
-        const heuristics = window.i18n ? window.i18n.getHeuristics() : null;
-        const skipWords = heuristics?.skipPhrases || [
-            'छोड़ दो', 'छोड़ो', 'छोड़', 'आगे बढ़ें', 'आगे बढ़ो', 'आगे चलो', 'आगे',
-            'अगला', 'अगली', 'skip', 'next', 'pass', 'baad me', 'बाद में', 'कैंसिल'
-        ];
-        return skipWords.some(w => lower.includes(w));
-    }
-
-    // Helper to detect whether an utterance is purely a rejection/negation without a replacement value
-    function isPureRejection(text) {
-        if (!text) return true;
-        const heuristics = window.i18n ? window.i18n.getHeuristics() : null;
-        const defaultNegationTokens = new Set([
-            'नहीं', 'नही', 'ना', 'गलत', 'सही', 'ठीक', 'है', 'हैं', 'यह', 'ये', 'था', 'थी', 'गया', 'गई',
-            'हो', 'अरे', 'बिल्कुल', 'बदलो', 'सुधारो', 'सुधार', 'गलती', 'बोल', 'दिया', 'का', 'के', 'की',
-            'इसको', 'इसे', 'करना', 'करो', 'मुझे', 'आप', 'तो', 'भी', 'no', 'not', 'wrong', 'incorrect',
-            'false', 'nope', 'nah', 'it', 'is', 'this', 'that', 'change', 'fix'
-        ]);
-        const tokens = text.toLowerCase()
-            .replace(/[।.,!?\-]/g, ' ')
-            .split(/\s+/)
-            .filter(Boolean);
-        if (tokens.length === 0) return true;
-        const pureWords = heuristics?.pureRejectionWords ? new Set(heuristics.pureRejectionWords) : defaultNegationTokens;
-        return tokens.every(w => defaultNegationTokens.has(w) || pureWords.has(w));
-    }
-
     // Clean ASR tags (<hi-IN>, <en-US>), commas, and trailing dandas / periods
     function cleanSpokenTranscript(text) {
         if (!text) return '';
@@ -268,12 +226,8 @@
     function drainTranscriptQueue() {
         if (transcriptQueue.length === 0) return;
         const text = transcriptQueue.shift();
-        if (flowState === 'form_awaiting_input') {
-            handleFormFieldInput(text);
-        } else if (flowState === 'form_awaiting_confirmation') {
-            bufferFormConfirmationReply(text);
-        } else if (flowState === 'form_awaiting_correction') {
-            handleFormCorrectionInstruction(text);
+        if (formFlowActive) {
+            routeTranscript(text);
         } else {
             transcriptQueue.unshift(text);
         }
@@ -290,7 +244,7 @@
             const merged = formConfirmReplyBuffer;
             formConfirmReplyBuffer = '';
             formConfirmDebounceTimer = null;
-            handleFormConfirmationReply(merged);
+            routeTranscript(merged);
         }, CONFIRM_DEBOUNCE_MS);
     }
 
@@ -701,159 +655,6 @@
         showToast('TTS interrupted');
     }
 
-    // ---------- LLM HELPERS ----------
-    async function classifyIntentWithLLM(replyText) {
-        const url = el.llmUrl.value.trim();
-        const cleanReply = stripTags(replyText);
-        console.log('[LLM] classifyIntentWithLLM() raw="' + replyText + '" clean="' + cleanReply + '" url=' + url);
-        const lower = cleanReply.toLowerCase();
-        const heuristics = window.i18n ? window.i18n.getHeuristics() : {};
-        const negationPhrases = heuristics.negationWords || [
-            'नहीं', 'नही', 'गलत', 'सुधार', 'बदल', 'ठीक नहीं', 'सही नहीं', 'गलती',
-            'wrong', 'incorrect', 'change', 'not right', 'no', 'not'
-        ];
-        if (negationPhrases.some(w => lower.includes(w))) {
-            console.log('[LLM] Heuristic found negation → CORRECT');
-            return 'CORRECT';
-        }
-        const prompts = window.i18n ? window.i18n.getPrompts() : {};
-        const system = prompts.intentClassifierSystem || 'Reply ONLY "CONFIRM" or "CORRECT".';
-        const user = prompts.intentClassifierUser ? prompts.intentClassifierUser(cleanReply) : `User reply: "${cleanReply}"\nDecision:`;
-        try {
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{ role: 'system', content: system }, {
-                        role: 'user',
-                        content: user
-                    }], temperature: 0.1, max_tokens: 10, stream: false
-                })
-            });
-            if (!resp.ok) throw new Error(`LLM classification error: ${resp.status}`);
-            const data = await resp.json();
-            const content = (data?.choices?.[0]?.message?.content || '').trim().toUpperCase();
-            console.log('[LLM] Classification raw response: "' + content + '"');
-            const result = content.includes('CONFIRM') ? 'CONFIRM' : 'CORRECT';
-            console.log('[LLM] Intent → ' + result);
-            return result;
-        } catch (e) {
-            console.log('[LLM] Classifier error, fallback to heuristic:', e);
-            const lower2 = cleanReply.toLowerCase();
-            const neg = heuristics.negationWords || ['नहीं', 'नही', 'गलत', 'wrong', 'no', 'not', 'incorrect', 'change'];
-            if (neg.some(w => lower2.includes(w))) {
-                console.log('[LLM] Fallback heuristic → CORRECT');
-                return 'CORRECT';
-            }
-            const pos = heuristics.confirmWords || ['हाँ', 'हां', 'हा', 'जी', 'yes', 'ok', 'proceed', 'next'];
-            if (pos.some(w => lower2.includes(w))) {
-                console.log('[LLM] Fallback heuristic → CONFIRM');
-                return 'CONFIRM';
-            }
-            return 'CONFIRM';
-        }
-    }
-
-    async function extractFormFieldValueWithLLM(fieldLabel, rawSpoken) {
-        const cleanSpoken = cleanSpokenTranscript(rawSpoken);
-        if (!cleanSpoken) return '';
-        const isAadhaar = /aadhaar|आधार/i.test(fieldLabel);
-        const isPhone = /phone|mobile|फोन|फ़ोन|मोबाइल/i.test(fieldLabel);
-
-        // If already very short and clean (1-2 words), use directly (unless speech contains Devanagari in English mode)
-        const curLang = window.i18n ? window.i18n.getLanguage() : 'en';
-        const hasDevanagari = /[\u0900-\u097F]/.test(cleanSpoken);
-        const conversationalTokens = ['मेरा', 'नाम', 'है', 'लिख', 'my', 'name', 'is', 'please', 'enter', 'write'];
-        if ((curLang === 'hi' || !hasDevanagari) && cleanSpoken.split(/\s+/).length <= 2 && !conversationalTokens.some(t => cleanSpoken.toLowerCase().includes(t))) {
-            return cleanSpoken.replace(/[।\.]+\s*$/, '').trim();
-        }
-        const url = el.llmUrl.value.trim();
-        console.log(`[LLM] extractFormFieldValueWithLLM() field="${fieldLabel}" input="${cleanSpoken}"`);
-        const prompts = window.i18n ? window.i18n.getPrompts() : {};
-        const system = prompts.extractorSystem || 'Extract ONLY the clean value for the form field without conversational filler.';
-        const user = prompts.extractorUser ? prompts.extractorUser(fieldLabel, cleanSpoken) : `Field: ${fieldLabel}\nSpoken: "${cleanSpoken}"\nClean Value:`;
-        try {
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [
-                        { role: 'system', content: system },
-                        { role: 'user', content: user }
-                    ],
-                    temperature: 0.1,
-                    max_tokens: 100,
-                    stream: false
-                })
-            });
-            if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
-            const data = await resp.json();
-            let content = (data?.choices?.[0]?.message?.content || '').trim();
-            content = content.replace(/^(?:शुद्ध मान|Clean Value|Value)\s*[:：\-]\s*/i, '').trim();
-            content = content.replace(/^["']|["']$/g, '').trim();
-            content = content.replace(/[।\.]+\s*$/, '').trim();
-            if (isAadhaar || isPhone) {
-                const digits = content.replace(/\D/g, '');
-                if (digits) content = digits;
-            }
-            console.log(`[LLM] Extracted clean value: "${content}"`);
-            return content || cleanSpoken.replace(/[।\.]+\s*$/, '').trim();
-        } catch (e) {
-            console.warn('[LLM] Extraction failed, using raw:', e);
-            return cleanSpoken.replace(/[।\.]+\s*$/, '').trim();
-        }
-    }
-
-    async function correctFormFieldWithLLM(fieldLabel, currentValue, instruction) {
-        const url = el.llmUrl.value.trim();
-        const cleanOriginal = stripTags(currentValue).trim();
-        const cleanInstruction = cleanSpokenTranscript(instruction);
-        console.log(`[LLM] correctFormFieldWithLLM() field="${fieldLabel}" orig="${cleanOriginal}" instr="${cleanInstruction}"`);
-
-        const isAadhaar = /aadhaar|आधार/i.test(fieldLabel);
-        const isPhone = /phone|mobile|फोन|फ़ोन|मोबाइल/i.test(fieldLabel);
-        const isNumeric = isAadhaar || isPhone || /pin|पिन|zip|number|संख्या/i.test(fieldLabel);
-
-        const prompts = window.i18n ? window.i18n.getPrompts() : {};
-        const system = prompts.correctorSystem || 'You are a form field correction assistant. Apply the user correction instruction to the previous value. Output ONLY the new clean value.';
-        const user = prompts.correctorUser ? prompts.correctorUser(fieldLabel, cleanOriginal, cleanInstruction) : `Field: ${fieldLabel}\nPrevious: ${cleanOriginal}\nInstruction: "${cleanInstruction}"\nClean Value:`;
-
-        try {
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [
-                        { role: 'system', content: system },
-                        { role: 'user', content: user }
-                    ],
-                    temperature: 0.1,
-                    max_tokens: 120,
-                    stream: false
-                })
-            });
-            if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
-            const data = await resp.json();
-            let content = (data?.choices?.[0]?.message?.content || '').trim();
-            content = content.replace(/^(?:शुद्ध मान|Clean Value|Corrected Value)\s*[:：\-]\s*/i, '').trim();
-            content = content.replace(/^["']|["']$/g, '').trim();
-            content = content.replace(/[।\.\?!,،;:]+\s*$/, '').trim();
-            if (isNumeric) {
-                const digits = content.replace(/\D/g, '');
-                if (digits) content = digits;
-            }
-            console.log(`[LLM] Form field correction result → "${content}"`);
-            if (content && content !== cleanOriginal) {
-                return content;
-            }
-            console.warn('[LLM] Form field correction returned unchanged value.');
-            return null;
-        } catch (e) {
-            console.warn('[LLM] Form field correction failed, using fallback:', e);
-            return null;
-        }
-    }
-
     // ==========================================================
     // FORM FIELD SCANNER & SEQUENTIAL VOICE ITERATOR
     // ==========================================================
@@ -862,10 +663,95 @@
     let scannedFields = [];
     let currentFieldIndex = -1;
     let formFlowActive = false;
-    let fieldValues = {}; // fieldId -> { value, confirmed: bool, timestamp }
+    let sessionPaused = false;
+    let fieldValues = {}; // fieldId -> { value, confirmed: bool, tentative: bool, timestamp }
     let pendingFieldValue = '';
     let currentFieldOriginalValue = '';
     let currentFieldCorrections = [];
+
+    // Phase 1 Intent-Driven Architecture instances
+    const fieldResolver = new window.FieldResolver();
+    const inputClassifier = new window.InputClassifier({ fieldResolver, llmUrl: el.llmUrl?.value?.trim() });
+    const actionHandler = new window.ActionHandler();
+    const informationHandler = new window.InformationHandler({ llmUrl: el.llmUrl?.value?.trim() });
+    const correctionHandler = new window.CorrectionHandler({ llmUrl: el.llmUrl?.value?.trim() });
+
+    if (el.llmUrl) {
+        el.llmUrl.addEventListener('change', () => {
+            const u = el.llmUrl.value.trim();
+            inputClassifier.setLlmUrl(u);
+            informationHandler.setLlmUrl(u);
+            correctionHandler.setLlmUrl(u);
+        });
+    }
+
+    function getActionContext() {
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+        return {
+            scannedFields,
+            currentFieldIndex,
+            fieldValues,
+            pendingFieldValue,
+            tabId: currentScannedTabId,
+            flowState,
+            speak,
+            askField,
+            finishFormFlow,
+            showToast,
+            setPendingValue: (val) => {
+                pendingFieldValue = val;
+                if (el.spotlightValue) {
+                    el.spotlightValue.textContent = val;
+                    el.spotlightValue.classList.remove('empty');
+                }
+                setLiveText(val);
+            },
+            updateSpotlightPreview: (val, phase) => {
+                if (el.spotlightStatus) {
+                    el.spotlightStatus.dataset.phase = phase || 'confirming';
+                    el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
+                }
+                if (el.spotlightValue) {
+                    el.spotlightValue.textContent = val;
+                    el.spotlightValue.classList.remove('empty');
+                }
+                setTurnMode('confirming', scannedFields[currentFieldIndex]?.label || '');
+            },
+            setFlowState: (newState) => {
+                flowState = newState;
+            },
+            pauseSession: () => {
+                pauseVoiceSession();
+            },
+            renderScannedFieldsList,
+            fieldResolver,
+            informationHandler
+        };
+    }
+
+    function pauseVoiceSession() {
+        sessionPaused = true;
+        flowState = 'paused';
+        setTurnMode('idle', 'sleeping 💤');
+        if (el.spotlightStatus) {
+            el.spotlightStatus.dataset.phase = 'paused';
+            el.spotlightStatus.textContent = '💤 Paused';
+        }
+        showToast(window.i18n ? window.i18n.t('sessionPausedToast') : 'Voice assistant paused — speak wake word to resume');
+    }
+
+    function resumeVoiceSession() {
+        if (!sessionPaused) return;
+        sessionPaused = false;
+        flowState = 'form_awaiting_input';
+        const f = scannedFields[currentFieldIndex];
+        setTurnMode('listening', f?.label || 'listening');
+        if (el.spotlightStatus) {
+            el.spotlightStatus.dataset.phase = 'listening';
+            el.spotlightStatus.textContent = window.i18n ? window.i18n.t('spotlightPhaseListening') : 'Listening…';
+        }
+        showToast('Assistant Resumed ✓');
+    }
 
     function setFormScanBadge(state, text) {
         if (!el.formScanBadge || !el.formScanBadgeText) return;
@@ -876,8 +762,8 @@
     function renderScannedFieldsList() {
         if (!el.fieldsListContainer || !el.scannedFieldsCount) return;
 
-        const emptyMsg = window.i18n ? window.i18n.t('noFieldsFound') : 'कोई फ़ील्ड नहीं मिला।';
-        const reqTagText = window.i18n ? window.i18n.t('spotlightRequired') : '*आवश्यक';
+        const emptyMsg = window.i18n ? window.i18n.t('noFieldsFound') : 'No fields found';
+        const reqTagText = window.i18n ? window.i18n.t('spotlightRequired') : '*Required';
 
         if (!scannedFields || scannedFields.length === 0) {
             el.fieldsListContainer.innerHTML = `<div style="color:var(--text-muted);font-size:11px;padding:4px;">${emptyMsg}</div>`;
@@ -889,7 +775,7 @@
         el.scannedFieldsCount.textContent = scannedFields.length;
         const summaryLabel = document.getElementById('scannedFieldsSummaryLabel');
         if (summaryLabel) {
-            summaryLabel.innerHTML = window.i18n ? window.i18n.t('scannedFieldsTitle', { count: scannedFields.length }) : `📋 स्कैन किए गए फ़ील्ड्स (<b id="scannedFieldsCount">${scannedFields.length}</b>)`;
+            summaryLabel.innerHTML = window.i18n ? window.i18n.t('scannedFieldsTitle', { count: scannedFields.length }) : `📋 Scanned Fields (<b id="scannedFieldsCount">${scannedFields.length}</b>)`;
         }
         if (el.formFieldsAccordion) el.formFieldsAccordion.style.display = 'block';
 
@@ -898,10 +784,11 @@
             const isCur = formFlowActive && currentFieldIndex === idx;
             const record = fieldValues[f.id];
             const isConfirmed = record && record.confirmed;
-            const cls = `field-item-row ${isCur ? 'active' : ''} ${isConfirmed ? 'confirmed' : ''}`;
+            const isTentative = record && record.tentative && !record.confirmed;
+            const cls = `field-item-row ${isCur ? 'active' : ''} ${isConfirmed ? 'confirmed' : ''} ${isTentative ? 'tentative' : ''}`;
             const valPreview = record ? escapeHtml(record.value) : '';
-            const statusIcon = isConfirmed ? '✓' : (isCur ? '🎙️' : '⏳');
-            const statusColor = isConfirmed ? 'color:var(--accent-green);font-weight:700;' : (isCur ? 'color:var(--accent-blue);' : 'color:var(--text-muted);');
+            const statusIcon = isConfirmed ? '✓' : (isTentative ? '⚠️' : (isCur ? '🎙️' : '⏳'));
+            const statusColor = isConfirmed ? 'color:var(--accent-green);font-weight:700;' : (isTentative ? 'color:#f59e0b;font-weight:600;' : (isCur ? 'color:var(--accent-blue);' : 'color:var(--text-muted);'));
 
             html += `
                 <div class="${cls}" data-index="${idx}" id="field-row-${idx}">
@@ -1061,14 +948,15 @@
 
     async function selectField(index) {
         if (index < 0 || index >= scannedFields.length) return;
-        currentFieldIndex = index;
-        const f = scannedFields[index];
-        if (currentScannedTabId) {
-            chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => { });
-        }
-        renderScannedFieldsList();
         if (formFlowActive) {
-            await askField(index);
+            await actionHandler.handleJump(index, getActionContext());
+        } else {
+            currentFieldIndex = index;
+            const f = scannedFields[index];
+            if (currentScannedTabId) {
+                chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_FOCUS_FIELD', fieldId: f.id }).catch(() => { });
+            }
+            renderScannedFieldsList();
         }
     }
 
@@ -1087,6 +975,7 @@
             await startSession();
         }
 
+        sessionPaused = false;
         formFlowActive = true;
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = true;
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = false;
@@ -1101,6 +990,7 @@
     }
 
     function stopFormFlow() {
+        sessionPaused = false;
         formFlowActive = false;
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
@@ -1127,7 +1017,7 @@
         const dict = window.i18n ? window.i18n.getDictation() : {};
         setFormScanBadge('success', t('allFieldsComplete'));
         flowState = 'busy';
-        await speak(dict.sessionFinished || 'बहुत बढ़िया! इस पृष्ठ के सभी फ़ील्ड पूरे हो चुके हैं।');
+        await speak(dict.sessionFinished || 'All fields on this page have been completed.');
         flowState = 'idle';
         setTurnMode('idle', t('allFieldsComplete'));
     }
@@ -1177,13 +1067,13 @@
         // Formulate spoken prompt
         let prompt = '';
         if (isRepeat) {
-            prompt = dict.askFieldRepeat ? dict.askFieldRepeat(f.label) : `कृपया ${f.label} के लिए अपना उत्तर बताएं।`;
+            prompt = dict.askFieldRepeat ? dict.askFieldRepeat(f.label) : `Please state your answer for ${f.label}.`;
         } else if (existingVal) {
-            prompt = dict.askFieldExisting ? dict.askFieldExisting(f.label, existingVal) : `अगला फ़ील्ड है ${f.label}। इसका वर्तमान मान है ${existingVal}। क्या आप इसे बदलना चाहते हैं? नया मान बोलें या हाँ कहें।`;
+            prompt = dict.askFieldExisting ? dict.askFieldExisting(f.label, existingVal) : `Next field is ${f.label}. Current value is ${existingVal}. Would you like to change it?`;
         } else if (f.type === 'select') {
-            prompt = dict.askFieldSelect ? dict.askFieldSelect(f.label, f.required) : `अगला फ़ील्ड है ${f.label}। ${f.required ? 'यह आवश्यक है।' : ''} कृपया बताएं इसमें क्या चुनना है?`;
+            prompt = dict.askFieldSelect ? dict.askFieldSelect(f.label, f.required) : `Next field is ${f.label}. ${f.required ? 'This is required.' : ''} Which option would you like to select?`;
         } else {
-            prompt = dict.askFieldDefault ? dict.askFieldDefault(f.label, f.required) : `अगला फ़ील्ड है ${f.label}। ${f.required ? 'यह आवश्यक है।' : ''} कृपया बताएं इसमें क्या भरना है?`;
+            prompt = dict.askFieldDefault ? dict.askFieldDefault(f.label, f.required) : `Next field is ${f.label}. ${f.required ? 'This is required.' : ''} What should I enter here?`;
         }
 
         flowState = 'busy';
@@ -1201,304 +1091,184 @@
         drainTranscriptQueue();
     }
 
-    async function handleFormFieldInput(text) {
-        const myEpoch = flowEpoch;
-        const clean = cleanSpokenTranscript(text).replace(/[।\.\?!,،;:]+\s*$/, '').trim();
-        if (!clean) return;
-
-        console.log(`[VFF] Field input received for #${currentFieldIndex}: "${clean}"`);
-
-        // Check if user asked to skip
-        if (looksLikeSkip(clean)) {
-            await skipField();
-            return;
-        }
-
-        const f = scannedFields[currentFieldIndex];
-        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
-        const dict = window.i18n ? window.i18n.getDictation() : {};
-
-        // Extract clean field value using LLM if conversational
-        let cleanValue = clean;
-        try {
-            cleanValue = await extractFormFieldValueWithLLM(f.label, clean);
-        } catch (e) {
-            console.warn('[VFF] LLM extraction fallback:', e);
-        }
-        if (myEpoch !== flowEpoch) return;
-
-        cleanValue = (cleanValue || clean).replace(/[।\.\?!,،;:]+\s*$/, '').trim();
-
-        if (!currentFieldOriginalValue) currentFieldOriginalValue = cleanValue;
-        pendingFieldValue = cleanValue;
-
-        // Update spotlight value preview
-        if (el.spotlightValue) {
-            el.spotlightValue.textContent = cleanValue;
-            el.spotlightValue.classList.remove('empty');
-        }
-        setLiveText(cleanValue);
-
-        // Prompt for confirmation
-        flowState = 'busy';
-        if (el.spotlightStatus) {
-            el.spotlightStatus.dataset.phase = 'confirming';
-            el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
-        }
-        setTurnMode('confirming', f.label);
-
-        const confirmPrompt = dict.confirmField ? dict.confirmField(f.label, cleanValue) : `${f.label} के लिए: ${cleanValue}। क्या यह सही है? हाँ बोलें, या बताएं कि क्या सुधारना है।`;
-        await speak(confirmPrompt);
-        if (myEpoch !== flowEpoch) return;
-
-        flowState = 'form_awaiting_confirmation';
-        if (el.spotlightStatus) el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
-        setTurnMode('listening', f.label);
-        resetLiveLine(t('transcriptConfirmPrompt'));
-        drainTranscriptQueue();
-    }
-
-    async function handleFormConfirmationReply(replyText) {
+    async function routeTranscript(text) {
         const myEpoch = flowEpoch;
         clearDebounceBuffers();
-        const cleanReply = stripTags(replyText).trim();
-        if (!cleanReply) return;
+        const clean = stripTags(text).trim();
+        if (!clean) return;
 
-        console.log(`[VFF] Field confirmation reply: "${cleanReply}"`);
-
-        // Check for skip command
-        if (looksLikeSkip(cleanReply)) {
-            await skipField();
+        if (currentFieldIndex < 0 || currentFieldIndex >= scannedFields.length) {
+            console.log('[VFF Router] No active field selected, ignoring transcript:', clean);
             return;
         }
 
-        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
-        const dict = window.i18n ? window.i18n.getDictation() : {};
+        console.log(`[VFF Router] Routing transcript: "${clean}", flowState=${flowState}, activeField=#${currentFieldIndex} ("${scannedFields[currentFieldIndex]?.label}")`);
 
+        const ctx = getActionContext();
+        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+
+        // State indicator while classifying
         flowState = 'evaluating_intent';
         setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
 
-        const intent = await classifyIntentWithLLM(cleanReply);
+        const classified = await inputClassifier.classify(clean, ctx);
         if (myEpoch !== flowEpoch) return;
 
-        const f = scannedFields[currentFieldIndex];
+        console.log('[VFF Router] Intent result:', classified);
 
-        if (intent === 'CONFIRM') {
-            const confirmedVal = pendingFieldValue;
-            console.log(`[VFF] Field #${currentFieldIndex} "${f.label}" CONFIRMED with value: "${confirmedVal}"`);
-
-            // Save confirmed value
-            fieldValues[f.id] = {
-                value: confirmedVal,
-                confirmed: true,
-                timestamp: Date.now()
-            };
-
-            // Call content script action hook (to reflect or prepare in page DOM)
-            if (currentScannedTabId) {
-                chrome.tabs.sendMessage(currentScannedTabId, {
-                    type: 'VFF_SET_FIELD_VALUE',
-                    fieldId: f.id,
-                    value: confirmedVal
-                }).catch(() => { });
-            }
-
-            currentFieldCorrections = [];
-            currentFieldOriginalValue = '';
-
-            // Update UI
-            if (el.spotlightStatus) {
-                el.spotlightStatus.dataset.phase = 'confirmed';
-                el.spotlightStatus.textContent = t('spotlightPhaseConfirmed');
-            }
-            renderScannedFieldsList();
-
-            // Speak brief confirmation
-            flowState = 'busy';
-            await speak(dict.fieldRecorded ? dict.fieldRecorded(f.label) : `ठीक है, ${f.label} दर्ज हो गया।`);
-            if (myEpoch !== flowEpoch) return;
-
-            // Move to next field!
-            currentFieldIndex++;
-            if (currentFieldIndex < scannedFields.length) {
-                await askField(currentFieldIndex);
-            } else {
-                await finishFormFlow();
-            }
-        } else {
-            // User indicated that the current value is NOT correct
-            console.log(`[VFF] Field #${currentFieldIndex} "${f.label}" rejected. Reply: "${cleanReply}"`);
-
-            // Check for skip command
-            if (looksLikeSkip(cleanReply)) {
-                await skipField();
-                return;
-            }
-
-            // Check if user spoke a pure rejection vs providing instructions or new value
-            if (isPureRejection(cleanReply)) {
-                flowState = 'busy';
-                if (el.spotlightStatus) {
-                    el.spotlightStatus.dataset.phase = 'asking';
-                    el.spotlightStatus.textContent = t('spotlightPhaseAsking');
+        switch (classified.type) {
+            case 'ACTION': {
+                const verb = classified.action?.verb;
+                if (verb === 'JUMP') {
+                    const targetIdx = classified.action.targetIndex;
+                    await actionHandler.handleJump(targetIdx, ctx);
+                } else if (verb === 'SKIP') {
+                    await actionHandler.handleSkip(ctx);
+                } else if (verb === 'PREVIOUS') {
+                    await actionHandler.handlePrevious(ctx);
+                } else if (verb === 'REPEAT') {
+                    await actionHandler.handleRepeat(ctx);
+                } else if (verb === 'PAUSE') {
+                    await actionHandler.handlePause(ctx);
+                } else if (verb === 'SUBMIT') {
+                    await actionHandler.handleSubmit(ctx);
+                } else {
+                    console.warn('[VFF Router] Unknown action verb:', verb);
+                    await actionHandler.handleSkip(ctx);
                 }
-                setTurnMode('confirming', f.label);
-                await speak(dict.askCorrection ? dict.askCorrection(f.label) : `कृपया सुधार बताएं, ${f.label} में क्या भरना है?`);
+                break;
+            }
+
+            case 'CONFIRMATION': {
+                await confirmCurrentField();
+                break;
+            }
+
+            case 'CORRECTION': {
+                flowState = 'correcting';
+                setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
+
+                if (classified.isHistoricalCorrection && classified.historicalTargetIndex !== undefined) {
+                    // Historical / cross-field correction
+                    await correctionHandler.applyHistoricalCorrection(
+                        classified.historicalTargetIndex,
+                        classified.payload,
+                        ctx
+                    );
+                    // Return to listening on current field
+                    flowState = 'form_awaiting_input';
+                    setTurnMode('listening', scannedFields[currentFieldIndex]?.label || '');
+                    resetLiveLine(t('transcriptListeningPrompt', { label: scannedFields[currentFieldIndex]?.label || '' }));
+                    drainTranscriptQueue();
+                } else {
+                    // Active field correction
+                    if (!classified.payload || !classified.payload.trim()) {
+                        // Pure rejection ("it's wrong", "that is wrong", "गलत है") -> clear bad value and ask for new value
+                        const f = scannedFields[currentFieldIndex];
+                        const dict = window.i18n ? window.i18n.getDictation() : {};
+                        pendingFieldValue = '';
+                        if (el.spotlightValue) {
+                            el.spotlightValue.textContent = '';
+                            el.spotlightValue.classList.add('empty');
+                        }
+                        if (f && fieldValues[f.id]?.tentative) {
+                            delete fieldValues[f.id];
+                            renderScannedFieldsList();
+                        }
+                        flowState = 'busy';
+                        await speak(dict.askCorrection ? dict.askCorrection(f?.label) : `Please state the correction for ${f?.label}.`);
+                        if (myEpoch !== flowEpoch) return;
+                        flowState = 'form_awaiting_input';
+                        setTurnMode('listening', f?.label || '');
+                        resetLiveLine(t('transcriptListeningPrompt', { label: f?.label || '' }));
+                        drainTranscriptQueue();
+                    } else {
+                        await correctionHandler.applyCurrentFieldCorrection(classified.payload, ctx);
+                    }
+                }
+                break;
+            }
+
+            case 'INFORMATION':
+            default: {
+                const f = scannedFields[currentFieldIndex];
+                flowState = 'busy';
+                setTurnMode('finalizing', f.label);
+
+                const cleanValue = await informationHandler.processValue(classified.payload || clean, f);
                 if (myEpoch !== flowEpoch) return;
 
-                flowState = 'form_awaiting_correction';
-                if (el.spotlightStatus) {
-                    el.spotlightStatus.dataset.phase = 'listening';
-                    el.spotlightStatus.textContent = t('spotlightPhaseListening');
-                }
-                setTurnMode('listening', f.label);
-                resetLiveLine(t('transcriptConfirmPrompt'));
-                drainTranscriptQueue();
-            } else {
-                // User already provided the correction phrase (e.g. "नहीं, 8178524055", "डॉट हटा दो", "remove dot")
-                await handleFormCorrectionInstruction(cleanReply);
+                if (!currentFieldOriginalValue) currentFieldOriginalValue = cleanValue;
+
+                await informationHandler.stageAndAskConfirmation(cleanValue, f, ctx);
+                break;
             }
         }
     }
 
-    async function handleFormCorrectionInstruction(instructionText) {
+    async function confirmCurrentField() {
         const myEpoch = flowEpoch;
-        clearDebounceBuffers();
-        const clean = stripTags(instructionText).trim();
-        if (!clean) return;
-
-        console.log(`[VFF] Correction instruction received for #${currentFieldIndex}: "${clean}"`);
-
-        // Check if user decided to skip
-        if (looksLikeSkip(clean)) {
-            await skipField();
-            return;
-        }
-
-        // Check if user confirmed instead
-        if (looksLikeConfirmation(clean)) {
-            await handleFormConfirmationReply('हाँ');
-            return;
-        }
-
         const f = scannedFields[currentFieldIndex];
+        if (!f) return;
+        const confirmedVal = pendingFieldValue || fieldValues[f.id]?.value || f.currentValue || '';
+        console.log(`[VFF] Field #${currentFieldIndex} "${f.label}" CONFIRMED with value: "${confirmedVal}"`);
+
+        fieldValues[f.id] = {
+            value: confirmedVal,
+            confirmed: true,
+            tentative: false,
+            timestamp: Date.now()
+        };
+
+        if (currentScannedTabId) {
+            chrome.tabs.sendMessage(currentScannedTabId, {
+                type: 'VFF_SET_FIELD_VALUE',
+                fieldId: f.id,
+                value: confirmedVal
+            }).catch(() => {});
+        }
+
+        currentFieldCorrections = [];
+        currentFieldOriginalValue = '';
+
         const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
         const dict = window.i18n ? window.i18n.getDictation() : {};
-
-        // If the user spoke only a pure rejection without giving the new value, ask for the new value again
-        if (isPureRejection(clean)) {
-            console.log(`[VFF] Pure rejection in correction state for #${currentFieldIndex}: "${clean}"`);
-            flowState = 'busy';
-            if (el.spotlightStatus) {
-                el.spotlightStatus.dataset.phase = 'asking';
-                el.spotlightStatus.textContent = t('spotlightPhaseAsking');
-            }
-            setTurnMode('confirming', f.label);
-            await speak(dict.clarifyValue ? dict.clarifyValue(f.label) : `कृपया ${f.label} के लिए नया या सही मान बोलें।`);
-            if (myEpoch !== flowEpoch) return;
-
-            flowState = 'form_awaiting_correction';
-            if (el.spotlightStatus) {
-                el.spotlightStatus.dataset.phase = 'listening';
-                el.spotlightStatus.textContent = t('spotlightPhaseListening');
-            }
-            setTurnMode('listening', f.label);
-            resetLiveLine(t('transcriptConfirmPrompt'));
-            drainTranscriptQueue();
-            return;
+        if (el.spotlightStatus) {
+            el.spotlightStatus.dataset.phase = 'confirmed';
+            el.spotlightStatus.textContent = t('spotlightPhaseConfirmed');
         }
+        renderScannedFieldsList();
 
-        flowState = 'correcting';
-        setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
+        flowState = 'busy';
+        await speak(dict.fieldRecorded ? dict.fieldRecorded(f.label) : `${f.label} recorded.`);
+        if (myEpoch !== flowEpoch) return;
 
-        try {
-            const corrected = await correctFormFieldWithLLM(f.label, pendingFieldValue, clean);
-            if (myEpoch !== flowEpoch) return;
-
-            if (!corrected || corrected === pendingFieldValue) {
-                console.warn(`[VFF] Correction could not be applied for #${currentFieldIndex} (${f.label})`);
-                flowState = 'busy';
-                if (el.spotlightStatus) {
-                    el.spotlightStatus.dataset.phase = 'asking';
-                    el.spotlightStatus.textContent = t('spotlightPhaseAsking');
-                }
-                setTurnMode('confirming', f.label);
-                await speak(dict.clarifyValue ? dict.clarifyValue(f.label) : `कृपया ${f.label} के लिए सही मान दोबारा बोलें।`);
-                if (myEpoch !== flowEpoch) return;
-
-                flowState = 'form_awaiting_correction';
-                if (el.spotlightStatus) {
-                    el.spotlightStatus.dataset.phase = 'listening';
-                    el.spotlightStatus.textContent = t('spotlightPhaseListening');
-                }
-                setTurnMode('listening', f.label);
-                resetLiveLine(t('transcriptConfirmPrompt'));
-                drainTranscriptQueue();
-                return;
+        let nextIdx = currentFieldIndex + 1;
+        while (nextIdx < scannedFields.length && fieldValues[scannedFields[nextIdx].id]?.confirmed) {
+            nextIdx++;
+        }
+        if (nextIdx < scannedFields.length) {
+            await askField(nextIdx);
+        } else {
+            const remainingIdx = scannedFields.findIndex(fld => !fieldValues[fld.id]?.confirmed);
+            if (remainingIdx !== -1) {
+                await askField(remainingIdx);
+            } else {
+                await finishFormFlow();
             }
-
-            currentFieldCorrections.push({ instruction: clean, corrected });
-            pendingFieldValue = corrected;
-            if (el.spotlightValue) {
-                el.spotlightValue.textContent = corrected;
-                el.spotlightValue.classList.remove('empty');
-            }
-            setLiveText(corrected);
-
-            flowState = 'busy';
-            if (el.spotlightStatus) {
-                el.spotlightStatus.dataset.phase = 'confirming';
-                el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
-            }
-            await speak(dict.confirmCorrection ? dict.confirmCorrection(corrected) : `सुधारा गया: ${corrected}।`);
-            if (myEpoch !== flowEpoch) return;
-
-            flowState = 'form_awaiting_confirmation';
-            if (el.spotlightStatus) {
-                el.spotlightStatus.dataset.phase = 'confirming';
-                el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
-            }
-            setTurnMode('listening', f.label);
-            resetLiveLine(t('transcriptConfirmPrompt'));
-            drainTranscriptQueue();
-        } catch (err) {
-            console.warn('[VFF] Correction error:', err);
-            flowState = 'busy';
-            await speak(dict.clarifyValue ? dict.clarifyValue(f.label) : `कृपया ${f.label} के लिए सही मान दोबारा बोलें।`);
-            if (myEpoch !== flowEpoch) return;
-            flowState = 'form_awaiting_correction';
-            setTurnMode('listening', f.label);
-            drainTranscriptQueue();
         }
     }
 
     async function skipField() {
-        const f = scannedFields[currentFieldIndex];
-        const dict = window.i18n ? window.i18n.getDictation() : {};
-        console.log(`[VFF] Skipping field #${currentFieldIndex} "${f?.label}"`);
-        flowState = 'busy';
-        await speak(dict.fieldSkipped ? dict.fieldSkipped(f?.label) : 'ठीक है, इस फ़ील्ड को छोड़ रहे हैं।');
-        currentFieldIndex++;
-        if (currentFieldIndex < scannedFields.length) {
-            await askField(currentFieldIndex);
-        } else {
-            await finishFormFlow();
-        }
+        await actionHandler.handleSkip(getActionContext());
     }
 
     async function prevField() {
-        if (currentFieldIndex > 0) {
-            currentFieldIndex--;
-            await askField(currentFieldIndex);
-        } else {
-            showToast(window.i18n ? window.i18n.t('firstFieldToast') : 'This is the first field');
-        }
+        await actionHandler.handlePrevious(getActionContext());
     }
 
     async function reaskCurrentField() {
-        if (currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length) {
-            await askField(currentFieldIndex, true);
-        }
+        await actionHandler.handleRepeat(getActionContext());
     }
 
     // ---------- WEBSOCKET ----------
@@ -1576,12 +1346,24 @@
                 queueTranscript(finalText);
                 return;
             }
-            if (flowState === 'form_awaiting_input') {
-                handleFormFieldInput(finalText);
-            } else if (flowState === 'form_awaiting_confirmation') {
-                bufferFormConfirmationReply(finalText);
-            } else if (flowState === 'form_awaiting_correction') {
-                handleFormCorrectionInstruction(finalText);
+            if (formFlowActive) {
+                if (flowState === 'paused' || sessionPaused) {
+                    const heuristics = inputClassifier.getHeuristics();
+                    const cleanLower = finalText.trim().toLowerCase();
+                    const isWake = (heuristics.resumeWords && heuristics.resumeWords.some(w => cleanLower.includes(w.toLowerCase())))
+                        || /^(?:resume|wake\s+up|start|continue)$/i.test(cleanLower);
+                    if (isWake) {
+                        resumeVoiceSession();
+                    } else {
+                        console.log('[WS] Dropped transcript while paused:', finalText);
+                    }
+                    return;
+                }
+                if (flowState === 'form_awaiting_confirmation') {
+                    bufferFormConfirmationReply(finalText);
+                } else {
+                    routeTranscript(finalText);
+                }
             } else {
                 setLiveText(finalText);
             }

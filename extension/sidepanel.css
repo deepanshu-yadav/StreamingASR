@@ -1001,6 +1001,11 @@ kbd {
     border-left: 3px solid var(--accent-green);
 }
 
+.field-item-row.tentative {
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+}
+
 .field-item-left {
     display: flex;
     align-items: center;

@@ -110,11 +110,41 @@
         }
 
         /**
+         * Returns aggregated heuristics across all loaded locales for universal matching
+         */
+        getAllHeuristics() {
+            const merged = {
+                confirmWords: [],
+                negationWords: [],
+                skipPhrases: [],
+                pureRejectionWords: [],
+                pauseWords: [],
+                submitWords: [],
+                repeatWords: [],
+                previousWords: [],
+                correctionWords: []
+            };
+            const localesToScan = Object.values(this.locales || {});
+            for (const loc of localesToScan) {
+                if (!loc || !loc.heuristics) continue;
+                for (const key of Object.keys(merged)) {
+                    if (Array.isArray(loc.heuristics[key])) {
+                        merged[key].push(...loc.heuristics[key]);
+                    }
+                }
+            }
+            for (const key of Object.keys(merged)) {
+                merged[key] = Array.from(new Set(merged[key]));
+            }
+            return merged;
+        }
+
+        /**
          * Scans DOM elements with [data-i18n] and updates their contents
          */
         applyLanguageToDOM() {
             const locale = this.getLocale();
-            if (!locale) return;
+            if (!locale || typeof document === 'undefined') return;
 
             document.documentElement.lang = locale.speechLang || this.currentLanguage;
 
@@ -149,5 +179,11 @@
         }
     }
 
-    window.i18n = new I18nManager();
+    if (typeof window !== 'undefined') {
+        window.I18nManager = I18nManager;
+        window.i18n = new I18nManager();
+    }
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = window ? window.i18n : I18nManager;
+    }
 })();

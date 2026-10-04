@@ -195,18 +195,31 @@ Aplica la instrucción de corrección al valor anterior y devuelve ÚNICAMENTE e
         // ===== 4. HEURISTICS & INTENT KEYWORDS =====
         heuristics: {
             negationWords: [
-                'no', 'mal', 'incorrecto', 'cambiar', 'cambia', 'corrige', 'corrección',
-                'error', 'falso', 'equivocado', 'diferente', 'modificar', 'no es', 'otra cosa'
+                'no', 'mal', 'incorrecto', 'cambiar', 'cambia', 'corrige', 'corrección', 'error', 'falso', 'equivocado', 'diferente', 'modificar', 'no es', 'otra cosa'
             ],
             confirmWords: [
-                'sí', 'si', 'correcto', 'exacto', 'bien', 'está bien', 'perfecto', 'adelante',
-                'proceder', 'siguiente', 'claro', 'vale', 'de acuerdo', 'confirmo', 'así es'
+                'sí', 'si', 'correcto', 'exacto', 'bien', 'está bien', 'perfecto', 'adelante', 'proceder', 'siguiente', 'claro', 'vale', 'de acuerdo', 'confirmo', 'así es'
             ],
             skipPhrases: [
-                'omitir', 'saltar', 'pasar', 'dejarlo', 'siguiente campo', 'ignorar', 'pasa'
+                'omitir', 'saltar', 'pasar', 'dejarlo', 'siguiente campo', 'ignorar', 'pasa', 'dejar en blanco', 'en blanco', 'dejar vacío', 'vacío', 'déjalo en blanco'
             ],
             pureRejectionWords: [
-                'no', 'mal', 'incorrecto', 'eso no', 'así no', 'error'
+                'no', 'mal', 'incorrecto', 'eso no', 'así no', 'error', 'está mal'
+            ],
+            pauseWords: [
+                'pausa', 'pausar', 'espera', 'un momento', 'detén', 'para', 'espera un momento'
+            ],
+            submitWords: [
+                'enviar', 'enviar formulario', 'terminar', 'finalizar', 'listo', 'completar'
+            ],
+            repeatWords: [
+                'repetir', 'repite', 'otra vez', 'qué era', 'repite la pregunta', 'de nuevo'
+            ],
+            previousWords: [
+                'anterior', 'atrás', 'volver', 'retroceder', 'campo anterior'
+            ],
+            correctionWords: [
+                'cambiar', 'cambia', 'reemplazar', 'reemplaza', 'en vez de', 'quitar', 'corregir'
             ]
         }
     };
