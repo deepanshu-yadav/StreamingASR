@@ -69,6 +69,10 @@
             btnPrevField: '⏮️ Previous',
             btnReaskField: '🔄 Re-ask',
             btnSkipField: '⏭️ Skip',
+            btnPauseField: '💤 Pause',
+            btnResumeField: '▶️ Resume',
+            spotlightPhaseSleeping: '💤 Sleeping',
+            spotlightSleepingPrompt: 'Sleeping: say "Hey Assistant" or click Resume to continue…',
 
             // Transcript Box
             transcriptLabel: '🎙️ Live Voice Transcription (Streaming STT)',
@@ -170,6 +174,7 @@
             tentativeSaved: (label, val) => `Saved ${val} for ${label}. `,
             historicalFieldUpdated: (targetLabel, newVal, currentLabel) => `Updated ${targetLabel} to ${newVal}. Continuing with ${currentLabel || 'the current field'}.`,
             sessionPaused: 'Assistant paused. Say "Hey Assistant" or click Resume when ready.',
+            sessionResumed: (label) => label ? `I'm listening. We were on ${label}.` : "I'm listening. Please continue.",
             submitMissingWarning: (labels) => `Some required fields are missing: ${labels}. Please complete them first.`,
             submitSuccess: () => 'All required fields are complete. Ready to submit form.',
             firstFieldSpoken: 'This is the first field.'

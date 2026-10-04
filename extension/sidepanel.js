@@ -56,6 +56,8 @@
         btnPrevField: document.getElementById('btnPrevField'),
         btnReaskField: document.getElementById('btnReaskField'),
         btnSkipField: document.getElementById('btnSkipField'),
+        btnPauseField: document.getElementById('btnPauseField'),
+        btnPauseFieldText: document.getElementById('btnPauseFieldText'),
         formActiveSpotlight: document.getElementById('formActiveSpotlight'),
         spotlightStep: document.getElementById('spotlightStep'),
         spotlightStatus: document.getElementById('spotlightStatus'),
@@ -676,6 +678,62 @@
     const informationHandler = new window.InformationHandler({ llmUrl: el.llmUrl?.value?.trim() });
     const correctionHandler = new window.CorrectionHandler({ llmUrl: el.llmUrl?.value?.trim() });
 
+    // Phase 2: Wake Word & Sleep/Pause Manager
+    const wakeWordManager = new window.WakeWordManager({
+        speak,
+        getDictation: () => (window.i18n ? window.i18n.getDictation() : {}),
+        getCurrentFieldLabel: () => scannedFields[currentFieldIndex]?.label || '',
+        onSleep: () => {
+            sessionPaused = true;
+            flowState = 'paused';
+            setTurnMode('idle', 'sleeping 💤');
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+            if (el.formActiveSpotlight) {
+                el.formActiveSpotlight.classList.add('sleeping');
+            }
+            if (el.spotlightStatus) {
+                el.spotlightStatus.dataset.phase = 'sleeping';
+                el.spotlightStatus.textContent = t('spotlightPhaseSleeping') || '💤 Sleeping';
+            }
+            if (el.spotlightPrompt) {
+                el.spotlightPrompt.textContent = t('spotlightSleepingPrompt') || 'Sleeping: speak wake word to resume…';
+            }
+            if (el.btnPauseFieldText) {
+                el.btnPauseFieldText.textContent = t('btnResumeField') || '▶️ Resume';
+            }
+            if (el.btnPauseField) {
+                el.btnPauseField.classList.add('is-sleeping');
+                el.btnPauseField.title = t('btnResumeField') || 'Resume Assistant';
+            }
+            showToast(t('sessionPausedToast') || 'Voice assistant paused — speak wake word to resume');
+        },
+        onWake: (trailingUtterance) => {
+            sessionPaused = false;
+            flowState = 'form_awaiting_input';
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+            const f = scannedFields[currentFieldIndex];
+            if (el.formActiveSpotlight) {
+                el.formActiveSpotlight.classList.remove('sleeping');
+            }
+            if (el.spotlightStatus) {
+                el.spotlightStatus.dataset.phase = 'listening';
+                el.spotlightStatus.textContent = t('spotlightPhaseListening') || 'Listening…';
+            }
+            if (el.spotlightPrompt) {
+                el.spotlightPrompt.textContent = t('spotlightPromptListening') || 'Listening: speak your answer…';
+            }
+            if (el.btnPauseFieldText) {
+                el.btnPauseFieldText.textContent = t('btnPauseField') || '💤 Pause';
+            }
+            if (el.btnPauseField) {
+                el.btnPauseField.classList.remove('is-sleeping');
+                el.btnPauseField.title = t('btnPauseField') || 'Pause Assistant';
+            }
+            setTurnMode('listening', f?.label || 'listening');
+            showToast('Assistant Resumed ✓');
+        }
+    });
+
     if (el.llmUrl) {
         el.llmUrl.addEventListener('change', () => {
             const u = el.llmUrl.value.trim();
@@ -725,32 +783,17 @@
             },
             renderScannedFieldsList,
             fieldResolver,
-            informationHandler
+            informationHandler,
+            wakeWordManager
         };
     }
 
     function pauseVoiceSession() {
-        sessionPaused = true;
-        flowState = 'paused';
-        setTurnMode('idle', 'sleeping 💤');
-        if (el.spotlightStatus) {
-            el.spotlightStatus.dataset.phase = 'paused';
-            el.spotlightStatus.textContent = '💤 Paused';
-        }
-        showToast(window.i18n ? window.i18n.t('sessionPausedToast') : 'Voice assistant paused — speak wake word to resume');
+        wakeWordManager.sleep();
     }
 
-    function resumeVoiceSession() {
-        if (!sessionPaused) return;
-        sessionPaused = false;
-        flowState = 'form_awaiting_input';
-        const f = scannedFields[currentFieldIndex];
-        setTurnMode('listening', f?.label || 'listening');
-        if (el.spotlightStatus) {
-            el.spotlightStatus.dataset.phase = 'listening';
-            el.spotlightStatus.textContent = window.i18n ? window.i18n.t('spotlightPhaseListening') : 'Listening…';
-        }
-        showToast('Assistant Resumed ✓');
+    function resumeVoiceSession(trailingText) {
+        wakeWordManager.wake(trailingText);
     }
 
     function setFormScanBadge(state, text) {
@@ -1347,22 +1390,28 @@
                 return;
             }
             if (formFlowActive) {
-                if (flowState === 'paused' || sessionPaused) {
-                    const heuristics = inputClassifier.getHeuristics();
-                    const cleanLower = finalText.trim().toLowerCase();
-                    const isWake = (heuristics.resumeWords && heuristics.resumeWords.some(w => cleanLower.includes(w.toLowerCase())))
-                        || /^(?:resume|wake\s+up|start|continue)$/i.test(cleanLower);
-                    if (isWake) {
-                        resumeVoiceSession();
-                    } else {
-                        console.log('[WS] Dropped transcript while paused:', finalText);
-                    }
+                // Phase 2: WakeWordManager audio gating pre-filter
+                const gate = wakeWordManager.filterTranscript(finalText);
+                if (!gate.allow) {
+                    console.log('[WakeWordManager] Discarded speech while sleeping:', finalText);
                     return;
                 }
+
+                // If assistant just woke up with trailing command (e.g. "Hey Assistant, my phone is 99999"),
+                // process the trailing command immediately!
+                const textToRoute = (gate.wakeTriggered && gate.remainingTranscript)
+                    ? gate.remainingTranscript
+                    : finalText;
+
+                // If wake word was detected with NO trailing command, wake chime & resume prompt are already triggered
+                if (gate.wakeTriggered && !gate.remainingTranscript) {
+                    return;
+                }
+
                 if (flowState === 'form_awaiting_confirmation') {
-                    bufferFormConfirmationReply(finalText);
+                    bufferFormConfirmationReply(textToRoute);
                 } else {
-                    routeTranscript(finalText);
+                    routeTranscript(textToRoute);
                 }
             } else {
                 setLiveText(finalText);
@@ -1773,6 +1822,10 @@
     if (el.btnSkipField) el.btnSkipField.addEventListener('click', () => skipField());
     if (el.btnPrevField) el.btnPrevField.addEventListener('click', () => prevField());
     if (el.btnReaskField) el.btnReaskField.addEventListener('click', () => reaskCurrentField());
+    if (el.btnPauseField) el.btnPauseField.addEventListener('click', () => {
+        ensureTTSContext();
+        wakeWordManager.toggleSleep();
+    });
 
     console.log('[INIT] All event listeners attached. Form Assistant ready.');
     console.log('[FIX] Prefix-aware delta handling, liveText reset, debounce purge, and confirmation escape hatch are ACTIVE.');
@@ -1971,6 +2024,12 @@
         }
         if (el.languageSelect) {
             el.languageSelect.value = lang;
+        }
+        if (el.btnPauseFieldText) {
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+            const isSleep = wakeWordManager.isSleeping();
+            el.btnPauseFieldText.textContent = isSleep ? (t('btnResumeField') || '▶️ Resume') : (t('btnPauseField') || '💤 Pause');
+            if (el.btnPauseField) el.btnPauseField.title = el.btnPauseFieldText.textContent;
         }
         renderScannedFieldsList();
 

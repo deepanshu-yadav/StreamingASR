@@ -850,8 +850,8 @@ kbd {
 /* Step Navigation Controls */
 .form-step-controls {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 6px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
     background: rgba(0, 0, 0, 0.25);
     padding: 6px;
     border-radius: 8px;
@@ -862,10 +862,14 @@ kbd {
     background: #1e2436;
     border: 1px solid #313a52;
     color: #e2e8f0;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
-    padding: 6px 8px;
+    padding: 6px 4px;
     border-radius: 6px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .btn-step:hover:not(:disabled) {
     background: #28314a;
@@ -874,6 +878,42 @@ kbd {
     transform: translateY(-1px);
 }
 .btn-step:active:not(:disabled) { transform: translateY(0); }
+
+.btn-sleep-toggle {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.35);
+    color: #c4b5fd;
+}
+.btn-sleep-toggle:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.25);
+    border-color: #8b5cf6;
+    color: #ffffff;
+}
+.btn-sleep-toggle.is-sleeping {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.5);
+    color: #fcd34d;
+    animation: gentlePulse 2s infinite ease-in-out;
+}
+
+.form-spotlight-box.sleeping {
+    background: linear-gradient(135deg, rgba(88, 28, 135, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.2);
+}
+
+.spotlight-status-badge[data-phase="paused"],
+.spotlight-status-badge[data-phase="sleeping"] {
+    background: rgba(168, 85, 247, 0.2);
+    color: #d8b4fe;
+    border-color: rgba(168, 85, 247, 0.5);
+    animation: gentlePulse 2s infinite ease-in-out;
+}
+
+@keyframes gentlePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.78; transform: scale(0.98); }
+}
 
 /* ==========================================================
    TRANSCRIPT ZONE

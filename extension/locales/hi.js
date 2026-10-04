@@ -69,6 +69,10 @@
             btnPrevField: '⏮️ पिछला',
             btnReaskField: '🔄 दोबारा पूछें',
             btnSkipField: '⏭️ छोड़ें',
+            btnPauseField: '💤 रोकें',
+            btnResumeField: '▶️ जारी रखें',
+            spotlightPhaseSleeping: '💤 रुका हुआ',
+            spotlightSleepingPrompt: 'असिस्टेंट रुका हुआ है: जारी रखने के लिए "सुनो" कहें या जारी रखें दबाएं…',
 
             // Transcript Box
             transcriptLabel: '🎙️ लाइव वॉइस ट्रांसक्रिप्शन (Streaming STT)',
@@ -170,6 +174,7 @@
             tentativeSaved: (label, val) => `${label} के लिए ${val} सुरक्षित किया गया। `,
             historicalFieldUpdated: (targetLabel, newVal, currentLabel) => `${targetLabel} को ${newVal} कर दिया गया है। हम ${currentLabel || 'मौजूदा फ़ील्ड'} पर बने हुए हैं।`,
             sessionPaused: 'सत्र रोक दिया गया है। तैयार होने पर "सुनो" कहें या रिज्यूम दबाएं।',
+            sessionResumed: (label) => label ? `मैं सुन रहा हूँ। हम ${label} पर हैं।` : "मैं सुन रहा हूँ। कृपया जारी रखें।",
             submitMissingWarning: (labels) => `कुछ आवश्यक फ़ील्ड खाली हैं: ${labels}। कृपया पहले इन्हें भरें।`,
             submitSuccess: () => 'सभी आवश्यक फ़ील्ड पूरे हो चुके हैं। फ़ॉर्म जमा करने के लिए तैयार है।',
             firstFieldSpoken: 'यह पहला फ़ील्ड है।'
