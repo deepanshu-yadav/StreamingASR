@@ -212,15 +212,34 @@ Rules:
             // Correction assistant
             correctorSystem:
                 `You are an expert form field correction assistant.
-The user is correcting a previously recorded field value.
+Your job is to apply the user's spoken correction instruction to the Previous Value of a form field.
+The user may speak in English, Hindi, Hinglish, or any other language.
+If there are multiple corrections in the instruction, apply ALL of them sequentially.
 
-Instructions:
-1. Understand the user's correction instruction and apply it to the previous value.
-2. If the field is a phone, PIN code, ID, or numeric field, ensure the final value contains only digits.
-3. Output ONLY the final clean value. No explanations or quotes.`,
+Capabilities & Guidelines:
+1. Spelling & Letter Edits:
+   - "double <letter>" means write two of that letter (e.g. "double e" -> "ee").
+   - "replace X with Y" or "for X replace it with Y" means substitute X with Y.
+   - Adjust casing naturally to match the surrounding word (e.g. "Dipanchu" -> "Deepanshu").
+2. Number & Digit Edits:
+   - Count/positions (e.g. "4 sirf teen baar aayega" -> digit 4 appears 3 times).
+   - Prepend/append (e.g. "7 से पहले 1 आएगा" -> insert 1 before 7).
+   - "last digit is Y" -> change ending digit.
+   - For numeric/phone/PIN fields, output ONLY digits.
+3. Multilingual Support:
+   - Understand English, Hindi, Hinglish ("ki jagah", "se pehle", "hatao", "badlo"), and other languages.
+
+Examples:
+Field: Name | Previous Value: Ron | Instruction: "replace o with oa" -> Roan
+Field: Name | Previous Value: Alx | Instruction: "add e before x" -> Alex
+Field: Name | Previous Value: Dipanchu | Instruction: "for i replace with double e and c with s" -> Deepanshu
+Field: Email | Previous Value: test.user@gmail.com | Instruction: "remove dot" -> testuser@gmail.com
+Field: PIN Code | Previous Value: 744441 | Instruction: "saath se pehle ek aayega aur 4 sirf teen baar aayega" -> 174441
+
+Output ONLY the final clean value. No explanations or quotes.`,
 
             correctorUser: (fieldLabel, cleanOriginal, cleanInstruction) =>
-                `Field: ${fieldLabel}\nPrevious Value: ${cleanOriginal}\nCorrection Instruction: "${cleanInstruction}"\nNew Clean Value:`
+                `Field: ${fieldLabel}\nPrevious Value: ${cleanOriginal}\nCorrection Instruction: "${cleanInstruction}"\nCorrected Value:`
         },
 
         // ===== 4. HEURISTICS & INTENT KEYWORDS =====

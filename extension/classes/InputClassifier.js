@@ -30,8 +30,8 @@
             if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(lp)) {
                 if (lower.includes(lp)) return true;
             } else {
-                // Unicode boundary matching: not preceded or followed by a letter or digit
-                const regex = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapeRegExp(lp)}(?=[^\\p{L}\\p{N}]|$)`, 'u');
+                // Unicode boundary matching: not preceded or followed by a letter, mark, or digit
+                const regex = new RegExp(`(?:^|[^\\p{L}\\p{M}\\p{N}])${escapeRegExp(lp)}(?=[^\\p{L}\\p{M}\\p{N}]|$)`, 'u');
                 if (regex.test(lower)) return true;
             }
         }
@@ -160,20 +160,21 @@
         ],
         confirmWords: [
             'yes', 'yeah', 'yep', 'correct', 'right', 'ok', 'okay', 'proceed', 'next', 'fine', 'perfect', 'sure', 'confirm', 'good', 'looks good', "that's right", 'that is right',
-            'हाँ', 'हां', 'हा', 'जी', 'haan', 'ha', 'बिल्कुल', 'ठीक', 'सही है', 'sahi hai', 'ठीक है', 'सही', 'sahi', 'आगे बढ़ो',
-            'sí', 'si', 'correcto', 'exacto', 'bien', 'está bien', 'perfecto', 'adelante', 'proceder', 'claro', 'vale', 'de acuerdo', 'confirmo', 'así es',
-            'oui', 'ouais', 'exact', 'correct', "d'accord", "c'est bon", 'valider', 'tout à fait',
-            'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'weiter', 'in ordnung', 'passt', 'sicher', 'bestätigen',
-            'はい', 'うん', 'そうです', '合ってる', 'オッケー', '大丈夫', 'オーケー', 'いいよ', '進めて',
-            'да', 'верно', 'правильно', 'хорошо', 'точно', 'дальше', 'подтверждаю', 'все так', 'ладно',
-            'نعم', 'ايوه', 'اي', 'أجل', 'صحيح', 'مضبوط', 'تمام', 'أكيد', 'موافق', 'تابع', 'حسنا', 'تأكيد',
-            'sim', 'certo', 'está certo', 'isso', 'pode ser', 'prosseguir', 'avançar', 'beleza',
-            '네', '응', '맞아', '맞아요', '그래', '좋아', '다음', '진행', '맞습니다',
-            'esatto', 'va bene', 'confermo',
-            'evet', 'doğru', 'dogru', 'tamam', 'olur', 'devam', 'onay', 'aynen', 'peki',
-            'klopt', 'prima', 'akkoord', 'inderdaad',
-            'так', 'вірно', 'чудово',
-            'có', 'đúng', 'chuẩn', 'chính xác', 'được', 'tiếp tục', 'chuẩn rồi', 'xong'
+            'keep', 'keep it', 'keep value', 'keep the value', 'keep earlier value', 'keep the earlier value', 'keep existing', 'keep existing value', 'keep this', 'keep it as is', 'leave it', 'leave as is', 'as is', 'let it be', 'no change', "don't change", 'do not change', 'same', 'keep same',
+            'हाँ', 'हां', 'हा', 'जी', 'haan', 'ha', 'बिल्कुल', 'ठीक', 'सही है', 'sahi hai', 'ठीक है', 'सही', 'sahi', 'आगे बढ़ो', 'रखो', 'वही रखो', 'यही रहने दो', 'वही रहने दो', 'पुराना वाला रखो', 'पुराना रखो', 'पुराना मान रखो', 'बदलना नहीं है', 'यही ठीक है', 'वही ठीक है', 'बदलो मत',
+            'sí', 'si', 'correcto', 'exacto', 'bien', 'está bien', 'perfecto', 'adelante', 'proceder', 'claro', 'vale', 'de acuerdo', 'confirmo', 'así es', 'mantener', 'manténlo', 'dejarlo así', 'conservar', 'no cambiar',
+            'oui', 'ouais', 'exact', 'correct', "d'accord", "c'est bon", 'valider', 'tout à fait', 'garder', 'conserver', 'laisser comme ça', 'ne pas changer',
+            'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'weiter', 'in ordnung', 'passt', 'sicher', 'bestätigen', 'beibehalten', 'so lassen', 'nicht ändern',
+            'はい', 'うん', 'そうです', '合ってる', 'オッケー', '大丈夫', 'オーケー', 'いいよ', '進めて', 'そのまま', '維持',
+            'да', 'верно', 'правильно', 'хорошо', 'точно', 'дальше', 'подтверждаю', 'все так', 'ладно', 'оставить', 'не менять', 'пусть так',
+            'نعم', 'ايوه', 'اي', 'أجل', 'صحيح', 'مضبوط', 'تمام', 'أكيد', 'موافق', 'تابع', 'حسنا', 'تأكيد', 'إبقاء', 'اتركه كما هو',
+            'sim', 'certo', 'está certo', 'isso', 'pode ser', 'prosseguir', 'avançar', 'beleza', 'manter', 'deixar assim',
+            '네', '응', '맞아', '맞아요', '그래', '좋아', '다음', '진행', '맞습니다', '그대로', '유지',
+            'esatto', 'va bene', 'confermo', 'mantieni', 'lascia così',
+            'evet', 'doğru', 'dogru', 'tamam', 'olur', 'devam', 'onay', 'aynen', 'peki', 'kalsın', 'aynı kalsın',
+            'klopt', 'prima', 'akkoord', 'inderdaad', 'behouden', 'zo laten',
+            'так', 'вірно', 'чудово', 'залишити', 'не змінювати',
+            'có', 'đúng', 'chuẩn', 'chính xác', 'được', 'tiếp tục', 'chuẩn rồi', 'xong', 'giữ nguyên', 'để nguyên'
         ],
         negationWords: [
             'no', 'not', 'wrong', 'incorrect', 'change', 'replace', 'mistake', 'fix', 'not right', 'nope', 'nah', 'error', 'different', 'modify',
@@ -351,18 +352,7 @@
                 };
             }
 
-            // 5. ACTION: Non-targeted Skip / Leave Blank triggers across languages
-            if (matchPhrase(lower, heuristics.skipPhrases)) {
-                return {
-                    type: 'ACTION',
-                    confidence: 0.99,
-                    action: { verb: 'SKIP' },
-                    payload: clean,
-                    source: 'heuristic'
-                };
-            }
-
-            // 6. CONFIRMATION vs REJECTION in confirmation states
+            // 5. In confirmation states, check explicit Confirmation before generic skip phrases
             if (flowState === 'form_awaiting_confirmation' || flowState === 'confirming') {
                 const hasExplicitNav = matchPhrase(lower, heuristics.navPrefixes) || matchPhrase(lower, heuristics.navSuffixes);
 
@@ -378,10 +368,58 @@
                             source: 'heuristic'
                         };
                     }
+                }
+            }
 
-                    // Pure Rejection: user explicitly rejects the candidate without giving a new value
-                    const isPureRejection = matchPhrase(lower, heuristics.pureRejectionWords)
-                        || (hasNegate && clean.split(/\s+/).length <= 3);
+            // 6. ACTION: Non-targeted Skip / Leave Blank triggers across languages
+            if (matchPhrase(lower, heuristics.skipPhrases)) {
+                return {
+                    type: 'ACTION',
+                    confidence: 0.99,
+                    action: { verb: 'SKIP' },
+                    payload: clean,
+                    source: 'heuristic'
+                };
+            }
+
+            // 7. Remaining feedback / delta in confirmation states (Negation, Pure Rejection, Corrections)
+            if (flowState === 'form_awaiting_confirmation' || flowState === 'confirming') {
+                const hasExplicitNav = matchPhrase(lower, heuristics.navPrefixes) || matchPhrase(lower, heuristics.navSuffixes);
+
+                if (!hasExplicitNav) {
+
+                    // Check for Rejection/Negation prefix followed by trailing content
+                    // e.g. "No, for i replace it with double e and for C, replace it with S", "No, my name is Amit", "गलत है, 75", "Non, c'est Jean"
+                    for (const neg of heuristics.negationWords) {
+                        if (!neg || neg.length < 1) continue;
+                        const prefixRegex = new RegExp(`^(?:${escapeRegExp(neg)})\\s*[,:：\\-]?\\s+(.+)$`, 'ui');
+                        const m = clean.match(prefixRegex);
+                        if (m && m[1] && m[1].trim().length > 0) {
+                            const trailing = m[1].trim();
+                            const trailingWords = trailing.split(/\s+/);
+                            const isTrailingOnlyRejection = trailingWords.length <= 2 && heuristics.pureRejectionWords.some(p => p.toLowerCase() === trailing.toLowerCase());
+                            if (!isTrailingOnlyRejection) {
+                                return {
+                                    type: 'CORRECTION',
+                                    confidence: 0.96,
+                                    isHistoricalCorrection: false,
+                                    targetFieldId: currentField?.id,
+                                    payload: trailing,
+                                    source: 'heuristic'
+                                };
+                            }
+                        }
+                    }
+
+                    // Pure Rejection: user explicitly rejects the candidate without giving a new value or instruction
+                    // e.g. "No", "Wrong", "That's wrong", "गलत है", "Nope", "Nein"
+                    const cleanWords = clean.trim().split(/\s+/);
+                    const isPureRejection = (cleanWords.length <= 4) && (
+                        heuristics.pureRejectionWords.some(p => {
+                            const lp = p.toLowerCase().trim();
+                            return lower === lp || lower.replace(/[.,!?:;]/g, '').trim() === lp;
+                        }) || (cleanWords.length <= 2 && hasNegate)
+                    );
 
                     if (isPureRejection) {
                         return {
@@ -390,23 +428,6 @@
                             payload: '',
                             source: 'heuristic'
                         };
-                    }
-
-                    // Rejection WITH immediate new value (e.g. "No, my name is Amit", "गलत है, 75", "Non, c'est Jean")
-                    for (const neg of heuristics.negationWords) {
-                        if (neg.length < 2) continue;
-                        const prefixRegex = new RegExp(`^(?:${escapeRegExp(neg)})\\s*[,:]?\\s*(.+)$`, 'ui');
-                        const m = clean.match(prefixRegex);
-                        if (m && m[1] && m[1].trim().length > 0) {
-                            return {
-                                type: 'CORRECTION',
-                                confidence: 0.95,
-                                isHistoricalCorrection: false,
-                                targetFieldId: currentField?.id,
-                                payload: m[1].trim(),
-                                source: 'heuristic'
-                            };
-                        }
                     }
 
                     // Any remaining feedback or delta instruction in confirmation state is a CORRECTION!

@@ -76,8 +76,9 @@
     function stripTags(s) {
         if (!s) return '';
         return s.toString()
-            .replace(/<[a-zA-Z]{2,}(?:-[a-zA-Z0-9]+)?\s*>?/g, '')
+            .replace(/<[a-zA-Z]{2,}(?:-[a-zA-Z0-9]+)?\s*\/?>/g, '')
             .replace(/<[^>]+>/g, '')
+            .replace(/[<>[\]]/g, '')
             .trim();
     }
 
@@ -433,6 +434,8 @@
                     ttsPlaying = false;
                     setTTSStatus('idle', 'tts done');
                     ttsMicMuted = false;
+                    preRollBuffer = [];
+                    preRollSamples = 0;
                     el.micMutedBadge.classList.remove('visible');
                     el.interruptBtn.classList.remove('visible');
                     drainTranscriptQueue();
@@ -750,6 +753,16 @@
             currentFieldIndex,
             fieldValues,
             pendingFieldValue,
+            originalValue: currentFieldOriginalValue || pendingFieldValue,
+            correctionsHistory: currentFieldCorrections,
+            recordCorrection: (before, after, instruction) => {
+                currentFieldCorrections.push({
+                    before,
+                    after,
+                    instruction,
+                    timestamp: Date.now()
+                });
+            },
             tabId: currentScannedTabId,
             flowState,
             speak,
@@ -758,6 +771,9 @@
             showToast,
             setPendingValue: (val) => {
                 pendingFieldValue = val;
+                if (!currentFieldOriginalValue && val) {
+                    currentFieldOriginalValue = val;
+                }
                 if (el.spotlightValue) {
                     el.spotlightValue.textContent = val;
                     el.spotlightValue.classList.remove('empty');
@@ -1124,26 +1140,47 @@
         await speak(prompt);
         if (myEpoch !== flowEpoch) return;
 
-        flowState = 'form_awaiting_input';
-        if (el.spotlightStatus) {
-            el.spotlightStatus.dataset.phase = 'listening';
-            el.spotlightStatus.textContent = t('spotlightPhaseListening');
+        if (existingVal) {
+            pendingFieldValue = existingVal;
+            currentFieldOriginalValue = existingVal;
+            flowState = 'form_awaiting_confirmation';
+            if (el.spotlightStatus) {
+                el.spotlightStatus.dataset.phase = 'confirming';
+                el.spotlightStatus.textContent = t('spotlightPhaseConfirming');
+            }
+            setTurnMode('confirming', f.label);
+            resetLiveLine(t('checkingConfirmation'));
+        } else {
+            pendingFieldValue = '';
+            flowState = 'form_awaiting_input';
+            if (el.spotlightStatus) {
+                el.spotlightStatus.dataset.phase = 'listening';
+                el.spotlightStatus.textContent = t('spotlightPhaseListening');
+            }
+            setTurnMode('listening', f.label);
+            resetLiveLine(t('transcriptListeningPrompt', { label: f.label }));
         }
-        setTurnMode('listening', f.label);
-        resetLiveLine(t('transcriptListeningPrompt', { label: f.label }));
         drainTranscriptQueue();
     }
 
+    let isRoutingTranscript = false;
     async function routeTranscript(text) {
-        const myEpoch = flowEpoch;
-        clearDebounceBuffers();
-        const clean = stripTags(text).trim();
-        if (!clean) return;
-
-        if (currentFieldIndex < 0 || currentFieldIndex >= scannedFields.length) {
-            console.log('[VFF Router] No active field selected, ignoring transcript:', clean);
+        if (isRoutingTranscript) {
+            console.log('[VFF Router] Already routing, queuing transcript:', text);
+            queueTranscript(text);
             return;
         }
+        isRoutingTranscript = true;
+        try {
+            const myEpoch = flowEpoch;
+            clearDebounceBuffers();
+            const clean = stripTags(text).trim();
+            if (!clean) return;
+
+            if (currentFieldIndex < 0 || currentFieldIndex >= scannedFields.length) {
+                console.log('[VFF Router] No active field selected, ignoring transcript:', clean);
+                return;
+            }
 
         console.log(`[VFF Router] Routing transcript: "${clean}", flowState=${flowState}, activeField=#${currentFieldIndex} ("${scannedFields[currentFieldIndex]?.label}")`);
 
@@ -1246,6 +1283,10 @@
                 await informationHandler.stageAndAskConfirmation(cleanValue, f, ctx);
                 break;
             }
+        }
+        } finally {
+            isRoutingTranscript = false;
+            drainTranscriptQueue();
         }
     }
 
@@ -1727,10 +1768,9 @@
             const wasSpeaking = speaking;
             await handleVAD(samples, rms);
             if (ttsMicMuted) {
-                preRollBuffer.push(samples);
-                preRollSamples += samples.length;
+                preRollBuffer = [];
+                preRollSamples = 0;
                 gatedSamplesSkipped += samples.length;
-                trimPreRoll();
             } else if (speaking) {
                 if (!wasSpeaking) {
                     for (const buf of preRollBuffer) {
