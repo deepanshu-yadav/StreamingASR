@@ -18,6 +18,30 @@
     // Confirmation debounce (ms)
     let CONFIRM_DEBOUNCE_MS = 1000;
 
+    // Companion Base URL & Audit Logging Engine
+    const COMPANION_BASE = 'http://127.0.0.1:8000';
+    const auditLogger = new (window.AuditLogger || AuditLogger)({ companionUrl: COMPANION_BASE });
+    if (typeof window !== 'undefined') window.auditLogger = auditLogger;
+
+    function getParametersSnapshot() {
+        return {
+            CONFIRM_DEBOUNCE_MS,
+            VAD_THRESHOLD,
+            VAD_MIN_SPEECH,
+            VAD_MIN_SILENCE,
+            MAX_UNCOMMITTED_MS,
+            SILENCE_MS,
+            MAX_TURN_MS,
+            VAD_PAD_MS,
+            SPEECH_RMS_THRESHOLD,
+            TARGET_RATE,
+            CHUNK_MS,
+            wsUrl: el.wsUrl ? el.wsUrl.value : 'ws://127.0.0.1:8081',
+            llmUrl: el.llmUrl ? el.llmUrl.value : 'http://127.0.0.1:8000/v1/chat/completions',
+            language: el.languageSelect ? el.languageSelect.value : (window.i18n ? window.i18n.getLanguage() : 'hi-IN')
+        };
+    }
+
     // ---------- DOM REFS ----------
     const el = {
         wsUrl: document.getElementById('wsUrl'),
@@ -43,6 +67,7 @@
         llmUrl: document.getElementById('llmUrl'),
         debounceSlider: document.getElementById('debounceSlider'),
         debounceVal: document.getElementById('debounceVal'),
+
         // Form Assistant DOM refs
         formCard: document.getElementById('formCard'),
         formScanBadge: document.getElementById('formScanBadge'),
@@ -131,26 +156,37 @@
 
     // ---------- SLIDER BINDING ----------
     el.thresholdSlider.addEventListener('input', () => {
+        const oldVal = VAD_THRESHOLD;
         VAD_THRESHOLD = parseFloat(el.thresholdSlider.value);
         el.thresholdVal.textContent = VAD_THRESHOLD.toFixed(2);
+        auditLogger.logParameterChange('VAD_THRESHOLD', oldVal, VAD_THRESHOLD);
     });
     el.silenceSlider.addEventListener('input', () => {
+        const oldVal = SILENCE_MS;
         const ms = parseInt(el.silenceSlider.value, 10);
+        SILENCE_MS = ms;
         VAD_MIN_SILENCE = Math.max(3, Math.round(ms / 32));
         el.silenceVal.textContent = ms + ' ms';
+        auditLogger.logParameterChange('SILENCE_MS', oldVal, ms);
     });
     el.maxTurnSlider.addEventListener('input', () => {
+        const oldVal = MAX_UNCOMMITTED_MS;
         MAX_UNCOMMITTED_MS = parseInt(el.maxTurnSlider.value, 10);
         el.maxTurnVal.textContent = MAX_UNCOMMITTED_MS + ' ms';
+        auditLogger.logParameterChange('MAX_UNCOMMITTED_MS', oldVal, MAX_UNCOMMITTED_MS);
     });
     el.padSlider.addEventListener('input', () => {
+        const oldVal = VAD_PAD_MS;
         VAD_PAD_MS = parseInt(el.padSlider.value, 10);
         el.padVal.textContent = VAD_PAD_MS + ' ms';
         trimPreRoll();
+        auditLogger.logParameterChange('VAD_PAD_MS', oldVal, VAD_PAD_MS);
     });
     el.debounceSlider.addEventListener('input', () => {
+        const oldVal = CONFIRM_DEBOUNCE_MS;
         CONFIRM_DEBOUNCE_MS = parseInt(el.debounceSlider.value, 10);
         el.debounceVal.textContent = CONFIRM_DEBOUNCE_MS + ' ms';
+        auditLogger.logParameterChange('CONFIRM_DEBOUNCE_MS', oldVal, CONFIRM_DEBOUNCE_MS);
     });
 
     // ---------- SIGNAL BARS ----------
@@ -237,16 +273,39 @@
     }
 
     // ---------- DEBOUNCE FUNCTIONS ----------
+    let formConfirmDebounceStartedAt = 0;
     function bufferFormConfirmationReply(text) {
         const clean = stripTags(text);
         if (!clean) return;
+        const isExtension = !!formConfirmReplyBuffer;
         formConfirmReplyBuffer = formConfirmReplyBuffer ? (formConfirmReplyBuffer + ' ' + clean) : clean;
         clearTimeout(formConfirmDebounceTimer);
         setTurnMode('finalizing', window.i18n ? window.i18n.t('checkingConfirmation') : 'checking confirmation…');
+
+        if (isExtension) {
+            auditLogger.logConfirmationDebounceExtended({
+                newText: clean,
+                currentBuffer: formConfirmReplyBuffer,
+                debounceMs: CONFIRM_DEBOUNCE_MS
+            });
+        } else {
+            formConfirmDebounceStartedAt = performance.now();
+            auditLogger.logConfirmationDebounceStart({
+                candidateText: clean,
+                debounceMs: CONFIRM_DEBOUNCE_MS
+            });
+        }
+
         formConfirmDebounceTimer = setTimeout(() => {
+            const elapsedMs = Math.round(performance.now() - formConfirmDebounceStartedAt);
             const merged = formConfirmReplyBuffer;
             formConfirmReplyBuffer = '';
             formConfirmDebounceTimer = null;
+            auditLogger.logConfirmationDebounceFired({
+                mergedText: merged,
+                elapsedMs,
+                configuredDebounceMs: CONFIRM_DEBOUNCE_MS
+            });
             routeTranscript(merged);
         }, CONFIRM_DEBOUNCE_MS);
     }
@@ -749,6 +808,7 @@
     function getActionContext() {
         const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
         return {
+            auditLogger,
             scannedFields,
             currentFieldIndex,
             fieldValues,
@@ -945,6 +1005,15 @@
 
         scannedFields = response.fields;
         console.log(`[VFF] Scanned ${scannedFields.length} fields from ${response.url}`);
+        if (!auditLogger.sessionId) {
+            auditLogger.startSession({
+                url: response.url || currentScannedUrl,
+                pageTitle: tab.title || '',
+                tabId: tab.id,
+                language: currentLanguage
+            }, getParametersSnapshot());
+        }
+        auditLogger.logFieldsScanned(scannedFields, { url: response.url || currentScannedUrl, pageTitle: tab.title || '', tabId: tab.id });
         if (scannedFields.length === 0) {
             setFormScanBadge('ready', t('fieldsZeroBadge'));
             if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = true;
@@ -1087,6 +1156,15 @@
             return;
         }
 
+        const prevField = (currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length)
+            ? {
+                index: currentFieldIndex,
+                ...scannedFields[currentFieldIndex],
+                value: pendingFieldValue || fieldValues[scannedFields[currentFieldIndex]?.id]?.value || scannedFields[currentFieldIndex]?.currentValue || '',
+                status: fieldValues[scannedFields[currentFieldIndex]?.id]?.confirmed ? 'CONFIRMED' : (fieldValues[scannedFields[currentFieldIndex]?.id]?.tentative ? 'TENTATIVE' : 'PENDING')
+              }
+            : null;
+
         currentFieldIndex = index;
         const f = scannedFields[index];
         const myEpoch = flowEpoch;
@@ -1134,6 +1212,21 @@
         } else {
             prompt = dict.askFieldDefault ? dict.askFieldDefault(f.label, f.required) : `Next field is ${f.label}. ${f.required ? 'This is required.' : ''} What should I enter here?`;
         }
+
+        // Audit Log: Movement across form fields (previous field -> current field)
+        const currField = {
+            index,
+            ...f,
+            value: existingVal || '',
+            required: !!f.required
+        };
+        const movementTrigger = isRepeat ? 'REPEAT' : (prevField ? (fieldValues[prevField.id]?.confirmed ? 'SEQUENTIAL_ADVANCE' : 'NAVIGATION') : 'FLOW_START');
+        auditLogger.logFieldMovement({
+            previousField: prevField,
+            currentField: currField,
+            trigger: movementTrigger,
+            ttsPrompt: prompt
+        });
 
         flowState = 'busy';
         clearDebounceBuffers();
@@ -1193,6 +1286,18 @@
 
         const classified = await inputClassifier.classify(clean, ctx);
         if (myEpoch !== flowEpoch) return;
+
+        // Audit Log: Classified Intent with latency & details
+        auditLogger.logIntentClassified({
+            inputText: clean,
+            fieldContext: scannedFields[currentFieldIndex],
+            tier: classified.tier || (classified.source === 'llm' ? 2 : 1),
+            source: classified.source || 'heuristic',
+            heuristicDetails: classified.source === 'heuristic' ? classified : null,
+            llmDetails: classified.llmDetails || null,
+            classifiedIntent: classified,
+            latencyMs: classified.latencyMs || 0
+        });
 
         console.log('[VFF Router] Intent result:', classified);
 
@@ -1303,6 +1408,14 @@
             tentative: false,
             timestamp: Date.now()
         };
+
+        // Audit Log: Field Confirmed
+        auditLogger.recordEvent('CONFIRMATION', 'FIELD_VALUE_CONFIRMED', {
+            fieldId: f.id,
+            fieldLabel: f.label,
+            fieldIndex: currentFieldIndex,
+            value: confirmedVal
+        });
 
         if (currentScannedTabId) {
             chrome.tabs.sendMessage(currentScannedTabId, {
@@ -1420,6 +1533,19 @@
             liveText = '';
             finalizing = false;
             console.log('[WS] Completed, server="' + serverTranscript + '" live="' + currentLive + '" chosen="' + finalText + '", flowState=' + flowState);
+            
+            const latencyMs = lastCommitAt ? Math.round(performance.now() - lastCommitAt) : 0;
+            const gate = formFlowActive ? wakeWordManager.filterTranscript(finalText) : { allow: true };
+
+            // Audit Log: Final Utterance from STT server with timing & gating
+            auditLogger.logSttFinalUtterance({
+                serverTranscript,
+                liveTranscript: currentLive,
+                finalChosenTranscript: finalText,
+                latencyMs,
+                gateResult: gate
+            });
+
             if (!finalText || !finalText.trim()) {
                 if (flowState === 'form_awaiting_input' || flowState === 'form_awaiting_confirmation' || flowState === 'form_awaiting_correction') {
                     setTurnMode('listening', 'listening');
@@ -1431,8 +1557,6 @@
                 return;
             }
             if (formFlowActive) {
-                // Phase 2: WakeWordManager audio gating pre-filter
-                const gate = wakeWordManager.filterTranscript(finalText);
                 if (!gate.allow) {
                     console.log('[WakeWordManager] Discarded speech while sleeping:', finalText);
                     return;
@@ -1463,6 +1587,7 @@
     }
 
     // ---------- AUDIO SEND ----------
+    let audioChunkSeq = 0;
     function sendAppend(int16Array) {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         if (ws.bufferedAmount > MAX_WS_BUFFERED_BYTES) { droppedChunks++; return; }
@@ -1471,10 +1596,19 @@
         for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
         ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: btoa(binary) }));
         chunkCount++;
+        audioChunkSeq++;
     }
 
-    function sendCommit() {
+    let lastCommitAt = 0;
+    function sendCommit(reason = 'vad_silence') {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        lastCommitAt = performance.now();
+        const speechDurationMs = turnStartedAt ? Math.round(performance.now() - turnStartedAt) : 0;
+        auditLogger.logAudioTurnCommit({
+            reason,
+            speechDurationMs,
+            silenceMs: SILENCE_MS
+        });
         ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
     }
 
@@ -1661,6 +1795,7 @@
                             turnStartedAt = performance.now();
                             resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
                             setTurnMode('speaking', 'speaking');
+                            auditLogger.logAudioSpeechStart({ vadProb: prob, rms });
                         }
                         lastSpeechAt = performance.now();
                     }
@@ -1717,6 +1852,14 @@
 
     // ---------- SESSION ----------
     async function startSession() {
+        if (!auditLogger.sessionId) {
+            auditLogger.startSession({
+                url: currentScannedUrl,
+                pageTitle: (typeof document !== 'undefined' ? document.title : ''),
+                tabId: currentScannedTabId,
+                language: currentLanguage
+            }, getParametersSnapshot());
+        }
         resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
         showToast('');
         flowEpoch++;
@@ -1803,6 +1946,7 @@
     }
 
     function endSession(reason) {
+        auditLogger.endSession(reason || 'session_ended');
         flowEpoch++;
         sessionActive = false;
         speaking = false;
@@ -1837,6 +1981,9 @@
         if (formFlowActive) {
             stopFormFlow();
         }
+        if (auditLogger && auditLogger.sessionId) {
+            auditLogger.endSession(reason || 'session_ended');
+        }
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
         if (reason) showToast(reason);
@@ -1867,11 +2014,11 @@
         wakeWordManager.toggleSleep();
     });
 
+
     console.log('[INIT] All event listeners attached. Form Assistant ready.');
     console.log('[FIX] Prefix-aware delta handling, liveText reset, debounce purge, and confirmation escape hatch are ACTIVE.');
 
     // ---------- COMPANION ORCHESTRATOR CLIENT ----------
-    const COMPANION_BASE = 'http://127.0.0.1:8000';
     const compEl = {
         companionPill: document.getElementById('companionPill'),
         companionStatusText: document.getElementById('companionStatusText'),
@@ -2101,7 +2248,10 @@
             const localeObj = window.__LOCALES__?.[chosen] || {};
             const chosenName = localeObj.name || chosen;
 
+            const oldLang = previousAppLanguage;
             previousAppLanguage = chosen;
+            auditLogger.logParameterChange('language', oldLang, chosen);
+
             const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
             showToast(t('restartingToast', { name: chosenName }) || `Switching to ${chosenName}...`);
 

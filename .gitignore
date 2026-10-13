@@ -6,3 +6,4 @@ companion/user_config.json
 *.log
 PLAN.md
 scratch/*
+audit_logs/*

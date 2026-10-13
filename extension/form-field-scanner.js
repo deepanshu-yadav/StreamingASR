@@ -415,23 +415,52 @@
   //      content script (and its MutationObserver) along with the old DOM,
   //      so it has to be re-injected from outside. See background.js.
 
+  function safeSendMessage(message) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+      try {
+        const p = chrome.runtime.sendMessage(message);
+        if (p && typeof p.catch === 'function') {
+          p.catch((err) => {
+            if (err && err.message && err.message.includes('context invalidated')) {
+              try { observer.disconnect(); } catch (_) {}
+            }
+          });
+        }
+      } catch (err) {
+        try { observer.disconnect(); } catch (_) {}
+      }
+    } else {
+      try { observer.disconnect(); } catch (_) {}
+    }
+  }
+
   let debounceTimer = null;
   function scheduleRescan() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       const result = scanForm();
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage({ type: 'VFF_FIELDS_UPDATED', ...result });
-      }
+      safeSendMessage({ type: 'VFF_FIELDS_UPDATED', ...result });
     }, 400); // batch a burst of DOM writes (e.g. a postback re-render) into one rescan
   }
 
   const observer = new MutationObserver((mutations) => {
-    // Ignore the attribute writes we ourselves make when stamping data-vff-id,
-    // so we don't trigger an infinite scan -> mutate -> scan loop.
-    const relevant = mutations.some(
-      (m) => !(m.type === 'attributes' && m.attributeName === DATA_ATTR)
-    );
+    // Check if extension context is still valid
+    if (typeof chrome !== 'undefined' && chrome.runtime && !chrome.runtime.id) {
+      try { observer.disconnect(); } catch (_) {}
+      return;
+    }
+
+    // Ignore attribute writes we ourselves make (data-vff-id or focus highlight classes)
+    const relevant = mutations.some((m) => {
+      if (m.type === 'attributes' && m.attributeName === DATA_ATTR) return false;
+      if (m.type === 'attributes' && m.attributeName === 'class') {
+        const el = m.target;
+        if (el && el.classList && (el.classList.contains('vff-active-highlight-field') || el.classList.contains('vff-highlighted-field'))) {
+          return false;
+        }
+      }
+      return true;
+    });
     if (relevant) scheduleRescan();
   });
 

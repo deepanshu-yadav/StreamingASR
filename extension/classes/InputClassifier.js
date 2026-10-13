@@ -576,6 +576,7 @@ Respond with a strictly formatted JSON object:
 
             const userPrompt = `Utterance: "${clean}"\nJSON Decision:`;
 
+            const t0 = performance.now();
             try {
                 const resp = await fetch(this.llmUrl, {
                     method: 'POST',
@@ -594,6 +595,7 @@ Respond with a strictly formatted JSON object:
                 if (!resp.ok) throw new Error(`LLM status ${resp.status}`);
                 const data = await resp.json();
                 const rawContent = data?.choices?.[0]?.message?.content || '{}';
+                const llmDurationMs = Math.round(performance.now() - t0);
                 
                 const jsonStr = rawContent.replace(/```json\s*/i, '').replace(/```\s*$/, '').trim();
                 const parsed = JSON.parse(jsonStr);
@@ -627,7 +629,15 @@ Respond with a strictly formatted JSON object:
                     isHistoricalCorrection: type === 'CORRECTION' && targetIdx !== null && targetIdx !== currentFieldIndex,
                     historicalTargetIndex: targetIdx,
                     payload: instructionPayload,
-                    source: 'llm'
+                    source: 'llm',
+                    tier: 2,
+                    llmDetails: {
+                        systemPrompt,
+                        userPrompt,
+                        rawResponse: rawContent,
+                        latencyMs: llmDurationMs,
+                        durationMs: llmDurationMs
+                    }
                 };
             } catch (err) {
                 console.warn('[InputClassifier] LLM classification error, fallback to heuristic:', err);
@@ -643,7 +653,9 @@ Respond with a strictly formatted JSON object:
                     type: fallbackType,
                     confidence: 0.5,
                     payload: isNeg ? '' : clean,
-                    source: 'heuristic_fallback'
+                    source: 'heuristic_fallback',
+                    tier: 1,
+                    latencyMs: Math.round(performance.now() - t0)
                 };
             }
         }
@@ -652,18 +664,25 @@ Respond with a strictly formatted JSON object:
          * Main Entry Point: Two-tier evaluation pipeline
          */
         async classify(text, context = {}) {
+            const startT = performance.now();
             // Tier 1: Instant Heuristics
             const heuristicResult = this.classifyHeuristic(text, context);
             if (heuristicResult && heuristicResult.confidence >= 0.80) {
+                heuristicResult.latencyMs = Math.round(performance.now() - startT);
+                heuristicResult.tier = 1;
+                heuristicResult.source = 'heuristic';
                 console.log(`[InputClassifier] Tier 1 Match (${heuristicResult.type}, conf: ${heuristicResult.confidence}):`, heuristicResult);
                 return heuristicResult;
             }
 
             // Tier 2: LLM Fallback
             console.log('[InputClassifier] Triggering Tier 2 LLM fallback for utterance:', text);
-            return await this.classifyLLM(text, context);
+            const llmResult = await this.classifyLLM(text, context);
+            llmResult.latencyMs = Math.round(performance.now() - startT);
+            return llmResult;
         }
     }
+
 
     if (typeof window !== 'undefined') {
         window.InputClassifier = InputClassifier;

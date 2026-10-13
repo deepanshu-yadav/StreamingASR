@@ -413,6 +413,7 @@ Output ONLY the final clean value. No explanations or quotes.`;
                 userPrompt = `Field: ${fieldLabel}\nPrevious Value: ${cleanOriginal}\nCorrection Instruction: "${normalizedInstruction}"\nCorrected Value:`;
             }
 
+            const t0 = performance.now();
             try {
                 const resp = await fetch(this.llmUrl, {
                     method: 'POST',
@@ -440,6 +441,17 @@ Output ONLY the final clean value. No explanations or quotes.`;
                     if (digits) content = digits;
                 }
 
+                const llmLatencyMs = Math.round(performance.now() - t0);
+                this.lastCorrectionAudit = {
+                    method: 'llm',
+                    systemPrompt: system,
+                    userPrompt: userPrompt,
+                    rawResponse: content,
+                    latencyMs: llmLatencyMs,
+                    beforeValue: cleanOriginal,
+                    afterValue: content
+                };
+
                 if (content && content.toLowerCase() !== cleanOriginal.toLowerCase()) {
                     return content;
                 }
@@ -466,8 +478,18 @@ Output ONLY the final clean value. No explanations or quotes.`;
 
             console.log(`[CorrectionHandler] Applying correction to active field #${currentFieldIndex} ("${currentField?.label}"): baseValue="${baseValue}", instr="${instruction}"`);
 
+            const t0 = performance.now();
             // 1. Try instant deterministic local patch (0ms)
             let corrected = this.applyLocalRegexPatch(baseValue, instruction);
+            if (corrected) {
+                this.lastCorrectionAudit = {
+                    method: 'local_regex',
+                    latencyMs: Math.round(performance.now() - t0),
+                    beforeValue: baseValue,
+                    afterValue: corrected,
+                    instruction
+                };
+            }
 
             // 2. Fallback to LLM patch
             if (!corrected) {
@@ -478,6 +500,15 @@ Output ONLY the final clean value. No explanations or quotes.`;
             const isInstruction = this.isInstructionLike(instruction);
             if (!corrected && !isInstruction && ctx.informationHandler) {
                 corrected = await ctx.informationHandler.processValue(instruction, currentField);
+                if (corrected) {
+                    this.lastCorrectionAudit = {
+                        method: 'direct_value',
+                        latencyMs: Math.round(performance.now() - t0),
+                        beforeValue: baseValue,
+                        afterValue: corrected,
+                        instruction
+                    };
+                }
             }
 
             if (!corrected || corrected === baseValue) {
@@ -494,6 +525,20 @@ Output ONLY the final clean value. No explanations or quotes.`;
             if (ctx.recordCorrection) {
                 ctx.recordCorrection(baseValue, corrected, instruction);
             }
+
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logCorrectionProcessed({
+                    fieldContext: currentField,
+                    previousValue: baseValue,
+                    instruction,
+                    method: this.lastCorrectionAudit?.method || 'local_regex',
+                    llmDetails: this.lastCorrectionAudit?.method === 'llm' ? this.lastCorrectionAudit : null,
+                    finalValue: corrected,
+                    latencyMs: this.lastCorrectionAudit?.latencyMs || Math.round(performance.now() - t0),
+                    isHistoricalCorrection: false
+                });
+            }
+
             ctx.setPendingValue(corrected);
 
             if (ctx.updateSpotlightPreview) {
@@ -523,20 +568,54 @@ Output ONLY the final clean value. No explanations or quotes.`;
             const existingVal = fieldValues[targetField.id]?.value || targetField.currentValue || '';
             console.log(`[CorrectionHandler] Historical correction for #${targetIndex} ("${targetField.label}"), prev="${existingVal}", instr="${instruction}"`);
 
+            const t0 = performance.now();
             // Apply patch
             let corrected = this.applyLocalRegexPatch(existingVal, instruction);
+            if (corrected) {
+                this.lastCorrectionAudit = {
+                    method: 'local_regex',
+                    latencyMs: Math.round(performance.now() - t0),
+                    beforeValue: existingVal,
+                    afterValue: corrected,
+                    instruction
+                };
+            }
+
             if (!corrected) {
                 corrected = await this.correctWithLLM(targetField.label, existingVal, instruction, ctx);
             }
             const isInstruction = this.isInstructionLike(instruction);
             if (!corrected && !isInstruction && ctx.informationHandler) {
                 corrected = await ctx.informationHandler.processValue(instruction, targetField);
+                if (corrected) {
+                    this.lastCorrectionAudit = {
+                        method: 'direct_value',
+                        latencyMs: Math.round(performance.now() - t0),
+                        beforeValue: existingVal,
+                        afterValue: corrected,
+                        instruction
+                    };
+                }
             }
 
             if (!corrected) {
                 const failNotice = `Could not update ${targetField.label}. Please repeat clearly.`;
                 if (ctx.speak) await ctx.speak(failNotice);
                 return;
+            }
+
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logCorrectionProcessed({
+                    fieldContext: targetField,
+                    previousValue: existingVal,
+                    instruction,
+                    method: this.lastCorrectionAudit?.method || 'local_regex',
+                    llmDetails: this.lastCorrectionAudit?.method === 'llm' ? this.lastCorrectionAudit : null,
+                    finalValue: corrected,
+                    latencyMs: this.lastCorrectionAudit?.latencyMs || Math.round(performance.now() - t0),
+                    isHistoricalCorrection: true,
+                    historicalTargetIndex: targetIndex
+                });
             }
 
             // Update past field in state and DOM

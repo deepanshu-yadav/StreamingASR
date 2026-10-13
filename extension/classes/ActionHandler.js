@@ -46,6 +46,14 @@
 
             console.log(`[ActionHandler] Jumping from #${currentFieldIndex} ("${currentField?.label}") to #${targetIndex} ("${targetField.label}")`);
 
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logActionExecuted({
+                    verb: 'JUMP',
+                    targetIndex,
+                    context: { fromIndex: currentFieldIndex, toIndex: targetIndex, targetLabel: targetField?.label }
+                });
+            }
+
             // Edge Case: Unconfirmed Abandonment
             let tentativeNotice = '';
             if (pendingFieldValue && currentField && (!fieldValues[currentField.id] || !fieldValues[currentField.id].confirmed)) {
@@ -104,6 +112,14 @@
 
             console.log(`[ActionHandler] Skipping field #${currentFieldIndex} ("${currentField?.label}")`);
 
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logActionExecuted({
+                    verb: 'SKIP',
+                    targetIndex: currentFieldIndex,
+                    context: { fieldId: currentField?.id, label: currentField?.label }
+                });
+            }
+
             if (currentField) {
                 fieldValues[currentField.id] = {
                     ...(fieldValues[currentField.id] || {}),
@@ -156,6 +172,13 @@
          */
         async handlePrevious(ctx) {
             const { currentFieldIndex } = ctx;
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logActionExecuted({
+                    verb: 'PREVIOUS',
+                    targetIndex: currentFieldIndex > 0 ? currentFieldIndex - 1 : 0,
+                    context: { fromIndex: currentFieldIndex }
+                });
+            }
             if (currentFieldIndex > 0) {
                 if (ctx.askField) await ctx.askField(currentFieldIndex - 1);
             } else {
@@ -172,6 +195,13 @@
          */
         async handleRepeat(ctx) {
             const { currentFieldIndex } = ctx;
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logActionExecuted({
+                    verb: 'REPEAT',
+                    targetIndex: currentFieldIndex,
+                    context: { fieldIndex: currentFieldIndex }
+                });
+            }
             if (ctx.askField) {
                 await ctx.askField(currentFieldIndex, true);
             }
@@ -182,6 +212,9 @@
          */
         async handlePause(ctx) {
             console.log('[ActionHandler] Pausing voice session');
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logActionExecuted({ verb: 'PAUSE', context: {} });
+            }
             const dict = this.getDict();
             const pauseMsg = dict.sessionPaused || 'Voice session paused. Say resume or your wake word to continue.';
             if (ctx.speak) {
@@ -197,6 +230,9 @@
          */
         async handleSubmit(ctx) {
             const { scannedFields, fieldValues } = ctx;
+            if (ctx.auditLogger) {
+                ctx.auditLogger.logActionExecuted({ verb: 'SUBMIT', context: {} });
+            }
             const dict = this.getDict();
 
             // Check for missing required fields

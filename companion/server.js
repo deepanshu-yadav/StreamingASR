@@ -16,6 +16,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { AssetDownloader } = require('./downloader');
 const { ProcessManager, LANGUAGE_CONFIG } = require('./process_manager');
+const { AuditManager } = require('./audit_manager');
 
 const PORT = 8000;
 const TTS_HOST = '127.0.0.1';
@@ -48,6 +49,7 @@ console.log(`[Companion] Static UI dir:  ${STATIC_DIR}`);
 
 const downloader = new AssetDownloader(ROOT_DIR);
 const processManager = new ProcessManager(ROOT_DIR, downloader);
+const auditManager = new AuditManager(ROOT_DIR, path.resolve(__dirname, '..'));
 
 function setCors(res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -333,6 +335,125 @@ const server = http.createServer(async (req, res) => {
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(logs));
+        return;
+    }
+
+    // ==========================================
+    // 7b. AUDIT LOGGING REST APIS
+    // ==========================================
+    if (pathname === '/api/audit/session/start' && req.method === 'POST') {
+        const chunks = [];
+        req.on('data', c => chunks.push(c));
+        req.on('end', () => {
+            try {
+                const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+                const sessionResult = auditManager.startSession(body);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, session: sessionResult }));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+        return;
+    }
+
+    if (pathname === '/api/audit/event' && req.method === 'POST') {
+        const chunks = [];
+        req.on('data', c => chunks.push(c));
+        req.on('end', () => {
+            try {
+                const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+                const sessionId = body.sessionId;
+                if (!sessionId) throw new Error('sessionId is required');
+                const logged = auditManager.appendEvent(sessionId, body.event || body);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, event: logged }));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+        return;
+    }
+
+    if (pathname === '/api/audit/batch' && req.method === 'POST') {
+        const chunks = [];
+        req.on('data', c => chunks.push(c));
+        req.on('end', () => {
+            try {
+                const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+                const sessionId = body.sessionId;
+                const events = body.events || [];
+                if (!sessionId) throw new Error('sessionId is required');
+                const loggedBatch = auditManager.appendBatch(sessionId, events);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, count: loggedBatch.length }));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+        return;
+    }
+
+    if (pathname === '/api/audit/session/end' && req.method === 'POST') {
+        const chunks = [];
+        req.on('data', c => chunks.push(c));
+        req.on('end', async () => {
+            try {
+                const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+                const sessionId = body.sessionId;
+                if (!sessionId) throw new Error('sessionId is required');
+                const summary = await auditManager.endSession(sessionId, body.summary || {});
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, summary }));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+        return;
+    }
+
+    if (pathname === '/api/audit/sessions' && req.method === 'GET') {
+        const sessions = auditManager.listSessions();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ sessions }));
+        return;
+    }
+
+    if (pathname.startsWith('/api/audit/sessions/') && req.method === 'GET') {
+        const targetSessionId = pathname.replace(/^\/api\/audit\/sessions\//, '').trim();
+        const format = parsedUrl.searchParams.get('format') || 'log';
+        const fileData = auditManager.getSessionContent(targetSessionId, format);
+        if (!fileData) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Session log not found' }));
+            return;
+        }
+
+        const contentType = format === 'jsonl' ? 'text/plain; charset=utf-8' : (format === 'summary' ? 'application/json' : 'text/plain; charset=utf-8');
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(fileData.content);
+        return;
+    }
+
+    if (pathname.startsWith('/api/audit/download/') && req.method === 'GET') {
+        const targetSessionId = pathname.replace(/^\/api\/audit\/download\//, '').trim();
+        const format = parsedUrl.searchParams.get('format') || 'log';
+        const fileData = auditManager.getSessionContent(targetSessionId, format);
+        if (!fileData) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Session log not found' }));
+            return;
+        }
+
+        res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${fileData.filename}"`
+        });
+        res.end(fileData.content);
         return;
     }
 
