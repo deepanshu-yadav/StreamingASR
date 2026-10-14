@@ -30,10 +30,17 @@
 
     const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
 
-    // 1. Immediately trigger the registered protocol handler
-    setTimeout(() => {
+    // 1. Trigger the registered protocol handler and ensure manual button is focused
+    if (manualLink) {
+        manualLink.focus();
+        manualLink.addEventListener('click', (e) => {
+            window.location.href = 'voice-companion://start';
+        });
+    }
+
+    try {
         window.location.href = 'voice-companion://start';
-    }, 250);
+    } catch (_) { }
 
     // 2. Poll the companion status endpoint
     let pollInterval = null;

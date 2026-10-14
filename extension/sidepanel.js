@@ -334,13 +334,21 @@
 
     function ensureTTSContext() {
         const TTS_SAMPLE_RATE = 22050;
-        if (!ttsPlaybackCtx || ttsPlaybackCtx.state === 'closed') {
-            ttsPlaybackCtx = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: TTS_SAMPLE_RATE
-            });
-        }
-        if (ttsPlaybackCtx.state === 'suspended') {
-            ttsPlaybackCtx.resume().catch((err) => console.warn('[TTS] AudioContext resume failed:', err));
+        try {
+            if (!ttsPlaybackCtx || ttsPlaybackCtx.state === 'closed') {
+                try {
+                    ttsPlaybackCtx = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: TTS_SAMPLE_RATE
+                    });
+                } catch (e) {
+                    ttsPlaybackCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            if (ttsPlaybackCtx && ttsPlaybackCtx.state === 'suspended') {
+                ttsPlaybackCtx.resume().catch((err) => console.warn('[TTS] AudioContext resume failed:', err));
+            }
+        } catch (err) {
+            console.warn('[TTS] ensureTTSContext error:', err);
         }
         return ttsPlaybackCtx;
     }
@@ -940,7 +948,13 @@
     async function getActiveTab() {
         if (typeof chrome === 'undefined' || !chrome.tabs || !chrome.tabs.query) return null;
         try {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            let tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tabs || tabs.length === 0) {
+                tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+            }
+            if (!tabs || tabs.length === 0) {
+                tabs = await chrome.tabs.query({ active: true });
+            }
             return tabs && tabs.length > 0 ? tabs[0] : null;
         } catch (err) {
             console.warn('[VFF] getActiveTab error:', err);
@@ -1016,11 +1030,11 @@
         auditLogger.logFieldsScanned(scannedFields, { url: response.url || currentScannedUrl, pageTitle: tab.title || '', tabId: tab.id });
         if (scannedFields.length === 0) {
             setFormScanBadge('ready', t('fieldsZeroBadge'));
-            if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = true;
+            if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = formFlowActive;
             if (showToastNotice) showToast(t('noFieldsFound'));
         } else {
             setFormScanBadge('success', t('fieldsScannedBadge', { count: scannedFields.length }));
-            if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
+            if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = formFlowActive;
             if (showToastNotice) showToast(t('fieldsScannedSuccess', { count: scannedFields.length }));
         }
         renderScannedFieldsList();
@@ -1054,7 +1068,7 @@
         scannedFields = msg.fields;
         const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
         setFormScanBadge('success', t('fieldsScannedBadge', { count: scannedFields.length }));
-        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
+        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = formFlowActive;
         renderScannedFieldsList();
         if (formFlowActive && currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length) {
             // Re-highlight active field if DOM mutated
@@ -1089,18 +1103,45 @@
     }
 
     async function startFormFlow() {
+        const tab = await getActiveTab();
+        // 1. Immediately ensure audit session is active on click
+        if (!auditLogger.sessionId) {
+            auditLogger.startSession({
+                url: tab?.url || currentScannedUrl,
+                pageTitle: tab?.title || '',
+                tabId: tab?.id || currentScannedTabId,
+                language: currentLanguage
+            }, getParametersSnapshot());
+        }
+        auditLogger.recordEvent('FLOW', 'START_FLOW_INVOKED', {
+            url: tab?.url || currentScannedUrl,
+            scannedFieldsCount: scannedFields.length
+        });
+
+        // 2. Auto-scan if fields have not been scanned yet
         if (scannedFields.length === 0) {
-            await scanActivePage(false);
+            await scanActivePage(true);
             if (scannedFields.length === 0) {
-                showToast(window.i18n ? window.i18n.t('noFieldsFound') : 'No fields found');
+                const isInternal = tab?.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:'));
+                const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+                const msg = isInternal
+                    ? t('cannotScanInternalToast')
+                    : t('noFieldsFound');
+                showToast(msg);
+                auditLogger.recordEvent('FLOW', 'START_FLOW_ABORTED', { reason: msg, url: tab?.url });
                 return;
             }
         }
 
-        // Auto-start microphone session if not running
+        // 3. Auto-start microphone session if not running
         if (!sessionActive) {
             console.log('[VFF] Starting mic session for form fill');
             await startSession();
+            if (!sessionActive) {
+                console.warn('[VFF] Microphone session failed to start');
+                auditLogger.recordEvent('FLOW', 'MIC_START_FAILED');
+                return;
+            }
         }
 
         sessionPaused = false;
@@ -1120,7 +1161,7 @@
     function stopFormFlow() {
         sessionPaused = false;
         formFlowActive = false;
-        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
+        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'none';
         if (currentScannedTabId) {
@@ -1985,7 +2026,7 @@
             auditLogger.endSession(reason || 'session_ended');
         }
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
-        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = scannedFields.length === 0;
+        if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
         if (reason) showToast(reason);
         else showToast(window.i18n ? window.i18n.t('sessionEndedToast') : 'Session ended');
         if (!liveText) resetLiveLine(window.i18n ? window.i18n.t('transcriptIdle') : 'Click "Fill with Voice" to begin…');
@@ -2123,7 +2164,7 @@
             updateCard(compEl.svcLlm, data.services?.llm?.live);
 
             if (data.allReady) {
-                if (el.btnStartFormFlow && scannedFields.length > 0 && !formFlowActive) {
+                if (el.btnStartFormFlow && !formFlowActive) {
                     el.btnStartFormFlow.disabled = false;
                 }
             }
@@ -2280,13 +2321,26 @@
         scanActivePage(false);
     }, 600);
 
-    // Auto-rescan on tab switch if not currently in active form fill flow
-    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onActivated) {
-        chrome.tabs.onActivated.addListener(() => {
-            if (!formFlowActive) {
-                scanActivePage(false);
-            }
-        });
+    // Auto-rescan on tab switch or page navigation if not currently in active form fill flow
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+        if (chrome.tabs.onActivated) {
+            chrome.tabs.onActivated.addListener(() => {
+                if (!formFlowActive) {
+                    scanActivePage(false);
+                }
+            });
+        }
+        if (chrome.tabs.onUpdated) {
+            chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+                if (changeInfo.status === 'complete' && !formFlowActive) {
+                    getActiveTab().then((activeTab) => {
+                        if (activeTab && activeTab.id === tabId) {
+                            scanActivePage(false);
+                        }
+                    });
+                }
+            });
+        }
     }
 
 })();
