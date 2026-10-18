@@ -187,6 +187,9 @@
                 if (ctx.speak) {
                     await ctx.speak(dict.firstFieldSpoken || 'This is the first field.');
                 }
+                if (ctx.askField) {
+                    await ctx.askField(0, true);
+                }
             }
         }
 

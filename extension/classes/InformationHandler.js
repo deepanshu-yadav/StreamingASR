@@ -275,19 +275,28 @@
             const system = prompts.extractorSystem || 'Extract ONLY the literal value for the form field from the user spoken input. Remove all conversational filler in any language. Output ONLY the extracted value without quotes, markdown, or explanation.';
             const user = prompts.extractorUser ? prompts.extractorUser(fieldLabel, spokenText) : `Field: ${fieldLabel}\nSpoken: "${spokenText}"\nClean Value:`;
 
-            const resp = await fetch(this.llmUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [
-                        { role: 'system', content: system },
-                        { role: 'user', content: user }
-                    ],
-                    temperature: 0.1,
-                    max_tokens: 100,
-                    stream: false
-                })
-            });
+            const abortCtrl = new AbortController();
+            const timeoutTimer = setTimeout(() => abortCtrl.abort(), 3500);
+
+            let resp;
+            try {
+                resp = await fetch(this.llmUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [
+                            { role: 'system', content: system },
+                            { role: 'user', content: user }
+                        ],
+                        temperature: 0.1,
+                        max_tokens: 100,
+                        stream: false
+                    }),
+                    signal: abortCtrl.signal
+                });
+            } finally {
+                clearTimeout(timeoutTimer);
+            }
 
             if (!resp.ok) throw new Error(`LLM error ${resp.status}`);
             const data = await resp.json();

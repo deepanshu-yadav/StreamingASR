@@ -269,6 +269,11 @@ class ProcessManager {
             // Wait for port 8089 to become ready
             const ready = await this.waitForPort(8089, 20000);
             svc.status = ready ? 'ready' : 'error';
+            if (ready) {
+                console.log(`[ProcessManager] TTS listening on http://127.0.0.1:8089 (Ready)`);
+            } else {
+                console.error(`[ProcessManager] TTS failed to start on port 8089 within timeout`);
+            }
             return ready;
         } catch (err) {
             this.addLog('tts', `[ERROR] Failed to spawn: ${err.message}`);
@@ -340,6 +345,11 @@ class ProcessManager {
             // Wait for WS port 8081 to become ready
             const ready = await this.waitForPort(8081, 25000);
             svc.status = ready ? 'ready' : 'error';
+            if (ready) {
+                console.log(`[ProcessManager] ASR listening on ws://127.0.0.1:8081 (Ready, lang=${langConfig.asrLang})`);
+            } else {
+                console.error(`[ProcessManager] ASR failed to start on ws://127.0.0.1:8081 within timeout`);
+            }
             return ready;
         } catch (err) {
             this.addLog('asr', `[ERROR] Failed to spawn: ${err.message}`);
@@ -395,6 +405,11 @@ class ProcessManager {
             // Wait for port 8084 to become ready
             const ready = await this.waitForPort(8084, 30000);
             svc.status = ready ? 'ready' : 'error';
+            if (ready) {
+                console.log(`[ProcessManager] LLM listening on http://127.0.0.1:8084 (Ready)`);
+            } else {
+                console.error(`[ProcessManager] LLM failed to start on port 8084 within timeout`);
+            }
             return ready;
         } catch (err) {
             this.addLog('llm', `[ERROR] Failed to spawn: ${err.message}`);
@@ -407,17 +422,20 @@ class ProcessManager {
      * Starts all 3 services concurrently.
      */
     async startAll() {
+        console.log('[ProcessManager] Starting all backend services (ASR, TTS, LLM)...');
         const results = await Promise.all([
             this.startTTS(),
             this.startASR(),
             this.startLLM()
         ]);
 
+        const allReady = results.every(Boolean);
+        console.log(`[ProcessManager] All services ready: ${allReady ? 'YES (All 3 live)' : 'NO (Check logs)'}`);
         return {
             tts: results[0],
             asr: results[1],
             llm: results[2],
-            allReady: results.every(Boolean)
+            allReady
         };
     }
 
@@ -603,6 +621,7 @@ class ProcessManager {
             await this.startTTS(true);
         }
 
+        console.log(`[ProcessManager] Language switch to "${lang}" complete. All active services ready.`);
         return { changed: true, previousLanguage: prev, language: this.currentLanguage };
     }
 

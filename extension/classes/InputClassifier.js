@@ -352,8 +352,9 @@
                 };
             }
 
-            // 5. In confirmation states, check explicit Confirmation before generic skip phrases
-            if (flowState === 'form_awaiting_confirmation' || flowState === 'confirming') {
+            // 5. In confirmation states or when active field has a tentative value, check explicit Confirmation
+            const hasCandidateValue = !!(pendingFieldValue || context.originalValue || (currentField && context.fieldValues?.[currentField.id]?.value) || (currentField && context.fieldValues?.[currentField.id]?.tentative));
+            if (flowState === 'form_awaiting_confirmation' || flowState === 'confirming' || hasCandidateValue) {
                 const hasExplicitNav = matchPhrase(lower, heuristics.navPrefixes) || matchPhrase(lower, heuristics.navSuffixes);
 
                 if (!hasExplicitNav) {
@@ -548,7 +549,7 @@
          */
         async classifyLLM(text, context = {}) {
             const clean = this.cleanText(text);
-            const { currentFieldIndex = 0, scannedFields = [], flowState = '' } = context;
+            const { currentFieldIndex = 0, scannedFields = [], flowState = '', signal = null } = context;
             const currentField = scannedFields[currentFieldIndex] || null;
 
             const fieldsSummary = scannedFields.map((f, i) => `#${i + 1} "${f.label}" (${f.type})`).join(', ');
@@ -577,6 +578,19 @@ Respond with a strictly formatted JSON object:
             const userPrompt = `Utterance: "${clean}"\nJSON Decision:`;
 
             const t0 = performance.now();
+            const timeoutController = new AbortController();
+            const timeoutTimer = setTimeout(() => timeoutController.abort(), 2500);
+
+            let fetchSignal;
+            if (signal && typeof AbortSignal.any === 'function') {
+                fetchSignal = AbortSignal.any([signal, timeoutController.signal]);
+            } else if (signal) {
+                signal.addEventListener('abort', () => timeoutController.abort(), { once: true });
+                fetchSignal = timeoutController.signal;
+            } else {
+                fetchSignal = timeoutController.signal;
+            }
+
             try {
                 const resp = await fetch(this.llmUrl, {
                     method: 'POST',
@@ -589,8 +603,10 @@ Respond with a strictly formatted JSON object:
                         temperature: 0.1,
                         max_tokens: 150,
                         stream: false
-                    })
+                    }),
+                    signal: fetchSignal
                 });
+                clearTimeout(timeoutTimer);
 
                 if (!resp.ok) throw new Error(`LLM status ${resp.status}`);
                 const data = await resp.json();
@@ -640,7 +656,19 @@ Respond with a strictly formatted JSON object:
                     }
                 };
             } catch (err) {
-                console.warn('[InputClassifier] LLM classification error, fallback to heuristic:', err);
+                clearTimeout(timeoutTimer);
+                if (signal && signal.aborted) {
+                    console.warn('[InputClassifier] Turn aborted during LLM classification');
+                    return {
+                        type: 'ABORTED',
+                        confidence: 0,
+                        payload: '',
+                        source: 'aborted',
+                        tier: 2,
+                        latencyMs: Math.round(performance.now() - t0)
+                    };
+                }
+                console.warn('[InputClassifier] LLM classification timed out or failed, falling back to heuristic:', err);
                 const lowerClean = clean.toLowerCase();
                 const heuristics = this.getHeuristics();
                 const isNeg = matchPhrase(lowerClean, heuristics.negationWords);
@@ -665,6 +693,9 @@ Respond with a strictly formatted JSON object:
          */
         async classify(text, context = {}) {
             const startT = performance.now();
+            if (context.signal && context.signal.aborted) {
+                return { type: 'ABORTED', confidence: 0, payload: '', source: 'aborted', tier: 1, latencyMs: 0 };
+            }
             // Tier 1: Instant Heuristics
             const heuristicResult = this.classifyHeuristic(text, context);
             if (heuristicResult && heuristicResult.confidence >= 0.80) {

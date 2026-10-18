@@ -23,6 +23,20 @@
     const auditLogger = new (window.AuditLogger || AuditLogger)({ companionUrl: COMPANION_BASE });
     if (typeof window !== 'undefined') window.auditLogger = auditLogger;
 
+    // Multilingual runtime state & helper
+    let previousAppLanguage = 'hi-IN';
+    let isSyncingLanguage = false;
+
+    function getCurrentLanguage() {
+        if (window.i18n && typeof window.i18n.getLanguage === 'function') {
+            return window.i18n.getLanguage();
+        }
+        if (typeof el !== 'undefined' && el && el.languageSelect) {
+            return el.languageSelect.value;
+        }
+        return previousAppLanguage || 'hi-IN';
+    }
+
     function getParametersSnapshot() {
         return {
             CONFIRM_DEBOUNCE_MS,
@@ -38,7 +52,7 @@
             CHUNK_MS,
             wsUrl: el.wsUrl ? el.wsUrl.value : 'ws://127.0.0.1:8081',
             llmUrl: el.llmUrl ? el.llmUrl.value : 'http://127.0.0.1:8000/v1/chat/completions',
-            language: el.languageSelect ? el.languageSelect.value : (window.i18n ? window.i18n.getLanguage() : 'hi-IN')
+            language: getCurrentLanguage()
         };
     }
 
@@ -239,6 +253,24 @@
     let pendingTranscript = '';
     let transcriptQueue = [];
     let flowEpoch = 0;
+    let currentTurnAbortController = null;
+
+    /**
+     * SOTA Epoch Invalidation & Turn Advancement
+     * Atomic cancellation of in-flight LLM/routing operations on turn boundaries
+     */
+    function advanceTurnEpoch(reason = 'turn_advance') {
+        flowEpoch++;
+        console.log(`[VFF Turn] Advance turn epoch to ${flowEpoch} (Reason: ${reason})`);
+        if (currentTurnAbortController) {
+            try { currentTurnAbortController.abort(); } catch (e) {}
+        }
+        currentTurnAbortController = new AbortController();
+        clearDebounceBuffers();
+        transcriptQueue = [];
+        isRoutingTranscript = false;
+    }
+
     let ttsPlaying = false,
         ttsAbortController = null,
         ttsPlaybackCtx = null,
@@ -258,17 +290,31 @@
 
     // ---------- QUEUE ----------
     function queueTranscript(text) {
-        transcriptQueue.push(text);
+        transcriptQueue.push({
+            text,
+            epoch: flowEpoch,
+            fieldIndex: currentFieldIndex,
+            timestamp: Date.now()
+        });
         showToast(window.i18n ? window.i18n.t('pleaseWaitToast') : 'Please wait, processing…');
     }
 
     function drainTranscriptQueue() {
-        if (transcriptQueue.length === 0) return;
-        const text = transcriptQueue.shift();
-        if (formFlowActive) {
-            routeTranscript(text);
-        } else {
-            transcriptQueue.unshift(text);
+        if (transcriptQueue.length === 0 || isRoutingTranscript) return;
+        while (transcriptQueue.length > 0) {
+            const item = transcriptQueue.shift();
+            // Discard items from past epochs, stale fields, or aged beyond 12s
+            if (item.epoch !== flowEpoch || item.fieldIndex !== currentFieldIndex || (Date.now() - item.timestamp > 12000)) {
+                console.log(`[VFF Queue] Discarding stale transcript "${item.text}" from obsolete turn (item epoch: ${item.epoch}, field: #${item.fieldIndex} vs current epoch: ${flowEpoch}, field: #${currentFieldIndex})`);
+                continue;
+            }
+            if (formFlowActive) {
+                routeTranscript(item.text);
+                break;
+            } else {
+                transcriptQueue.unshift(item);
+                break;
+            }
         }
     }
 
@@ -833,6 +879,8 @@
             },
             tabId: currentScannedTabId,
             flowState,
+            signal: currentTurnAbortController?.signal,
+            turnEpoch: flowEpoch,
             speak,
             askField,
             finishFormFlow,
@@ -1024,7 +1072,7 @@
                 url: response.url || currentScannedUrl,
                 pageTitle: tab.title || '',
                 tabId: tab.id,
-                language: currentLanguage
+                language: getCurrentLanguage()
             }, getParametersSnapshot());
         }
         auditLogger.logFieldsScanned(scannedFields, { url: response.url || currentScannedUrl, pageTitle: tab.title || '', tabId: tab.id });
@@ -1090,6 +1138,7 @@
 
     async function selectField(index) {
         if (index < 0 || index >= scannedFields.length) return;
+        advanceTurnEpoch(`selectField_${index}`);
         if (formFlowActive) {
             await actionHandler.handleJump(index, getActionContext());
         } else {
@@ -1104,15 +1153,18 @@
 
     async function startFormFlow() {
         const tab = await getActiveTab();
-        // 1. Immediately ensure audit session is active on click
-        if (!auditLogger.sessionId) {
-            auditLogger.startSession({
-                url: tab?.url || currentScannedUrl,
-                pageTitle: tab?.title || '',
-                tabId: tab?.id || currentScannedTabId,
-                language: currentLanguage
-            }, getParametersSnapshot());
+        // 1. Cleanly end any previous audit session in background
+        if (auditLogger.sessionId) {
+            auditLogger.endSession('NEW_FLOW_STARTING').catch(() => {});
         }
+        // Always create a fresh, clean audit session for every form-fill run
+        auditLogger.startSession({
+            url: tab?.url || currentScannedUrl,
+            pageTitle: tab?.title || '',
+            tabId: tab?.id || currentScannedTabId,
+            language: getCurrentLanguage()
+        }, getParametersSnapshot());
+
         auditLogger.recordEvent('FLOW', 'START_FLOW_INVOKED', {
             url: tab?.url || currentScannedUrl,
             scannedFieldsCount: scannedFields.length
@@ -1140,6 +1192,7 @@
             if (!sessionActive) {
                 console.warn('[VFF] Microphone session failed to start');
                 auditLogger.recordEvent('FLOW', 'MIC_START_FAILED');
+                showToast(window.i18n ? window.i18n.t('micPermTabOpened') : 'Please allow Microphone permission (click "🎤 Mic Permission" above)');
                 return;
             }
         }
@@ -1159,6 +1212,10 @@
     }
 
     function stopFormFlow() {
+        advanceTurnEpoch('STOP_FORM_FLOW');
+        if (auditLogger.sessionId) {
+            auditLogger.endSession('USER_STOPPED').catch(() => {});
+        }
         sessionPaused = false;
         formFlowActive = false;
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
@@ -1174,7 +1231,11 @@
     }
 
     async function finishFormFlow() {
+        advanceTurnEpoch('FINISH_FORM_FLOW');
         formFlowActive = false;
+        if (auditLogger.sessionId) {
+            auditLogger.endSession('ALL_FIELDS_COMPLETED').catch(() => {});
+        }
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'none';
@@ -1197,7 +1258,7 @@
             return;
         }
 
-        const prevField = (currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length)
+        const prevField = (currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length && currentFieldIndex !== index)
             ? {
                 index: currentFieldIndex,
                 ...scannedFields[currentFieldIndex],
@@ -1206,9 +1267,12 @@
               }
             : null;
 
+        // Atomic Turn Advancement & Epoch Invalidation
+        advanceTurnEpoch(`askField_${index}`);
         currentFieldIndex = index;
         const f = scannedFields[index];
         const myEpoch = flowEpoch;
+        const myFieldIndex = index;
         const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
         const dict = window.i18n ? window.i18n.getDictation() : {};
 
@@ -1272,7 +1336,7 @@
         flowState = 'busy';
         clearDebounceBuffers();
         await speak(prompt);
-        if (myEpoch !== flowEpoch) return;
+        if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex) return;
 
         if (existingVal) {
             pendingFieldValue = existingVal;
@@ -1307,6 +1371,7 @@
         isRoutingTranscript = true;
         try {
             const myEpoch = flowEpoch;
+            const myFieldIndex = currentFieldIndex;
             clearDebounceBuffers();
             const clean = stripTags(text).trim();
             if (!clean) return;
@@ -1316,120 +1381,137 @@
                 return;
             }
 
-        console.log(`[VFF Router] Routing transcript: "${clean}", flowState=${flowState}, activeField=#${currentFieldIndex} ("${scannedFields[currentFieldIndex]?.label}")`);
+            console.log(`[VFF Router] Routing transcript: "${clean}", flowState=${flowState}, activeField=#${currentFieldIndex} ("${scannedFields[currentFieldIndex]?.label}")`);
 
-        const ctx = getActionContext();
-        const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+            const ctx = getActionContext();
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
 
-        // State indicator while classifying
-        flowState = 'evaluating_intent';
-        setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
+            // State indicator while classifying
+            flowState = 'evaluating_intent';
+            setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
 
-        const classified = await inputClassifier.classify(clean, ctx);
-        if (myEpoch !== flowEpoch) return;
+            const classified = await inputClassifier.classify(clean, { ...ctx, signal: currentTurnAbortController?.signal });
+            
+            // SOTA Guard: Discard stale result if field changed or epoch bumped during classification
+            if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex || classified?.type === 'ABORTED') {
+                console.warn(`[VFF Router] Dropping stale/aborted intent classification (turn epoch: ${myEpoch} vs ${flowEpoch}, field #${myFieldIndex} vs #${currentFieldIndex})`);
+                return;
+            }
 
-        // Audit Log: Classified Intent with latency & details
-        auditLogger.logIntentClassified({
-            inputText: clean,
-            fieldContext: scannedFields[currentFieldIndex],
-            tier: classified.tier || (classified.source === 'llm' ? 2 : 1),
-            source: classified.source || 'heuristic',
-            heuristicDetails: classified.source === 'heuristic' ? classified : null,
-            llmDetails: classified.llmDetails || null,
-            classifiedIntent: classified,
-            latencyMs: classified.latencyMs || 0
-        });
+            // Audit Log: Classified Intent with latency & details
+            auditLogger.logIntentClassified({
+                inputText: clean,
+                fieldContext: scannedFields[currentFieldIndex],
+                tier: classified.tier || (classified.source === 'llm' ? 2 : 1),
+                source: classified.source || 'heuristic',
+                heuristicDetails: classified.source === 'heuristic' ? classified : null,
+                llmDetails: classified.llmDetails || null,
+                classifiedIntent: classified,
+                latencyMs: classified.latencyMs || 0
+            });
 
-        console.log('[VFF Router] Intent result:', classified);
+            console.log('[VFF Router] Intent result:', classified);
 
-        switch (classified.type) {
-            case 'ACTION': {
-                const verb = classified.action?.verb;
-                if (verb === 'JUMP') {
-                    const targetIdx = classified.action.targetIndex;
-                    await actionHandler.handleJump(targetIdx, ctx);
-                } else if (verb === 'SKIP') {
-                    await actionHandler.handleSkip(ctx);
-                } else if (verb === 'PREVIOUS') {
-                    await actionHandler.handlePrevious(ctx);
-                } else if (verb === 'REPEAT') {
-                    await actionHandler.handleRepeat(ctx);
-                } else if (verb === 'PAUSE') {
-                    await actionHandler.handlePause(ctx);
-                } else if (verb === 'SUBMIT') {
-                    await actionHandler.handleSubmit(ctx);
-                } else {
-                    console.warn('[VFF Router] Unknown action verb:', verb);
-                    await actionHandler.handleSkip(ctx);
+            switch (classified.type) {
+                case 'ACTION': {
+                    const verb = classified.action?.verb;
+                    if (verb === 'JUMP') {
+                        const targetIdx = classified.action.targetIndex;
+                        await actionHandler.handleJump(targetIdx, ctx);
+                    } else if (verb === 'SKIP') {
+                        await actionHandler.handleSkip(ctx);
+                    } else if (verb === 'PREVIOUS') {
+                        await actionHandler.handlePrevious(ctx);
+                    } else if (verb === 'REPEAT') {
+                        await actionHandler.handleRepeat(ctx);
+                    } else if (verb === 'PAUSE') {
+                        await actionHandler.handlePause(ctx);
+                    } else if (verb === 'SUBMIT') {
+                        await actionHandler.handleSubmit(ctx);
+                    } else {
+                        console.warn('[VFF Router] Unknown action verb:', verb);
+                        await actionHandler.handleSkip(ctx);
+                    }
+                    break;
                 }
-                break;
-            }
 
-            case 'CONFIRMATION': {
-                await confirmCurrentField();
-                break;
-            }
+                case 'CONFIRMATION': {
+                    await confirmCurrentField();
+                    break;
+                }
 
-            case 'CORRECTION': {
-                flowState = 'correcting';
-                setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
+                case 'CORRECTION': {
+                    flowState = 'correcting';
+                    setTurnMode('finalizing', t('spotlightPhaseEvaluating'));
 
-                if (classified.isHistoricalCorrection && classified.historicalTargetIndex !== undefined) {
-                    // Historical / cross-field correction
-                    await correctionHandler.applyHistoricalCorrection(
-                        classified.historicalTargetIndex,
-                        classified.payload,
-                        ctx
-                    );
-                    // Return to listening on current field
-                    flowState = 'form_awaiting_input';
-                    setTurnMode('listening', scannedFields[currentFieldIndex]?.label || '');
-                    resetLiveLine(t('transcriptListeningPrompt', { label: scannedFields[currentFieldIndex]?.label || '' }));
-                    drainTranscriptQueue();
-                } else {
-                    // Active field correction
-                    if (!classified.payload || !classified.payload.trim()) {
-                        // Pure rejection ("it's wrong", "that is wrong", "गलत है") -> clear bad value and ask for new value
-                        const f = scannedFields[currentFieldIndex];
-                        const dict = window.i18n ? window.i18n.getDictation() : {};
-                        pendingFieldValue = '';
-                        if (el.spotlightValue) {
-                            el.spotlightValue.textContent = '';
-                            el.spotlightValue.classList.add('empty');
-                        }
-                        if (f && fieldValues[f.id]?.tentative) {
-                            delete fieldValues[f.id];
-                            renderScannedFieldsList();
-                        }
-                        flowState = 'busy';
-                        await speak(dict.askCorrection ? dict.askCorrection(f?.label) : `Please state the correction for ${f?.label}.`);
-                        if (myEpoch !== flowEpoch) return;
+                    if (classified.isHistoricalCorrection && classified.historicalTargetIndex !== undefined) {
+                        // Historical / cross-field correction
+                        await correctionHandler.applyHistoricalCorrection(
+                            classified.historicalTargetIndex,
+                            classified.payload,
+                            ctx
+                        );
+                        // Return to listening on current field
                         flowState = 'form_awaiting_input';
-                        setTurnMode('listening', f?.label || '');
-                        resetLiveLine(t('transcriptListeningPrompt', { label: f?.label || '' }));
+                        setTurnMode('listening', scannedFields[currentFieldIndex]?.label || '');
+                        resetLiveLine(t('transcriptListeningPrompt', { label: scannedFields[currentFieldIndex]?.label || '' }));
                         drainTranscriptQueue();
                     } else {
-                        await correctionHandler.applyCurrentFieldCorrection(classified.payload, ctx);
+                        // Active field correction
+                        if (!classified.payload || !classified.payload.trim()) {
+                            // Pure rejection ("it's wrong", "that is wrong", "गलत है") -> clear bad value and ask for new value
+                            const f = scannedFields[currentFieldIndex];
+                            const dict = window.i18n ? window.i18n.getDictation() : {};
+                            pendingFieldValue = '';
+                            if (el.spotlightValue) {
+                                el.spotlightValue.textContent = '';
+                                el.spotlightValue.classList.add('empty');
+                            }
+                            if (f && fieldValues[f.id]?.tentative) {
+                                delete fieldValues[f.id];
+                                renderScannedFieldsList();
+                            }
+                            flowState = 'busy';
+                            await speak(dict.askCorrection ? dict.askCorrection(f?.label) : `Please state the correction for ${f?.label}.`);
+                            if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex) return;
+                            flowState = 'form_awaiting_input';
+                            setTurnMode('listening', f?.label || '');
+                            resetLiveLine(t('transcriptListeningPrompt', { label: f?.label || '' }));
+                            drainTranscriptQueue();
+                        } else {
+                            await correctionHandler.applyCurrentFieldCorrection(classified.payload, ctx);
+                        }
                     }
+                    break;
                 }
-                break;
+
+                case 'INFORMATION':
+                default: {
+                    const f = scannedFields[currentFieldIndex];
+                    flowState = 'busy';
+                    setTurnMode('finalizing', f.label);
+
+                    const cleanValue = await informationHandler.processValue(classified.payload || clean, f);
+                    if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex) return;
+
+                    if (!currentFieldOriginalValue) currentFieldOriginalValue = cleanValue;
+
+                    await informationHandler.stageAndAskConfirmation(cleanValue, f, ctx);
+                    break;
+                }
             }
 
-            case 'INFORMATION':
-            default: {
+            // Invariant: Restore valid listening state if execution finished without field navigation
+            if (myEpoch === flowEpoch && myFieldIndex === currentFieldIndex && (flowState === 'evaluating_intent' || flowState === 'busy')) {
                 const f = scannedFields[currentFieldIndex];
-                flowState = 'busy';
-                setTurnMode('finalizing', f.label);
-
-                const cleanValue = await informationHandler.processValue(classified.payload || clean, f);
-                if (myEpoch !== flowEpoch) return;
-
-                if (!currentFieldOriginalValue) currentFieldOriginalValue = cleanValue;
-
-                await informationHandler.stageAndAskConfirmation(cleanValue, f, ctx);
-                break;
+                if (pendingFieldValue || fieldValues[f?.id]?.tentative) {
+                    flowState = 'form_awaiting_confirmation';
+                    setTurnMode('confirming', f?.label || '');
+                } else {
+                    flowState = 'form_awaiting_input';
+                    setTurnMode('listening', f?.label || '');
+                }
             }
-        }
         } finally {
             isRoutingTranscript = false;
             drainTranscriptQueue();
@@ -1438,9 +1520,29 @@
 
     async function confirmCurrentField() {
         const myEpoch = flowEpoch;
+        const myFieldIndex = currentFieldIndex;
         const f = scannedFields[currentFieldIndex];
         if (!f) return;
-        const confirmedVal = pendingFieldValue || fieldValues[f.id]?.value || f.currentValue || '';
+        const confirmedVal = (pendingFieldValue || fieldValues[f.id]?.value || f.currentValue || '').trim();
+
+        // SOTA Invariant Check: Never confirm an empty field with generic confirmation
+        if (!confirmedVal) {
+            console.warn(`[VFF] Rejected empty confirmation on field #${currentFieldIndex} "${f.label}". Requesting value instead.`);
+            const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
+            flowState = 'form_awaiting_input';
+            setTurnMode('listening', f.label);
+            resetLiveLine(t('transcriptListeningPrompt', { label: f.label }));
+            const prompt = f.required
+                ? `Please state your answer for ${f.label}. This is required.`
+                : `There is no value for ${f.label}. What should I enter here? Or say skip to leave it empty.`;
+            flowState = 'busy';
+            await speak(prompt);
+            if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex) return;
+            flowState = 'form_awaiting_input';
+            setTurnMode('listening', f.label);
+            return;
+        }
+
         console.log(`[VFF] Field #${currentFieldIndex} "${f.label}" CONFIRMED with value: "${confirmedVal}"`);
 
         fieldValues[f.id] = {
@@ -1479,7 +1581,7 @@
 
         flowState = 'busy';
         await speak(dict.fieldRecorded ? dict.fieldRecorded(f.label) : `${f.label} recorded.`);
-        if (myEpoch !== flowEpoch) return;
+        if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex) return;
 
         let nextIdx = currentFieldIndex + 1;
         while (nextIdx < scannedFields.length && fieldValues[scannedFields[nextIdx].id]?.confirmed) {
@@ -1498,14 +1600,17 @@
     }
 
     async function skipField() {
+        advanceTurnEpoch('manual_skip_click');
         await actionHandler.handleSkip(getActionContext());
     }
 
     async function prevField() {
+        advanceTurnEpoch('manual_prev_click');
         await actionHandler.handlePrevious(getActionContext());
     }
 
     async function reaskCurrentField() {
+        advanceTurnEpoch('manual_reask_click');
         await actionHandler.handleRepeat(getActionContext());
     }
 
@@ -1898,7 +2003,7 @@
                 url: currentScannedUrl,
                 pageTitle: (typeof document !== 'undefined' ? document.title : ''),
                 tabId: currentScannedTabId,
-                language: currentLanguage
+                language: getCurrentLanguage()
             }, getParametersSnapshot());
         }
         resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
@@ -2042,7 +2147,10 @@
     });
     if (el.btnStartFormFlow) el.btnStartFormFlow.addEventListener('click', () => {
         ensureTTSContext();
-        startFormFlow();
+        startFormFlow().catch((err) => {
+            console.error('[VFF] Error starting form flow:', err);
+            showToast('Error: ' + (err.message || err));
+        });
     });
     if (el.btnStopFormFlow) el.btnStopFormFlow.addEventListener('click', () => {
         endSession(window.i18n ? window.i18n.t('sessionEndedToast') : 'Session ended');
@@ -2134,8 +2242,7 @@
     }
 
     let isCompanionOnline = false;
-    let previousAppLanguage = 'hi-IN';
-    let isSyncingLanguage = false;
+    // previousAppLanguage & isSyncingLanguage declared at top of file
 
     async function checkCompanion() {
         try {

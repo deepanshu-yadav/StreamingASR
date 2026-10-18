@@ -201,6 +201,7 @@ const server = http.createServer(async (req, res) => {
                         console.warn(`[Companion] Voice download notice for ${targetLang}:`, dlErr.message);
                     }
 
+                    try { await auditManager.closeAllSessions('LANGUAGE_CHANGED'); } catch (_) {}
                     const result = await processManager.setLanguage(targetLang);
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ success: true, ...result }));
@@ -229,8 +230,10 @@ const server = http.createServer(async (req, res) => {
         }
 
         console.log('[Companion] Starting services on demand...');
+        try { await auditManager.closeAllSessions('SERVICES_STARTED'); } catch (_) {}
         const startResult = await processManager.startAll();
         const procStatus = await processManager.getStatus();
+        console.log(`[Companion] Services started: ASR=${startResult.asr}, TTS=${startResult.tts}, LLM=${startResult.llm} (allReady: ${startResult.allReady})`);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -246,8 +249,10 @@ const server = http.createServer(async (req, res) => {
     // ==========================================
     if (pathname === '/api/stop' && req.method === 'POST') {
         console.log('[Companion] Stopping all services on request...');
+        try { await auditManager.closeAllSessions('SERVICES_STOPPED'); } catch (_) {}
         await processManager.stopAll();
         const procStatus = await processManager.getStatus();
+        console.log('[Companion] All backend services stopped.');
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({

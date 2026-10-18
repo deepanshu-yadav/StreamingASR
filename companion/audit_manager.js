@@ -68,8 +68,23 @@ class AuditManager {
         const logPath = path.join(this.primaryLogDir, logFileName);
         const summaryPath = path.join(this.primaryLogDir, summaryFileName);
 
+        // If a session with this ID is already active, close it first to release OS file locks
+        if (this.sessions.has(sessionId)) {
+            const oldSession = this.sessions.get(sessionId);
+            try { oldSession.jsonlStream?.end(); } catch (_) {}
+            try { oldSession.logStream?.end(); } catch (_) {}
+            this.sessions.delete(sessionId);
+        }
+
         const jsonlStream = fs.createWriteStream(jsonlPath, { flags: 'a', encoding: 'utf8' });
         const logStream = fs.createWriteStream(logPath, { flags: 'a', encoding: 'utf8' });
+
+        jsonlStream.on('error', (err) => {
+            console.warn(`[AuditManager] JSONL stream warning for ${sessionId}:`, err.message);
+        });
+        logStream.on('error', (err) => {
+            console.warn(`[AuditManager] Log stream warning for ${sessionId}:`, err.message);
+        });
 
         const sessionObj = {
             sessionId,
@@ -253,9 +268,16 @@ class AuditManager {
         await new Promise((resolve) => {
             let logDone = false;
             let jsonlDone = false;
-            const check = () => {
-                if (logDone && jsonlDone) resolve();
+            let timer = null;
+            const finish = () => {
+                if (timer) clearTimeout(timer);
+                resolve();
             };
+            const check = () => {
+                if (logDone && jsonlDone) finish();
+            };
+            // Hard timeout: never hang longer than 400ms under any circumstances
+            timer = setTimeout(finish, 400);
 
             const onLogEnd = () => { logDone = true; check(); };
             const onJsonlEnd = () => { jsonlDone = true; check(); };
@@ -273,7 +295,7 @@ class AuditManager {
                 session.jsonlStream.end();
             } catch (err) {
                 console.error(`[AuditManager] Stream close error:`, err.message);
-                resolve();
+                finish();
             }
         });
 
@@ -306,6 +328,21 @@ class AuditManager {
         this.sessions.delete(sessionId);
 
         return summary;
+    }
+
+    /**
+     * Closes and flushes all active audit sessions, freeing file handles.
+     */
+    async closeAllSessions(reason = 'SERVER_RESTART') {
+        const activeIds = Array.from(this.sessions.keys());
+        for (const sid of activeIds) {
+            try {
+                await this.endSession(sid, { reason });
+            } catch (err) {
+                console.warn(`[AuditManager] Error closing session ${sid}:`, err.message);
+            }
+        }
+        this.sessions.clear();
     }
 
     /**

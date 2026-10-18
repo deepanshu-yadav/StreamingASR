@@ -370,6 +370,10 @@
          * End session
          */
         async endSession(reason = 'completed', summaryData = {}) {
+            const sid = this.sessionId;
+            if (!sid) return null;
+            this.sessionId = null; // Clear immediately so subsequent calls start fresh without waiting
+
             const endEpoch = Date.now();
             const totalDurationMs = endEpoch - this.sessionStartEpoch;
 
@@ -380,27 +384,30 @@
                 summaryData
             });
 
-            // Flush all remaining events to companion
-            await this.flushQueue();
+            // Flush remaining events and notify companion in background with safety timeout
+            (async () => {
+                try {
+                    await this.flushQueue();
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 800);
+                    await fetch(`${this.companionUrl}/api/audit/session/end`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sessionId: sid,
+                            summary: {
+                                reason,
+                                totalDurationMs,
+                                totalEvents: this.events.length,
+                                ...summaryData
+                            }
+                        }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timer);
+                } catch (_) {}
+            })();
 
-            // Call companion session end
-            try {
-                await fetch(`${this.companionUrl}/api/audit/session/end`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sessionId: this.sessionId,
-                        summary: {
-                            reason,
-                            totalDurationMs,
-                            totalEvents: this.events.length,
-                            ...summaryData
-                        }
-                    })
-                });
-            } catch (_) { }
-
-            this.sessionId = null;
             return endEvent;
         }
 

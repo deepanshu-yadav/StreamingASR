@@ -415,7 +415,12 @@ Output ONLY the final clean value. No explanations or quotes.`;
 
             const t0 = performance.now();
             try {
-                const resp = await fetch(this.llmUrl, {
+            const abortCtrl = new AbortController();
+            const timeoutTimer = setTimeout(() => abortCtrl.abort(), 3500);
+
+            let resp;
+            try {
+                resp = await fetch(this.llmUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -426,8 +431,12 @@ Output ONLY the final clean value. No explanations or quotes.`;
                         temperature: 0.1,
                         max_tokens: 80,
                         stream: false
-                    })
+                    }),
+                    signal: abortCtrl.signal
                 });
+            } finally {
+                clearTimeout(timeoutTimer);
+            }
 
                 if (!resp.ok) throw new Error(`LLM error ${resp.status}`);
                 const data = await resp.json();
