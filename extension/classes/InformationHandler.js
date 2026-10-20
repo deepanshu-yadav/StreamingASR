@@ -14,74 +14,172 @@
         // English
         'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
         'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
-        'ten': '10', 'eleven': '11', 'twelve': '12', 'double': '2x', 'triple': '3x',
+        'ten': '10', 'eleven': '11', 'twelve': '12', 'thirteen': '13', 'fourteen': '14',
+        'fifteen': '15', 'sixteen': '16', 'seventeen': '17', 'eighteen': '18', 'nineteen': '19',
+        'twenty': '20', 'thirty': '30', 'forty': '40', 'fifty': '50',
+        'sixty': '60', 'seventy': '70', 'eighty': '80', 'ninety': '90',
+        'hundred': '00', 'thousand': '000', 'double': '2x', 'triple': '3x',
+        // Common ASR phonetic misrecognitions for numbers
+        'ven': '1', 'van': '1', 'wan': '1', 'won': '1', 'to': '2', 'too': '2', 'for': '4', 'ate': '8',
 
         // Hindi
         'शून्य': '0', 'सिफर': '0', 'एक': '1', 'दो': '2', 'तीन': '3', 'चार': '4',
         'पांच': '5', 'पाँच': '5', 'छह': '6', 'छः': '6', 'सात': '7', 'आठ': '8', 'नौ': '9',
         'दस': '10', 'ग्यारह': '11', 'बारह': '12', 'तेरह': '13', 'चौदह': '14', 'पंद्रह': '15',
         'सोलह': '16', 'सत्रह': '17', 'अठारह': '18', 'उन्नीस': '19', 'बीस': '20',
+        'इक्कीस': '21', 'बाईस': '22', 'तेईस': '23', 'चौबीस': '24', 'पच्चीस': '25',
+        'छब्बीस': '26', 'सत्ताईस': '27', 'अट्ठाईस': '28', 'उनतीस': '29', 'तीस': '30',
+        'इकतीस': '31', 'बत्तीस': '32', 'तैंतीस': '33', 'चौंतीस': '34', 'पैंतीस': '35',
+        'छत्तीस': '36', 'सैंतीस': '37', 'अड़तीस': '38', 'उनतालीस': '39', 'चालीस': '40',
+        'इकतालीस': '41', 'बयालीस': '42', 'तैंतालीस': '43', 'चौवालीस': '44', 'पैंतालीस': '45',
+        'छियालीस': '46', 'सैंतालीस': '47', 'अड़तालीस': '48', 'उनचास': '49', 'पचास': '50',
+        'इक्यावन': '51', 'बावन': '52', 'तिरेपन': '53', 'चौवन': '54', 'पचपन': '55',
+        'छप्पन': '56', 'सत्तावन': '57', 'अट्ठावन': '58', 'उनसठ': '59', 'साठ': '60',
+        'इकसठ': '61', 'बासठ': '62', 'तिरसठ': '63', 'चौंसठ': '64', 'पैंसठ': '65',
+        'छियासठ': '66', 'सरसठ': '67', 'अड़सठ': '68', 'उनहत्तर': '69', 'सत्तर': '70',
+        'इकहत्तर': '71', 'बहत्तर': '72', 'तिहत्तर': '73', 'चौहत्तर': '74', 'पचहत्तर': '75',
+        'छिहत्तर': '76', 'सतहत्तर': '77', 'अठहत्तर': '78', 'उनासी': '79', 'अस्सी': '80',
+        'इक्यासी': '81', 'बयासी': '82', 'तिरासी': '83', 'चौरासी': '84', 'पचासी': '85',
+        'छियासी': '86', 'सत्तासी': '87', 'अठासी': '88', 'नवासी': '89', 'नब्बे': '90',
+        'इक्यानवे': '91', 'बानवे': '92', 'तिरानवे': '93', 'चौरानवे': '94', 'पंचानवे': '95',
+        'छियानवे': '96', 'सत्तानवे': '97', 'अट्ठानवे': '98', 'निन्यानवे': '99',
+        'सौ': '00', 'हज़ार': '000', 'हजार': '000', 'लाख': '00000',
         'दोहरा': '2x', 'तिहरा': '3x',
 
         // Spanish
         'cero': '0', 'uno': '1', 'una': '1', 'dos': '2', 'tres': '3', 'cuatro': '4',
-        'cinco': '5', 'seis': '6', 'siete': '7', 'ocho': '8', 'nueve': '9', 'diez': '10',
-        'once': '11', 'doce': '12', 'doble': '2x', 'triple': '3x',
+        'cinco': '5', 'seis': '6', 'siete': '7', 'ocho': '8', 'nueve': '9',
+        'diez': '10', 'once': '11', 'doce': '12', 'trece': '13', 'catorce': '14',
+        'quince': '15', 'dieciséis': '16', 'dieciseis': '16', 'diecisiete': '17',
+        'dieciocho': '18', 'diecinueve': '19', 'veinte': '20',
+        'veintiuno': '21', 'veintidós': '22', 'veintidos': '22', 'veintitrés': '23', 'veintitres': '23',
+        'veinticuatro': '24', 'veinticinco': '25', 'veintiséis': '26', 'veintiseis': '26',
+        'veintisiete': '27', 'veintiocho': '28', 'veintinueve': '29',
+        'treinta': '30', 'cuarenta': '40', 'cincuenta': '50', 'sesenta': '60',
+        'setenta': '70', 'ochenta': '80', 'noventa': '90', 'cien': '00', 'ciento': '00', 'mil': '000',
+        'doble': '2x', 'triple': '3x',
 
         // French
-        'zéro': '0', 'un': '1', 'une': '1', 'deux': '2', 'trois': '3',
+        'zéro': '0', 'zero': '0', 'un': '1', 'une': '1', 'deux': '2', 'trois': '3',
         'quatre': '4', 'cinq': '5', 'six': '6', 'sept': '7', 'huit': '8', 'neuf': '9',
-        'dix': '10', 'onze': '11', 'douze': '12',
+        'dix': '10', 'onze': '11', 'douze': '12', 'treize': '13', 'quatorze': '14',
+        'quinze': '15', 'seize': '16', 'dix-sept': '17', 'dix-huit': '18', 'dix-neuf': '19',
+        'vingt': '20', 'trente': '30', 'quarante': '40', 'cinquante': '50', 'soixante': '60',
+        'soixante-dix': '70', 'quatre-vingt': '80', 'quatre-vingts': '80', 'quatre-vingt-dix': '90',
+        'cent': '00', 'mille': '000', 'double': '2x', 'triple': '3x',
 
         // German
         'null': '0', 'eins': '1', 'ein': '1', 'eine': '1', 'zwei': '2', 'zwo': '2',
         'drei': '3', 'vier': '4', 'fünf': '5', 'fuenf': '5', 'sechs': '6', 'sieben': '7',
-        'acht': '8', 'neun': '9', 'zehn': '10', 'doppelt': '2x', 'dreifach': '3x',
+        'acht': '8', 'neun': '9', 'zehn': '10', 'elf': '11', 'zwölf': '12', 'zwoelf': '12',
+        'dreizehn': '13', 'vierzehn': '14', 'fünfzehn': '15', 'fuenfzehn': '15',
+        'sechzehn': '16', 'siebzehn': '17', 'achtzehn': '18', 'neunzehn': '19',
+        'zwanzig': '20', 'dreißig': '30', 'dreissig': '30', 'vierzig': '40',
+        'fünfzig': '50', 'fuenfzig': '50', 'sechzig': '60', 'siebzig': '70',
+        'achtzig': '80', 'neunzig': '90', 'hundert': '00', 'tausend': '000',
+        'doppelt': '2x', 'dreifach': '3x',
 
         // Italian
-        'due': '2', 'tre': '3', 'quattro': '4', 'cinque': '5', 'sei': '6',
-        'sette': '7', 'otto': '8', 'nove': '9', 'dieci': '10', 'doppio': '2x', 'triplo': '3x',
+        'zero': '0', 'uno': '1', 'una': '1', 'due': '2', 'tre': '3', 'quattro': '4',
+        'cinque': '5', 'sei': '6', 'sette': '7', 'otto': '8', 'nove': '9',
+        'dieci': '10', 'undici': '11', 'dodici': '12', 'tredici': '13', 'quattordici': '14',
+        'quindici': '15', 'sedici': '16', 'diciassette': '17', 'diciotto': '18', 'diciannove': '19',
+        'venti': '20', 'trenta': '30', 'quaranta': '40', 'cinquanta': '50',
+        'sessanta': '60', 'settanta': '70', 'ottanta': '80', 'novanta': '90',
+        'cento': '00', 'mille': '000', 'doppio': '2x', 'triplo': '3x',
 
         // Portuguese
-        'duas': '2', 'três': '3', 'tres': '3', 'quatro': '4', 'cinco': '5',
-        'sete': '7', 'oito': '8', 'dez': '10', 'duplo': '2x',
+        'zero': '0', 'um': '1', 'uma': '1', 'dois': '2', 'duas': '2', 'três': '3', 'tres': '3',
+        'quatro': '4', 'cinco': '5', 'seis': '6', 'meia': '6', 'sete': '7', 'oito': '8', 'nove': '9',
+        'dez': '10', 'onze': '11', 'doze': '12', 'treze': '13', 'quatorze': '14', 'catorze': '14',
+        'quinze': '15', 'dezesseis': '16', 'dezasseis': '16', 'dezessete': '17', 'dezassete': '17',
+        'dezoito': '18', 'dezenove': '19', 'dezanove': '19',
+        'vinte': '20', 'trinta': '30', 'quarenta': '40', 'cinquenta': '50',
+        'sessenta': '60', 'setenta': '70', 'oitenta': '80', 'noventa': '90',
+        'cem': '00', 'cento': '00', 'mil': '000', 'duplo': '2x', 'triplo': '3x',
 
         // Russian
         'ноль': '0', 'нуль': '0', 'один': '1', 'одна': '1', 'два': '2', 'две': '2',
-        'три': '3', 'четыре': '4', 'пять': '5', 'шесть': '6', 'семь': '7', 'восемь': '8',
-        'девять': '9', 'десять': '10', 'двойной': '2x', 'тройной': '3x',
+        'три': '3', 'четыре': '4', 'пять': '5', 'шесть': '6', 'семь': '7', 'восемь': '8', 'девять': '9',
+        'десять': '10', 'одиннадцать': '11', 'двенадцать': '12', 'тринадцать': '13',
+        'четырнадцать': '14', 'пятнадцать': '15', 'шестнадцать': '16', 'семнадцать': '17',
+        'восемнадцать': '18', 'девятнадцать': '19',
+        'двадцать': '20', 'тридцать': '30', 'сорок': '40', 'пятьдесят': '50',
+        'шестьдесят': '60', 'семьдесят': '70', 'восемьдесят': '80', 'девяносто': '90',
+        'сто': '00', 'тысяча': '000', 'двойной': '2x', 'тройной': '3x',
 
         // Ukrainian
+        'нуль': '0', 'один': '1', 'одна': '1', 'два': '2', 'дві': '2', 'три': '3',
         'чотири': '4', 'п\'ять': '5', 'пять': '5', 'шість': '6', 'сім': '7',
-        'вісім': '8', 'дев\'ять': '9', 'девять': '9',
+        'вісім': '8', 'дев\'ять': '9', 'девять': '9', 'десять': '10',
+        'одинадцять': '11', 'дванадцять': '12', 'тринадцять': '13', 'чотирнадцять': '14',
+        'п\'ятнадцять': '15', 'пятнадцять': '15', 'шістнадцять': '16', 'сімнадцять': '17',
+        'вісімнадцять': '18', 'дев\'ятнадцять': '19', 'девятнадцять': '19',
+        'двадцять': '20', 'тридцять': '30', 'сорок': '40', 'п\'ятдесят': '50', 'пятдесят': '50',
+        'шістдесят': '60', 'сімдесят': '70', 'вісімдесят': '80', 'дев\'яносто': '90', 'девяносто': '90',
+        'сто': '00', 'тисяча': '000', 'подвійний': '2x', 'потрійний': '3x',
 
         // Arabic
-        'صفر': '0', 'واحد': '1', 'واحدة': '1', 'اثنان': '2', 'اثنين': '2', 'ثلاثة': '3',
-        'أربعة': '4', 'اربعة': '4', 'خمسة': '5', 'ستة': '6', 'سبعة': '7', 'ثمانية': '8',
-        'تسعة': '9', 'عشرة': '10', 'مزدوج': '2x',
+        'صفر': '0', 'واحد': '1', 'واحدة': '1', 'اثنان': '2', 'اثنين': '2', 'ثلاثة': '3', 'تلاتة': '3',
+        'أربعة': '4', 'اربعة': '4', 'خمسة': '5', 'ستة': '6', 'سبعة': '7', 'ثمانية': '8', 'تمانية': '8', 'تسعة': '9',
+        'عشرة': '10', 'عشر': '10', 'أحد عشر': '11', 'اثنا عشر': '12', 'ثلاثة عشر': '13',
+        'أربعة عشر': '14', 'خمسة عشر': '15', 'ستة عشر': '16', 'سبعة عشر': '17',
+        'ثمانية عشر': '18', 'تسعة عشر': '19',
+        'عشرون': '20', 'عشرين': '20', 'ثلاثون': '30', 'ثلاثين': '30',
+        'أربعون': '40', 'اربعون': '40', 'أربعين': '40', 'اربعين': '40',
+        'خمسون': '50', 'خمسين': '50', 'ستون': '60', 'ستين': '60',
+        'سبعون': '70', 'سبعين': '70', 'ثمانون': '80', 'ثمانين': '80',
+        'تسعون': '90', 'تسعين': '90', 'مائة': '00', 'مئة': '00', 'الف': '000', 'ألف': '000',
+        'مزدوج': '2x',
 
         // Japanese / Chinese
-        'ゼロ': '0', '零': '0', '一': '1', '二': '2', '三': '3', '四': '4',
+        'ゼロ': '0', '零': '0', '〇': '0', '一': '1', '二': '2', '三': '3', '四': '4',
         '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10',
+        'イチ': '1', 'ニ': '2', 'サン': '3', 'ヨン': '4', 'シ': '4', 'ゴ': '5',
+        'ロク': '6', 'ナナ': '7', 'シチ': '7', 'ハチ': '8', 'キュウ': '9', 'ク': '9', 'ジュウ': '10',
+        '十一': '11', '十二': '12', '十三': '13', '十四': '14', '十五': '15',
+        '二十': '20', '三十': '30', '四十': '40', '五十': '50',
+        '六十': '60', '七十': '70', '八十': '80', '九十': '90', '百': '00', '千': '000',
 
         // Korean
         '영': '0', '공': '0', '일': '1', '이': '2', '삼': '3', '사': '4',
         '오': '5', '육': '6', '칠': '7', '팔': '8', '구': '9', '십': '10',
-        '하나': '1', '둘': '2', '셋': '3', '넷': '4',
+        '십일': '11', '십이': '12', '이십': '20', '삼십': '30', '사십': '40',
+        '오십': '50', '육십': '60', '칠십': '70', '팔십': '80', '구십': '90',
+        '백': '00', '천': '000',
+        '하나': '1', '둘': '2', '셋': '3', '넷': '4', '다섯': '5', '여섯': '6',
+        '일곱': '7', '여덟': '8', '아홉': '9', '열': '10',
+        '스물': '20', '서른': '30', '마흔': '40', '쉰': '50',
 
         // Turkish
         'sıfır': '0', 'sifir': '0', 'bir': '1', 'iki': '2', 'üç': '3', 'uc': '3',
         'dört': '4', 'dort': '4', 'beş': '5', 'bes': '5', 'altı': '6', 'alti': '6',
-        'yedi': '7', 'sekiz': '8', 'dokuz': '9', 'on': '10', 'çift': '2x',
+        'yedi': '7', 'sekiz': '8', 'dokuz': '9',
+        'on': '10', 'on bir': '11', 'on iki': '12', 'on üç': '13', 'on dört': '14',
+        'on beş': '15', 'on altı': '16', 'on yedi': '17', 'on sekiz': '18', 'on dokuz': '19',
+        'yirmi': '20', 'otuz': '30', 'kırk': '40', 'kirk': '40', 'elli': '50',
+        'altmış': '60', 'altmis': '60', 'yetmiş': '70', 'yetmis': '70',
+        'seksen': '80', 'doksan': '90', 'yüz': '00', 'yuz': '00', 'bin': '000',
+        'çift': '2x', 'cift': '2x',
 
         // Vietnamese
-        'không': '0', 'khong': '0', 'một': '1', 'mot': '1', 'hai': '2', 'ba': '3',
-        'bốn': '4', 'bon': '4', 'năm': '5', 'nam': '5', 'sáu': '6', 'sau': '6',
-        'bảy': '7', 'bay': '7', 'tám': '8', 'tam': '8', 'chín': '9', 'chin': '9', 'mười': '10',
+        'không': '0', 'khong': '0', 'một': '1', 'mot': '1', 'mốt': '1',
+        'hai': '2', 'ba': '3', 'bốn': '4', 'bon': '4', 'tư': '4',
+        'năm': '5', 'nam': '5', 'lăm': '5', 'sáu': '6', 'sau': '6',
+        'bảy': '7', 'bay': '7', 'tám': '8', 'tam': '8', 'chín': '9', 'chin': '9',
+        'mười': '10', 'muoi': '10', 'mười một': '11', 'mười hai': '12',
+        'hai mươi': '20', 'ba mươi': '30', 'bốn mươi': '40', 'năm mươi': '50',
+        'sáu mươi': '60', 'bảy mươi': '70', 'tám mươi': '80', 'chín mươi': '90',
+        'trăm': '00', 'nghìn': '000', 'ngàn': '000',
 
         // Dutch
-        'één': '1', 'twee': '2', 'drie': '3', 'vier': '4', 'vijf': '5',
-        'zes': '6', 'zeven': '7', 'negen': '9', 'tien': '10', 'dubbel': '2x'
+        'nul': '0', 'één': '1', 'een': '1', 'twee': '2', 'drie': '3', 'vier': '4',
+        'vijf': '5', 'zes': '6', 'zeven': '7', 'acht': '8', 'negen': '9',
+        'tien': '10', 'elf': '11', 'twaalf': '12', 'dertien': '13', 'veertien': '14',
+        'vijftien': '15', 'zestien': '16', 'zeventien': '17', 'achttien': '18', 'negentien': '19',
+        'twintig': '20', 'dertig': '30', 'veertig': '40', 'vijftig': '50',
+        'zestig': '60', 'zeventig': '70', 'tachtig': '80', 'negentig': '90',
+        'honderd': '00', 'duizend': '000', 'dubbel': '2x', 'driedubbel': '3x'
     };
 
     function normalizeNumeralCharacters(str) {
@@ -133,12 +231,101 @@
          */
         sanitizeNumeric(text) {
             if (!text) return '';
-            let normalized = normalizeNumeralCharacters(text.toLowerCase());
-            let words = normalized.split(/\s+/);
+            // Normalize hyphens and numeral characters (e.g. "forty-two" -> "forty two")
+            let normalized = normalizeNumeralCharacters(text.toLowerCase()).replace(/[-_]/g, ' ');
+            let words = normalized.split(/\s+/).filter(Boolean);
             let out = [];
+
+            const TENS = {
+                // English
+                'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
+                'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90,
+                // Spanish
+                'veinte': 20, 'treinta': 30, 'cuarenta': 40, 'cincuenta': 50,
+                'sesenta': 60, 'setenta': 70, 'ochenta': 80, 'noventa': 90,
+                // French
+                'vingt': 20, 'trente': 30, 'quarante': 40, 'cinquante': 50,
+                'soixante': 60,
+                // Italian
+                'venti': 20, 'trenta': 30, 'quaranta': 40, 'cinquanta': 50,
+                'sessanta': 60, 'settanta': 70, 'ottanta': 80, 'noventa': 90,
+                // Portuguese
+                'vinte': 20, 'trinta': 30, 'quarenta': 40, 'cinquenta': 50,
+                'sessenta': 60, 'setenta': 70, 'oitenta': 80, 'noventa': 90,
+                // German
+                'zwanzig': 20, 'dreißig': 30, 'dreissig': 30, 'vierzig': 40,
+                'fünfzig': 50, 'fuenfzig': 50, 'sechzig': 60, 'siebzig': 70,
+                'achtzig': 80, 'neunzig': 90,
+                // Russian
+                'двадцать': 20, 'тридцать': 30, 'сорок': 40, 'пятьдесят': 50,
+                'шестьдесят': 60, 'семьдесят': 70, 'восемьдесят': 80, 'девяносто': 90,
+                // Ukrainian
+                'двадцять': 20, 'тридцять': 30, 'сорок': 40, 'п\'ятдесят': 50, 'пятдесят': 50,
+                'шістдесят': 60, 'сімдесят': 70, 'вісімдесят': 80, 'дев\'яносто': 90,
+                // Turkish
+                'yirmi': 20, 'otuz': 30, 'kırk': 40, 'kirk': 40, 'elli': 50,
+                'altmış': 60, 'altmis': 60, 'yetmiş': 70, 'yetmis': 70,
+                'seksen': 80, 'doksan': 90,
+                // Dutch
+                'twintig': 20, 'dertig': 30, 'veertig': 40, 'vijftig': 50,
+                'zestig': 60, 'zeventig': 70, 'tachtig': 80, 'negentig': 90
+            };
 
             for (let i = 0; i < words.length; i++) {
                 const w = words[i];
+
+                // German inverted compounds: "zweiundvierzig" -> 40 + 2 = 42
+                const deCompound = w.match(/^(.+)und(zwanzig|dreißig|dreissig|vierzig|fünfzig|fuenfzig|sechzig|siebzig|achtzig|neunzig)$/);
+                if (deCompound) {
+                    const u = deCompound[1] === 'ein' ? 1 : parseInt(MULTILINGUAL_DIGITS[deCompound[1]], 10);
+                    const t = TENS[deCompound[2]];
+                    if (!isNaN(u) && t) {
+                        out.push((t + u).toString());
+                        continue;
+                    }
+                }
+
+                // Dutch inverted compounds: "tweeënveertig" -> 40 + 2 = 42
+                const nlClean = w.replace(/ë/g, 'e');
+                const nlCompound = nlClean.match(/^(.+)en(twintig|dertig|veertig|vijftig|zestig|zeventig|tachtig|negentig)$/);
+                if (nlCompound) {
+                    const u = nlCompound[1] === 'een' ? 1 : parseInt(MULTILINGUAL_DIGITS[nlCompound[1]], 10);
+                    const t = TENS[nlCompound[2]];
+                    if (!isNaN(u) && t) {
+                        out.push((t + u).toString());
+                        continue;
+                    }
+                }
+
+                // Italian fused compounds: "quarantadue", "venticinque" -> 40 + 2 = 42
+                const itCompound = w.match(/^(vent|trent|quarant|cinquant|sessant|settant|ottant|novant)[ia]?(uno|due|tre|quattro|cinque|sei|sette|otto|nove)$/);
+                if (itCompound) {
+                    const itTens = { 'vent': 20, 'trent': 30, 'quarant': 40, 'cinquant': 50, 'sessant': 60, 'settant': 70, 'ottant': 80, 'novant': 90 };
+                    const t = itTens[itCompound[1]];
+                    const u = parseInt(MULTILINGUAL_DIGITS[itCompound[2]], 10);
+                    if (t && !isNaN(u)) {
+                        out.push((t + u).toString());
+                        continue;
+                    }
+                }
+
+                // Compound multilingual tens + optional conjunction + units (e.g. "forty two", "cuarenta y dos", "quarenta e dois")
+                if (TENS[w] !== undefined && i + 1 < words.length) {
+                    let nextIdx = i + 1;
+                    const nextW = words[nextIdx];
+                    // Skip multilingual conjunctions: "y", "e", "et", "en", "und"
+                    if (['y', 'e', 'et', 'en', 'und'].includes(nextW) && i + 2 < words.length) {
+                        nextIdx = i + 2;
+                    }
+                    const targetWord = words[nextIdx];
+                    const nextVal = parseInt(MULTILINGUAL_DIGITS[targetWord], 10);
+                    if (!isNaN(nextVal) && nextVal >= 1 && nextVal <= 9) {
+                        out.push((TENS[w] + nextVal).toString());
+                        i = nextIdx;
+                        continue;
+                    }
+                }
+
                 if (MULTILINGUAL_DIGITS[w] !== undefined) {
                     if (MULTILINGUAL_DIGITS[w] === '2x' && i + 1 < words.length) {
                         const nextDigit = MULTILINGUAL_DIGITS[words[i + 1]] || words[i + 1];

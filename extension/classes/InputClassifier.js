@@ -388,6 +388,7 @@
                 const hasExplicitNav = matchPhrase(lower, heuristics.navPrefixes) || matchPhrase(lower, heuristics.navSuffixes);
 
                 if (!hasExplicitNav) {
+                    const hasNegate = matchPhrase(lower, heuristics.negationWords);
 
                     // Check for Rejection/Negation prefix followed by trailing content
                     // e.g. "No, for i replace it with double e and for C, replace it with S", "No, my name is Amit", "गलत है, 75", "Non, c'est Jean"
@@ -697,13 +698,17 @@ Respond with a strictly formatted JSON object:
                 return { type: 'ABORTED', confidence: 0, payload: '', source: 'aborted', tier: 1, latencyMs: 0 };
             }
             // Tier 1: Instant Heuristics
-            const heuristicResult = this.classifyHeuristic(text, context);
-            if (heuristicResult && heuristicResult.confidence >= 0.80) {
-                heuristicResult.latencyMs = Math.round(performance.now() - startT);
-                heuristicResult.tier = 1;
-                heuristicResult.source = 'heuristic';
-                console.log(`[InputClassifier] Tier 1 Match (${heuristicResult.type}, conf: ${heuristicResult.confidence}):`, heuristicResult);
-                return heuristicResult;
+            try {
+                const heuristicResult = this.classifyHeuristic(text, context);
+                if (heuristicResult && heuristicResult.confidence >= 0.80) {
+                    heuristicResult.latencyMs = Math.round(performance.now() - startT);
+                    heuristicResult.tier = 1;
+                    heuristicResult.source = 'heuristic';
+                    console.log(`[InputClassifier] Tier 1 Match (${heuristicResult.type}, conf: ${heuristicResult.confidence}):`, heuristicResult);
+                    return heuristicResult;
+                }
+            } catch (err) {
+                console.error('[InputClassifier] Error in classifyHeuristic:', err);
             }
 
             // Tier 2: LLM Fallback

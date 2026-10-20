@@ -1512,6 +1512,19 @@
                     setTurnMode('listening', f?.label || '');
                 }
             }
+        } catch (err) {
+            console.error('[VFF Router] Error routing transcript:', err);
+            // SOTA Safety Guard: Ensure agent is never stuck in evaluating_intent or busy on exception
+            if (myEpoch === flowEpoch && myFieldIndex === currentFieldIndex) {
+                const f = scannedFields[currentFieldIndex];
+                if (pendingFieldValue || fieldValues[f?.id]?.tentative) {
+                    flowState = 'form_awaiting_confirmation';
+                    setTurnMode('confirming', f?.label || '');
+                } else {
+                    flowState = 'form_awaiting_input';
+                    setTurnMode('listening', f?.label || '');
+                }
+            }
         } finally {
             isRoutingTranscript = false;
             drainTranscriptQueue();
