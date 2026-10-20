@@ -230,70 +230,68 @@ button, .btn, .badge, .status-pill, .turn-state, .tts-status, summary, .mic-perm
 }
 .badge-neutral .dot { background: var(--text-muted); }
 
-/* Service status grid */
-.services-grid {
+/* Service status compact single row */
+.services-row {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 6px;
+    align-items: center;
 }
 
-.service-item {
+.service-pill {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 10px;
+    border-radius: 6px;
+    padding: 6px 8px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.service-pill .svc-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ef4444; /* red when stopped */
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.6);
+    flex-shrink: 0;
     transition: all 0.2s ease;
 }
 
-.service-item[data-status="ready"] {
-    border-color: rgba(16, 185, 129, 0.4);
-    background: rgba(16, 185, 129, 0.05);
+.service-pill[data-status="ready"] {
+    border-color: rgba(16, 185, 129, 0.35);
+    background: rgba(16, 185, 129, 0.08);
+    color: #6ee7b7;
 }
 
-.service-item[data-status="starting"] {
-    border-color: rgba(245, 158, 11, 0.4);
-    background: rgba(245, 158, 11, 0.05);
+.service-pill[data-status="ready"] .svc-dot {
+    background: #10b981; /* green when ready */
+    box-shadow: 0 0 7px #10b981, 0 0 2px #34d399;
 }
 
-.svc-icon { font-size: 16px; }
-
-.svc-info {
-    flex: 1;
-    min-width: 0;
+.service-pill[data-status="starting"] {
+    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.08);
+    color: #fcd34d;
 }
 
-.svc-name {
-    font-size: 12px;
-    font-weight: 600;
+.service-pill[data-status="starting"] .svc-dot {
+    background: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b;
 }
 
-.svc-port {
-    font-size: 10px;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-}
-
-.svc-badge {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    text-transform: uppercase;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-muted);
-}
-
-.service-item[data-status="ready"] .svc-badge {
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-}
-
-.service-item[data-status="starting"] .svc-badge {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
+.service-pill[data-status="stopped"] {
+    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.05);
+    color: #fca5a5;
 }
 
 /* Universal Button Styles */
@@ -321,6 +319,42 @@ button, .btn, .badge, .status-pill, .turn-state, .tts-status, summary, .mic-perm
     filter: grayscale(0.5);
     box-shadow: none !important;
     transform: none !important;
+    animation: none !important;
+}
+
+/* Attention Blink / Pulse Animations */
+@keyframes btn-blink-blue {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+        border-color: rgba(147, 197, 253, 0.35);
+        filter: brightness(1);
+    }
+    50% {
+        box-shadow: 0 0 16px 4px rgba(59, 130, 246, 0.8), 0 0 4px rgba(255, 255, 255, 0.8);
+        border-color: #93c5fd;
+        filter: brightness(1.28);
+    }
+}
+
+@keyframes btn-blink-green {
+    0%, 100% {
+        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.25);
+        border-color: rgba(110, 231, 183, 0.35);
+        filter: brightness(1);
+    }
+    50% {
+        box-shadow: 0 0 16px 4px rgba(16, 185, 129, 0.85), 0 0 4px rgba(255, 255, 255, 0.8);
+        border-color: #6ee7b7;
+        filter: brightness(1.3);
+    }
+}
+
+.btn-services-start.btn-attention-blink {
+    animation: btn-blink-blue 1.25s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.btn-hero-fill.btn-attention-blink {
+    animation: btn-blink-green 1.25s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .btn-icon {

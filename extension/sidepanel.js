@@ -1024,6 +1024,17 @@
         }
     }
 
+    let hasUserScannedForms = false;
+
+    function updateStartFillBlink() {
+        if (!el.btnStartFormFlow) return;
+        if (hasUserScannedForms && scannedFields.length > 0 && !formFlowActive) {
+            el.btnStartFormFlow.classList.add('btn-attention-blink');
+        } else {
+            el.btnStartFormFlow.classList.remove('btn-attention-blink');
+        }
+    }
+
     async function scanActivePage(showToastNotice = true) {
         const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
         setFormScanBadge('pending', t('scanningBadge'));
@@ -1085,6 +1096,7 @@
             if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = formFlowActive;
             if (showToastNotice) showToast(t('fieldsScannedSuccess', { count: scannedFields.length }));
         }
+        updateStartFillBlink();
         renderScannedFieldsList();
     }
 
@@ -1117,6 +1129,7 @@
         const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
         setFormScanBadge('success', t('fieldsScannedBadge', { count: scannedFields.length }));
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = formFlowActive;
+        updateStartFillBlink();
         renderScannedFieldsList();
         if (formFlowActive && currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length) {
             // Re-highlight active field if DOM mutated
@@ -1199,6 +1212,7 @@
 
         sessionPaused = false;
         formFlowActive = true;
+        updateStartFillBlink();
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = true;
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = false;
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'flex';
@@ -1220,6 +1234,7 @@
         formFlowActive = false;
         if (el.btnStartFormFlow) el.btnStartFormFlow.disabled = false;
         if (el.btnStopFormFlow) el.btnStopFormFlow.disabled = true;
+        updateStartFillBlink();
         if (el.formActiveSpotlight) el.formActiveSpotlight.style.display = 'none';
         if (currentScannedTabId) {
             chrome.tabs.sendMessage(currentScannedTabId, { type: 'VFF_CLEAR_FOCUS' }).catch(() => { });
@@ -1233,6 +1248,8 @@
     async function finishFormFlow() {
         advanceTurnEpoch('FINISH_FORM_FLOW');
         formFlowActive = false;
+        hasUserScannedForms = false;
+        updateStartFillBlink();
         if (auditLogger.sessionId) {
             auditLogger.endSession('ALL_FIELDS_COMPLETED').catch(() => {});
         }
@@ -2140,6 +2157,7 @@
         if (formFlowActive) {
             stopFormFlow();
         }
+        updateStartFillBlink();
         if (auditLogger && auditLogger.sessionId) {
             auditLogger.endSession(reason || 'session_ended');
         }
@@ -2156,6 +2174,7 @@
     // Form button bindings
     if (el.btnScanPage) el.btnScanPage.addEventListener('click', () => {
         ensureTTSContext();
+        hasUserScannedForms = true;
         scanActivePage(true);
     });
     if (el.btnStartFormFlow) el.btnStartFormFlow.addEventListener('click', () => {
@@ -2273,21 +2292,34 @@
             if (compEl.btnStopServices) compEl.btnStopServices.disabled = false;
             if (compEl.btnCheckAssets) compEl.btnCheckAssets.disabled = false;
 
-            function updateCard(card, live) {
+            function updateCard(card, live, label) {
                 if (!card) return;
                 card.dataset.status = live ? 'ready' : 'stopped';
                 const b = card.querySelector('.svc-badge');
                 if (b) b.textContent = live ? 'ready' : 'stopped';
+                if (label) {
+                    card.title = `${label}: ${live ? 'Ready (Running)' : 'Stopped'}`;
+                }
             }
-            updateCard(compEl.svcAasr, data.services?.asr?.live);
-            updateCard(compEl.svcTts, data.services?.tts?.live);
-            updateCard(compEl.svcLlm, data.services?.llm?.live);
+            updateCard(compEl.svcAasr, data.services?.asr?.live, 'Nemotron ASR (WS :8081)');
+            updateCard(compEl.svcTts, data.services?.tts?.live, 'Piper TTS (Port :8089)');
+            updateCard(compEl.svcLlm, data.services?.llm?.live, 'Gemma 4 LLM (Port :8084)');
 
-            if (data.allReady) {
+            const allServicesLive = Boolean(data.allReady || (data.services?.asr?.live && data.services?.tts?.live && data.services?.llm?.live));
+            if (compEl.btnStartServices) {
+                if (allServicesLive) {
+                    compEl.btnStartServices.classList.remove('btn-attention-blink');
+                } else {
+                    compEl.btnStartServices.classList.add('btn-attention-blink');
+                }
+            }
+
+            if (allServicesLive) {
                 if (el.btnStartFormFlow && !formFlowActive) {
                     el.btnStartFormFlow.disabled = false;
                 }
             }
+            updateStartFillBlink();
 
             // Sync companion backend language with active extension language if they differ
             const curLang = window.i18n ? window.i18n.getLanguage() : 'hi-IN';
@@ -2313,9 +2345,23 @@
                 compEl.companionStatusText.textContent = 'Companion Offline';
             }
             if (compEl.companionOfflineBanner) compEl.companionOfflineBanner.style.display = 'flex';
-            if (compEl.btnStartServices) compEl.btnStartServices.disabled = true;
+            if (compEl.btnStartServices) {
+                compEl.btnStartServices.disabled = true;
+                compEl.btnStartServices.classList.remove('btn-attention-blink');
+            }
             if (compEl.btnStopServices) compEl.btnStopServices.disabled = true;
             if (compEl.btnCheckAssets) compEl.btnCheckAssets.disabled = true;
+
+            function resetServicePill(card, label) {
+                if (!card) return;
+                card.dataset.status = 'stopped';
+                const b = card.querySelector('.svc-badge');
+                if (b) b.textContent = 'stopped';
+                if (label) card.title = `${label}: Stopped (Companion Offline)`;
+            }
+            resetServicePill(compEl.svcAasr, 'Nemotron ASR');
+            resetServicePill(compEl.svcTts, 'Piper TTS');
+            resetServicePill(compEl.svcLlm, 'Gemma 4 LLM');
         }
     }
 
@@ -2323,6 +2369,7 @@
         compEl.btnStartServices.addEventListener('click', async () => {
             const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
             compEl.btnStartServices.disabled = true;
+            compEl.btnStartServices.classList.remove('btn-attention-blink');
             showToast(t('servicesStartingToast'));
             try {
                 await fetch(`${COMPANION_BASE}/api/start`, { method: 'POST' });

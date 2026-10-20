@@ -75,31 +75,22 @@
                 </div>
             </div>
 
-            <!-- 3 Backend Services Indicators -->
-            <div class="services-grid">
-                <div class="service-item" id="svc-asr" data-status="stopped">
-                    <div class="svc-icon">🎙️</div>
-                    <div class="svc-info">
-                        <div class="svc-name" data-i18n="svsAsrName">Nemotron ASR</div>
-                        <div class="svc-port">WS :8081 &bull; HTTP :8080</div>
-                    </div>
-                    <span class="svc-badge">stopped</span>
+            <!-- 3 Backend Services Indicators (Single compact row) -->
+            <div class="services-row">
+                <div class="service-pill" id="svc-asr" data-status="stopped" title="Nemotron ASR (WS :8081, HTTP :8080)">
+                    <span class="svc-dot"></span>
+                    <span class="svc-name">ASR</span>
+                    <span class="svc-badge" style="display: none;">stopped</span>
                 </div>
-                <div class="service-item" id="svc-tts" data-status="stopped">
-                    <div class="svc-icon">🗣️</div>
-                    <div class="svc-info">
-                        <div class="svc-name" data-i18n="svsTtsName">Piper TTS</div>
-                        <div class="svc-port">Port :8089</div>
-                    </div>
-                    <span class="svc-badge">stopped</span>
+                <div class="service-pill" id="svc-tts" data-status="stopped" title="Piper TTS (Port :8089)">
+                    <span class="svc-dot"></span>
+                    <span class="svc-name">TTS</span>
+                    <span class="svc-badge" style="display: none;">stopped</span>
                 </div>
-                <div class="service-item" id="svc-llm" data-status="stopped">
-                    <div class="svc-icon">🧠</div>
-                    <div class="svc-info">
-                        <div class="svc-name" data-i18n="svsLlmName">Gemma 4 LLM</div>
-                        <div class="svc-port">Port :8084</div>
-                    </div>
-                    <span class="svc-badge">stopped</span>
+                <div class="service-pill" id="svc-llm" data-status="stopped" title="Gemma 4 LLM (Port :8084)">
+                    <span class="svc-dot"></span>
+                    <span class="svc-name">LLM</span>
+                    <span class="svc-badge" style="display: none;">stopped</span>
                 </div>
             </div>
 
