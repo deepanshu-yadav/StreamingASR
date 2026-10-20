@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion en ligne sur http://127.0.0.1:8000',
             launchFailStatus: 'Connexion impossible. Veuillez lancer start_companion.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Autorisation du Microphone - Assistant Vocal',
+            permHeading: 'Autorisation du Microphone',
+            permDesc: 'Le panneau latéral de Chrome ne peut pas demander directement l\'accès au micro. Cliquez sur le bouton ci-dessous et sélectionnez <b>"Autoriser"</b> dans l\'invite du navigateur en haut.',
+            permBtnGrant: 'Accorder l\'autorisation (Autoriser le micro)',
+            permSuccess: '✅ Autorisation accordée ! Vous pouvez maintenant fermer cet onglet.',
+            permTip: 'Si vous ne voyez pas d\'invite en haut : Cliquez sur l\'icône <b>Paramètres / Cadenas (🔒)</b> à gauche de la barre d\'adresse et réglez <b>Microphone</b> sur <b>Autoriser</b>.',
+            permErrorAlt: 'Erreur : {error}<br><br><b>Alternative :</b> Cliquez sur l\'icône <b>Paramètres / Cadenas (🔒)</b> à gauche de la barre d\'adresse et réglez <b>Microphone</b> sur <b>Autoriser</b>.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Redémarrer le serveur Companion ?',
             restartModalDesc: 'Changer la langue vers {name} nécessite de redémarrer le serveur Companion avec les nouveaux paramètres de langue. Les processus actuels seront arrêtés et une nouvelle fenêtre d\'invite de commande s\'ouvrira.',

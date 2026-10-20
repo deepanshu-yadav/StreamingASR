@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion Trực Tuyến tại http://127.0.0.1:8000',
             launchFailStatus: 'Không thể kết nối. Vui lòng chạy start_companion.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Quyền Micro - Trợ Lý Giọng Nói',
+            permHeading: 'Cấp Quyền Micro',
+            permDesc: 'Bảng điều khiển cạnh của Chrome không thể trực tiếp yêu cầu quyền micro. Vui lòng nhấp vào nút bên dưới và chọn <b>"Cho phép"</b> trong lời nhắc của trình duyệt phía trên.',
+            permBtnGrant: 'Cấp quyền (Cho phép Micro)',
+            permSuccess: '✅ Đã cấp quyền thành công! Bây giờ bạn có thể đóng tab này.',
+            permTip: 'Nếu không thấy lời nhắc bên trên: Nhấp vào biểu tượng <b>Ổ khóa / Cài đặt (🔒)</b> ở bên trái thanh địa chỉ và đặt <b>Micro</b> thành <b>Cho phép</b>.',
+            permErrorAlt: 'Lỗi: {error}<br><br><b>Cách khác:</b> Nhấp vào biểu tượng <b>Ổ khóa (🔒)</b> ở bên trái thanh địa chỉ và đặt <b>Micro</b> thành <b>Cho phép</b>.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Khởi động lại Máy chủ Companion?',
             restartModalDesc: 'Thay đổi ngôn ngữ sang {name} yêu cầu khởi động lại Máy chủ Companion với cài đặt ngôn ngữ mới. Các tiến trình hiện tại sẽ dừng lại và một cửa sổ dòng lệnh mới sẽ mở ra.',

@@ -145,6 +145,15 @@
             launchSuccessStatus: '✓ Companion Online at http://127.0.0.1:8000',
             launchFailStatus: 'Could not connect to companion. Please run start_companion.bat.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Microphone Permission - Voice Assistant',
+            permHeading: 'Microphone Permission',
+            permDesc: 'Chrome side panels cannot directly prompt for microphone access. Please click the button below and select <b>"Allow"</b> in the browser prompt above.',
+            permBtnGrant: 'Grant Permission (Allow Microphone)',
+            permSuccess: '✅ Permission granted! You can now close this tab.',
+            permTip: 'If you do not see a prompt above: Click the <b>Tune/Lock (🔒)</b> icon on the left of the address bar and set <b>Microphone</b> to <b>Allow</b>.',
+            permErrorAlt: 'Error: {error}<br><br><b>Alternative:</b> Click the <b>Tune / Lock (🔒)</b> icon on the left of the address bar and set <b>Microphone</b> to <b>Allow</b>.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Restart Companion Server?',
             restartModalDesc: 'Changing language to {name} requires restarting the Companion Server with the new language setting. Existing processes will be stopped and a new Command Prompt window will launch.',

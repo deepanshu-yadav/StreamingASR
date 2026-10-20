@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion Online em http://127.0.0.1:8000',
             launchFailStatus: 'Não foi possível conectar. Execute start_companion.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Permissão de Microfone - Assistente de Voz',
+            permHeading: 'Permissão de Microfone',
+            permDesc: 'O painel lateral do Chrome não pode solicitar acesso ao microfone diretamente. Clique no botão abaixo e selecione <b>"Permitir"</b> no aviso acima.',
+            permBtnGrant: 'Conceder Permissão (Permitir Microfone)',
+            permSuccess: '✅ Permissão concedida! Você já pode fechar esta aba.',
+            permTip: 'Se não vir o aviso acima: Clique no ícone de <b>Ajustes / Cadeado (🔒)</b> à esquerda da barra de endereços e altere <b>Microfone</b> para <b>Permitir</b>.',
+            permErrorAlt: 'Erro: {error}<br><br><b>Alternativa:</b> Clique no ícone de <b>Cadeado (🔒)</b> à esquerda da barra de endereços e altere <b>Microfone</b> para <b>Permitir</b>.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Reiniciar o servidor Companion?',
             restartModalDesc: 'Alterar o idioma para {name} requer reiniciar o servidor Companion com a nova configuração de idioma. Os processos atuais serão interrompidos e uma nova janela do prompt de comando será aberta.',

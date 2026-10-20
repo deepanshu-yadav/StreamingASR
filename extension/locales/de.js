@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion Online unter http://127.0.0.1:8000',
             launchFailStatus: 'Keine Verbindung zum Companion. Bitte start_companion ausführen.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Mikrofonfreigabe - Sprachassistent',
+            permHeading: 'Mikrofonfreigabe',
+            permDesc: 'Die Chrome-Seitenleiste kann nicht direkt nach Mikrofonzugriff fragen. Bitte klicken Sie unten auf die Schaltfläche und wählen Sie oben im Browser <b>"Zulassen"</b>.',
+            permBtnGrant: 'Freigabe erteilen (Mikrofon zulassen)',
+            permSuccess: '✅ Freigabe erteilt! Sie können diesen Tab jetzt schließen.',
+            permTip: 'Wenn oben kein Dialog erscheint: Klicken Sie links in der Adressleiste auf das <b>Schloss-Symbol (🔒)</b> und setzen Sie <b>Mikrofon</b> auf <b>Zulassen</b>.',
+            permErrorAlt: 'Fehler: {error}<br><br><b>Alternative:</b> Klicken Sie links in der Adressleiste auf das <b>Schloss-Symbol (🔒)</b> und setzen Sie <b>Mikrofon</b> auf <b>Zulassen</b>.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Companion-Server neu starten?',
             restartModalDesc: 'Das Ändern der Sprache zu {name} erfordert einen Neustart des Companion-Servers mit den neuen Spracheinstellungen. Bestehende Prozesse werden beendet und ein neues Eingabeaufforderungsfenster wird geöffnet.',

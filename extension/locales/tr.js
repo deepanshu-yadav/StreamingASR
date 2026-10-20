@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion Çevrimiçi: http://127.0.0.1:8000',
             launchFailStatus: 'Companion\'a bağlanılamadı. Lütfen start_companion çalıştırın.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Mikrofon İzni - Sesli Asistan',
+            permHeading: 'Mikrofon İzni',
+            permDesc: 'Chrome yan paneli doğrudan mikrofon izni isteyemez. Lütfen aşağıdaki düğmeye tıklayın ve yukarıdaki tarayıcı isteminde <b>"İzin Ver"</b>i seçin.',
+            permBtnGrant: 'İzin Ver (Mikrofona İzin Ver)',
+            permSuccess: '✅ İzin verildi! Artık bu sekmeyi kapatabilirsiniz.',
+            permTip: 'Yukarıda açılır pencere görmüyorsanız: Adres çubuğunun solundaki <b>Kilit / Ayarlar (🔒)</b> simgesine tıklayın ve <b>Mikrofon</b>u <b>İzin Ver</b> olarak ayarlayın.',
+            permErrorAlt: 'Hata: {error}<br><br><b>Alternatif:</b> Adres çubuğunun solundaki <b>Kilit (🔒)</b> simgesine tıklayın ve <b>Mikrofon</b>u <b>İzin Ver</b> olarak ayarlayın.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Companion Sunucusu Yeniden Başlatılsın mı?',
             restartModalDesc: 'Dili {name} olarak değiştirmek, Companion Sunucusunun yeni dil ayarıyla yeniden başlatılmasını gerektirir. Mevcut işlemler durdurulacak ve yeni bir komut istemi penceresi açılacaktır.',

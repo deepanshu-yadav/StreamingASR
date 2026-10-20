@@ -145,6 +145,15 @@
             launchSuccessStatus: '✓ Companion Online at http://127.0.0.1:8000',
             launchFailStatus: 'कम्पैनियन से कनेक्शन नहीं हो पाया। कृपया start_companion.bat चलाएं।',
 
+            // Permission Tab Strings
+            permPageTitle: 'माइक्रोफ़ोन अनुमति - Voice Assistant',
+            permHeading: 'माइक्रोफ़ोन अनुमति',
+            permDesc: 'Chrome साइड पैनल में सीधे अनुमति डायलॉग नहीं आ सकता। कृपया नीचे दिए बटन पर क्लिक करें और ऊपर ब्राउज़र में <b>"Allow"</b> चुनें।',
+            permBtnGrant: 'अनुमति दें (Allow Microphone)',
+            permSuccess: '✅ अनुमति मिल गई! अब आप इस टैब को बंद कर सकते हैं।',
+            permTip: 'यदि ऊपर पॉपअप न दिखे: एड्रेस बार में बाएँ ओर <b>Tune/Lock (🔒)</b> आइकन पर क्लिक करके <b>Microphone</b> को <b>Allow</b> करें।',
+            permErrorAlt: 'त्रुटि: {error}<br><br><b>वैकल्पिक तरीका:</b> एड्रेस बार में बाएँ ओर स्थित <b>Settings / Lock (🔒)</b> आइकन पर क्लिक करके <b>Microphone</b> को <b>Allow</b> करें।',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'कम्पैनियन सर्वर रीस्टार्ट करें?',
             restartModalDesc: 'भाषा को {name} में बदलने के लिए कम्पैनियन सर्वर को नई भाषा सेटिंग के साथ रीस्टार्ट करना होगा। मौजूदा प्रक्रियाएं बंद हो जाएंगी और नया कमांड प्रॉम्प्ट विंडो खुलेगा।',

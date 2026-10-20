@@ -2064,7 +2064,8 @@
             if (isPerm) {
                 showToast(window.i18n ? window.i18n.t('micPermTabOpened') : 'Microphone permission tab opened — please click "Allow"');
                 if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('permission.html') });
+                    const lang = window.i18n ? window.i18n.getLanguage() : (previousAppLanguage || 'hi-IN');
+                    chrome.tabs.create({ url: chrome.runtime.getURL(`permission.html?lang=${encodeURIComponent(lang)}`) });
                 }
             } else {
                 showToast((window.i18n ? window.i18n.t('micAccessDenied') : 'Microphone access denied: ') + e.message);
@@ -2219,7 +2220,8 @@
         compEl.linkMicPerm.addEventListener('click', (e) => {
             e.preventDefault();
             if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
-                chrome.tabs.create({ url: chrome.runtime.getURL('permission.html') });
+                const lang = window.i18n ? window.i18n.getLanguage() : (previousAppLanguage || 'hi-IN');
+                chrome.tabs.create({ url: chrome.runtime.getURL(`permission.html?lang=${encodeURIComponent(lang)}`) });
             }
         });
     }

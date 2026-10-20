@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion 온라인: http://127.0.0.1:8000',
             launchFailStatus: '연결할 수 없습니다. start_companion을 실행하세요.',
 
+            // Permission Tab Strings
+            permPageTitle: '마이크 권한 - 음성 어시스턴트',
+            permHeading: '마이크 권한 허용',
+            permDesc: 'Chrome 사이드 패널에서는 마이크 권한을 직접 요청할 수 없습니다. 아래 버튼을 클릭하고 브라우저 상단에서 <b>"허용"</b>을 선택해 주세요.',
+            permBtnGrant: '권한 부여 (마이크 허용)',
+            permSuccess: '✅ 권한이 부여되었습니다! 이제 이 탭을 닫으셔도 됩니다.',
+            permTip: '상단에 프롬프트가 표시되지 않는 경우: 주소 표시줄 왼쪽의 <b>자물쇠/설정 (🔒)</b> 아이콘을 클릭하고 <b>마이크</b>를 <b>허용</b>으로 설정하세요.',
+            permErrorAlt: '오류: {error}<br><br><b>대체 방법:</b> 주소 표시줄 왼쪽의 <b>자물쇠 (🔒)</b> 아이콘을 클릭하고 <b>마이크</b>를 <b>허용</b>으로 설정하세요.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Companion 서버를 다시 시작하시겠습니까?',
             restartModalDesc: '언어를 {name}(으)로 변경하려면 새 언어 설정으로 Companion 서버를 다시 시작해야 합니다. 기존 프로세스가 중지되고 새 명령 프롬프트 창이 열립니다.',

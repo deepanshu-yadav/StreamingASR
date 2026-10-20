@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion オンライン: http://127.0.0.1:8000',
             launchFailStatus: '接続できませんでした。start_companion を実行してください。',
 
+            // Permission Tab Strings
+            permPageTitle: 'マイク権限 - 音声アシスタント',
+            permHeading: 'マイクへのアクセス許可',
+            permDesc: 'Chromeサイドパネルは直接マイク権限を要求できません。下のボタンをクリックし、ブラウザ上部に表示されるプロンプトで<b>「許可」</b>を選択してください。',
+            permBtnGrant: '権限を許可する (マイクを許可)',
+            permSuccess: '✅ 権限が許可されました！このタブを閉じることができます。',
+            permTip: 'プロンプトが表示されない場合: アドレスバー左側の<b>鍵/設定アイコン (🔒)</b>をクリックし、<b>マイク</b>を<b>許可</b>に設定してください。',
+            permErrorAlt: 'エラー: {error}<br><br><b>別の方法:</b> アドレスバー左側の<b>鍵アイコン (🔒)</b>をクリックし、<b>マイク</b>を<b>許可</b>に設定してください。',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Companion サーバーを再起動しますか？',
             restartModalDesc: '言語を {name} に変更するには、新しい言語設定で Companion サーバーを再起動する必要があります。実行中のプロセスは停止され、新しいコマンドプロンプト画面が起動します。',

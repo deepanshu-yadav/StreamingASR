@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>माइक्रोफ़ोन अनुमति — Voice Assistant</title>
+    <title data-i18n="permPageTitle">Microphone Permission — Voice Assistant</title>
     <style>
         body {
             background-color: #0c0e14;
@@ -100,22 +100,38 @@
 <body>
     <div class="card">
         <div class="mic-icon">🎙️</div>
-        <h1>माइक्रोफ़ोन अनुमति (Microphone Permission)</h1>
-        <p>Chrome साइड पैनल में सीधे अनुमति डायलॉग नहीं आ सकता। कृपया नीचे दिए बटन पर क्लिक करें और ऊपर ब्राउज़र में <b>"Allow"</b> चुनें।</p>
+        <h1 id="permHeading" data-i18n="permHeading">Microphone Permission</h1>
+        <p id="permDesc" data-i18n="permDesc">Chrome side panels cannot directly prompt for microphone access. Please click the button below and select <b>"Allow"</b> in the browser prompt above.</p>
         
-        <button id="btnGrant" class="btn">अनुमति दें (Allow Microphone)</button>
+        <button id="btnGrant" class="btn" data-i18n="permBtnGrant">Grant Permission (Allow Microphone)</button>
         
-        <div id="statusSuccess" class="status">
-            ✅ अनुमति मिल गई! अब आप इस टैब को बंद कर सकते हैं।
+        <div id="statusSuccess" class="status" data-i18n="permSuccess">
+            ✅ Permission granted! You can now close this tab.
         </div>
         <div id="statusError" class="error"></div>
 
-        <div class="tip">
-            यदि ऊपर पॉपअप न दिखे: एड्रेस बार में बाएँ ओर <b>Tune/Lock</b> आइकन पर क्लिक करके <b>Microphone</b> को <b>Allow</b> करें।
+        <div class="tip" id="permTip" data-i18n="permTip">
+            If you do not see a prompt above: Click the <b>Tune/Lock (🔒)</b> icon on the left of the address bar and set <b>Microphone</b> to <b>Allow</b>.
         </div>
     </div>
 
-    <!-- Loaded from external JS file to satisfy Manifest V3 CSP -->
+    <!-- Loaded from external JS files to satisfy Manifest V3 CSP -->
+    <script src="locales/hi.js"></script>
+    <script src="locales/en.js"></script>
+    <script src="locales/es.js"></script>
+    <script src="locales/fr.js"></script>
+    <script src="locales/it.js"></script>
+    <script src="locales/pt.js"></script>
+    <script src="locales/nl.js"></script>
+    <script src="locales/de.js"></script>
+    <script src="locales/tr.js"></script>
+    <script src="locales/ru.js"></script>
+    <script src="locales/ar.js"></script>
+    <script src="locales/ja.js"></script>
+    <script src="locales/ko.js"></script>
+    <script src="locales/vi.js"></script>
+    <script src="locales/uk.js"></script>
+    <script src="i18n.js"></script>
     <script src="permission.js"></script>
 </body>
 </html>

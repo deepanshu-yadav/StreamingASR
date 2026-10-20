@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion Online su http://127.0.0.1:8000',
             launchFailStatus: 'Impossibile connettersi al companion. Esegui start_companion.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Permesso Microfono - Assistente Vocale',
+            permHeading: 'Permesso Microfono',
+            permDesc: 'Il riquadro laterale di Chrome non può richiedere direttamente l\'accesso al microfono. Fai clic sul pulsante qui sotto e seleziona <b>"Consenti"</b> nel prompt in alto.',
+            permBtnGrant: 'Concedi autorizzazione (Consenti microfono)',
+            permSuccess: '✅ Permesso concesso! Ora puoi chiudere questa scheda.',
+            permTip: 'Se non vedi il prompt in alto: Fai clic sull\'icona <b>Lucchetto / Impostazioni (🔒)</b> a sinistra della barra degli indirizzi e imposta <b>Microfono</b> su <b>Consenti</b>.',
+            permErrorAlt: 'Errore: {error}<br><br><b>Alternativa:</b> Fai clic sull\'icona <b>Lucchetto (🔒)</b> a sinistra della barra degli indirizzi e imposta <b>Microfono</b> su <b>Consenti</b>.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Riavviare il server Companion?',
             restartModalDesc: 'La modifica della lingua in {name} richiede il riavvio del server Companion con le nuove impostazioni linguistiche. I processi attuali verranno interrotti e si aprirà una nuova finestra del prompt dei comandi.',

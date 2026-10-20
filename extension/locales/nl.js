@@ -121,6 +121,15 @@
             launchSuccessStatus: '✓ Companion Online op http://127.0.0.1:8000',
             launchFailStatus: 'Kan geen verbinding maken met companion. Start start_companion.',
 
+            // Permission Tab Strings
+            permPageTitle: 'Microfoontoegang - Spraakassistent',
+            permHeading: 'Microfoontoegang',
+            permDesc: 'Het Chrome-zijpaneel kan niet rechtstreeks om microfoontoegang vragen. Klik op de knop hieronder en kies <b>"Toestaan"</b> in de prompt hierboven.',
+            permBtnGrant: 'Toestemming verlenen (Microfoon toestaan)',
+            permSuccess: '✅ Toestemming verleend! U kunt dit tabblad nu sluiten.',
+            permTip: 'Als u hierboven geen prompt ziet: Klik op het <b>Slotje (🔒)</b> links in de adresbalk en zet <b>Microfoon</b> op <b>Toestaan</b>.',
+            permErrorAlt: 'Fout: {error}<br><br><b>Alternatief:</b> Klik op het <b>Slotje (🔒)</b> links in de adresbalk en zet <b>Microfoon</b> op <b>Toestaan</b>.',
+
             // Restart Confirmation Modal Strings
             restartModalTitle: 'Companion-server herstarten?',
             restartModalDesc: 'Als u de taal wijzigt naar {name}, moet de Companion-server opnieuw worden gestart met de nieuwe taalinstellingen. Bestaande processen worden gestopt en er wordt een nieuw opdrachtpromptvenster geopend.',
