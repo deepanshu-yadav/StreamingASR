@@ -245,7 +245,7 @@ function getPlatformBinaries() {
             },
             llamaServer: {
                 relPath: path.join('bin', 'llama_cpp', 'llama-server.exe'),
-                url: 'https://github.com/ggml-org/llama.cpp/releases/download/b10686/llama-b10686-bin-win-cpu-x64.zip',
+                url: 'https://github.com/ggml-org/llama.cpp/releases/download/b11756/llama-b11756-bin-win-cpu-x64.zip',
                 isArchive: true,
                 archiveType: 'zip',
                 minSizeBytes: 4096
@@ -255,8 +255,8 @@ function getPlatformBinaries() {
 
     if (IS_DARWIN) {
         const llamaMacUrl = ARCH === 'arm64'
-            ? 'https://github.com/ggml-org/llama.cpp/releases/download/b10686/llama-b10686-bin-macos-arm64.zip'
-            : 'https://github.com/ggml-org/llama.cpp/releases/download/b10686/llama-b10686-bin-macos-x64.zip';
+            ? 'https://github.com/ggml-org/llama.cpp/releases/download/b11756/llama-b11756-bin-macos-arm64.zip'
+            : 'https://github.com/ggml-org/llama.cpp/releases/download/b11756/llama-b11756-bin-macos-x64.zip';
 
         return {
             crispasr: {
@@ -287,7 +287,7 @@ function getPlatformBinaries() {
         },
         llamaServer: {
             relPath: path.join('bin', 'llama_cpp', 'llama-server'),
-            url: 'https://github.com/ggml-org/llama.cpp/releases/download/b10686/llama-b10686-bin-ubuntu-x64.zip',
+            url: 'https://github.com/ggml-org/llama.cpp/releases/download/b11756/llama-b11756-bin-ubuntu-x64.zip',
             isArchive: true,
             archiveType: 'zip',
             minSizeBytes: 100 * 1024
