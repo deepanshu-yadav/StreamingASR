@@ -238,7 +238,7 @@ function getPlatformBinaries() {
         return {
             crispasr: {
                 relPath: path.join('bin', 'crispasr', 'crispasr.exe'),
-                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.39/crispasr-windows-x86_64-cpu.zip',
+                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.43/crispasr-windows-x86_64-cpu.zip',
                 isArchive: true,
                 archiveType: 'zip',
                 minSizeBytes: 5 * 1024 * 1024
@@ -261,7 +261,7 @@ function getPlatformBinaries() {
         return {
             crispasr: {
                 relPath: path.join('bin', 'crispasr', 'crispasr'),
-                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.39/crispasr-macos.tar.gz',
+                url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.43/crispasr-macos.tar.gz',
                 isArchive: true,
                 archiveType: 'tar.gz',
                 minSizeBytes: 5 * 1024 * 1024
@@ -280,7 +280,7 @@ function getPlatformBinaries() {
     return {
         crispasr: {
             relPath: path.join('bin', 'crispasr', 'crispasr'),
-            url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.39/crispasr-linux-x86_64.tar.gz',
+            url: 'https://github.com/CrispStrobe/CrispASR/releases/download/v0.8.43/crispasr-linux-x86_64.tar.gz',
             isArchive: true,
             archiveType: 'tar.gz',
             minSizeBytes: 5 * 1024 * 1024
