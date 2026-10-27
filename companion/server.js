@@ -34,7 +34,7 @@ function resolveRootDir() {
     const homeDir = process.env.USERPROFILE || process.env.HOME || require('os').homedir();
     const signalDir = path.join(homeDir, 'Downloads', 'signal');
     // Ensure directory structure exists
-    for (const sub of ['', 'models', 'bin']) {
+    for (const sub of ['', 'models', 'bin', 'audit_logs']) {
         const dir = path.join(signalDir, sub);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     }
@@ -738,6 +738,7 @@ server.on('error', (err) => {
         console.log(`     LLM Proxy:    http://localhost:${PORT}/v1/chat/completions -> :8084`);
         console.log(`     ASR WS Port:  ws://127.0.0.1:8081`);
         console.log(`     Models/Bins:  ${ROOT_DIR}`);
+        console.log(`     Audit Logs:   ${path.join(ROOT_DIR, 'audit_logs')}`);
         console.log(`======================================================\n`);
     });
 })();

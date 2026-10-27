@@ -9,8 +9,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+SIGNAL_DIR="${COMPANION_ROOT:-$HOME/Downloads/signal}"
+
 echo "========================================================"
 echo "  Companion Orchestrator & Proxy Server"
+echo "  Models/Binaries: $SIGNAL_DIR"
+echo "  Audit Logs:      $SIGNAL_DIR/audit_logs"
 echo "========================================================"
 echo ""
 
@@ -58,7 +62,13 @@ fi
 echo "[OK] Node.js detected at: $NODE_BIN ($("$NODE_BIN" -v))"
 echo ""
 
+# Ensure directory structure exists in signal root directory
+mkdir -p "$SIGNAL_DIR/models" "$SIGNAL_DIR/bin" "$SIGNAL_DIR/audit_logs"
+
 # Ensure bin directory has executable permissions for local binaries
+if [ -d "$SIGNAL_DIR/bin" ]; then
+    chmod +x "$SIGNAL_DIR"/bin/* 2>/dev/null || true
+fi
 if [ -d "$SCRIPT_DIR/bin" ]; then
     chmod +x "$SCRIPT_DIR"/bin/* 2>/dev/null || true
 fi

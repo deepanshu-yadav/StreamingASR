@@ -21,24 +21,64 @@ const path = require('path');
 
 class AuditManager {
     constructor(rootDir, workspaceDir) {
-        this.rootDir = rootDir;
+        const homeDir = process.env.USERPROFILE || process.env.HOME || require('os').homedir();
+        const defaultRootDir = path.join(homeDir, 'Downloads', 'signal');
+
+        this.rootDir = rootDir || (process.env.COMPANION_ROOT && fs.existsSync(process.env.COMPANION_ROOT)
+            ? path.resolve(process.env.COMPANION_ROOT)
+            : defaultRootDir);
         this.workspaceDir = workspaceDir || path.resolve(__dirname, '..');
         
-        // Setup audit log directories
-        // 1. Primary: streaming_demos/audit_logs (inside workspace for direct project visibility)
-        this.primaryLogDir = path.join(this.workspaceDir, 'audit_logs');
-        // 2. Secondary: ROOT_DIR/audit_logs (e.g. ~/Downloads/signal/audit_logs)
-        this.secondaryLogDir = path.join(this.rootDir, 'audit_logs');
+        // Setup audit log directory: stored in ROOT_DIR/audit_logs (e.g. C:\Users\DEEPANSHU\Downloads\signal\audit_logs)
+        // keeping audit logs external to the repository source tree
+        this.primaryLogDir = path.join(this.rootDir, 'audit_logs');
+        this.secondaryLogDir = this.primaryLogDir;
 
         this.ensureDir(this.primaryLogDir);
-        if (this.secondaryLogDir !== this.primaryLogDir) {
-            this.ensureDir(this.secondaryLogDir);
-        }
+
+        // Migrate any remaining legacy audit logs found in the repository workspace to the central signal directory
+        this._migrateLegacyRepoLogs();
 
         // Active session file streams: sessionId -> { jsonlStream, logStream, metadata, startTime }
         this.sessions = new Map();
 
-        console.log(`[AuditManager] Initialized. Primary log dir: ${this.primaryLogDir}`);
+        console.log(`[AuditManager] Initialized. Audit log dir: ${this.primaryLogDir}`);
+    }
+
+    _migrateLegacyRepoLogs() {
+        try {
+            const legacyRepoDir = path.join(this.workspaceDir, 'audit_logs');
+            if (fs.existsSync(legacyRepoDir) && path.resolve(legacyRepoDir) !== path.resolve(this.primaryLogDir)) {
+                const files = fs.readdirSync(legacyRepoDir);
+                let migratedCount = 0;
+                for (const file of files) {
+                    const src = path.join(legacyRepoDir, file);
+                    const dest = path.join(this.primaryLogDir, file);
+                    try {
+                        const stat = fs.statSync(src);
+                        if (stat.isFile()) {
+                            if (!fs.existsSync(dest)) {
+                                fs.copyFileSync(src, dest);
+                            }
+                            fs.unlinkSync(src);
+                            migratedCount++;
+                        }
+                    } catch (_) {}
+                }
+                // Try to remove the empty legacy folder if it has no items
+                try {
+                    const remaining = fs.readdirSync(legacyRepoDir);
+                    if (remaining.length === 0) {
+                        fs.rmdirSync(legacyRepoDir);
+                    }
+                } catch (_) {}
+                if (migratedCount > 0) {
+                    console.log(`[AuditManager] Migrated ${migratedCount} legacy audit logs from repository to ${this.primaryLogDir}`);
+                }
+            }
+        } catch (err) {
+            console.warn('[AuditManager] Legacy log migration notice:', err.message);
+        }
     }
 
     ensureDir(dirPath) {
@@ -505,11 +545,12 @@ class AuditManager {
             const sessionsMap = new Map();
 
             for (const f of files) {
-                const match = f.match(/^audit_(session_[^_]+)_([0-9T-]+)\.(jsonl|log|_summary\.json)$/);
+                const match = f.match(/^audit_(.+?)_([0-9T\-Zz]+)(?:_summary\.json|\.(jsonl|log))$/);
                 if (match) {
                     const sessionId = match[1];
                     const timestamp = match[2];
-                    const ext = match[3];
+                    const isSummary = f.endsWith('_summary.json');
+                    const ext = isSummary ? '_summary.json' : match[3];
 
                     if (!sessionsMap.has(sessionId)) {
                         sessionsMap.set(sessionId, {
@@ -526,7 +567,7 @@ class AuditManager {
                     const s = sessionsMap.get(sessionId);
                     if (ext === 'jsonl') { s.hasJsonl = true; s.jsonlFile = f; }
                     if (ext === 'log') { s.hasLog = true; s.logFile = f; }
-                    if (ext === '_summary.json') { s.hasSummary = true; s.summaryFile = f; }
+                    if (isSummary) { s.hasSummary = true; s.summaryFile = f; }
                 }
             }
 
