@@ -518,12 +518,12 @@
                 ? dict.confirmField(field.label, value)
                 : `${field.label}: ${value}. Confirm?`;
 
-            if (ctx.speak) {
-                await ctx.speak(prompt);
-            }
-
             if (ctx.setFlowState) {
                 ctx.setFlowState('form_awaiting_confirmation');
+            }
+
+            if (ctx.speak) {
+                await ctx.speak(prompt);
             }
         }
 

@@ -187,7 +187,7 @@ Düzeltme talimatını önceki değere uygula ve YALNIZCA nihai temiz değeri d�
                 'evet', 'doğru', 'dogru', 'tamam', 'olur', 'devam', 'onay', 'aynen', 'peki', 'iyi'
             ],
             skipPhrases: [
-                'atla', 'geç', 'gec', 'boş ver', 'bosver', 'sonraki alan', 'bırak', 'boş bırak', 'bos birak', 'boş', 'bos'
+                'atla', 'geç', 'gec', 'boş ver', 'bosver', 'sonraki alan', 'sonraki', 'bırak', 'boş bırak', 'bos birak', 'boş', 'bos'
             ],
             pureRejectionWords: [
                 'hayır', 'hayir', 'yanlış', 'yanlis', 'bu değil', 'olmadı'

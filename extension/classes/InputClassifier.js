@@ -125,21 +125,21 @@
         ],
         skipPhrases: [
             // Standard skip / pass triggers
-            'skip', 'skip field', 'leave it', 'pass', 'next field', 'move on', 'ignore', 'skip it',
-            'छोड़ दो', 'छोड़ो', 'छोड़िए', 'छोड़ना', 'स्किप', 'आगे बढ़ो', 'अगला फ़ील्ड',
+            'skip', 'skip field', 'leave it', 'pass', 'next field', 'move on', 'move on to next field', 'move to next field', 'next', 'ignore', 'skip it',
+            'छोड़ दो', 'छोड़ो', 'छोड़िए', 'छोड़ना', 'स्किप', 'आगे बढ़ो', 'अगला फ़ील्ड', 'अगला',
             'omitir', 'saltar', 'pasar', 'dejarlo', 'siguiente campo', 'ignorar', 'pasa',
             'passer', 'laisser', 'suivant', 'champ suivant', 'saute',
             'überspringen', 'ueberspringen', 'nächstes feld', 'auslassen',
             'スキップ', '飛ばして', 'とばして', '次へ', 'パス', '次の項目',
             'пропустить', 'пропусти', 'следующее поле', 'дальше без него', 'оставь',
-            'تخطي', 'تجاوز', 'الحقل التالي', 'اتركه', 'تخطى',
-            'pular', 'próximo campo',
+            'تخطي', 'تجاوز', 'الحقل التالي', 'التالي', 'اتركه', 'تخطى',
+            'pular', 'avançar', 'próximo campo', 'proximo',
             '건너뛰기', '스킵', '패스', '다음 항목', '넘어가',
-            'salta', 'prossimo campo',
-            'atla', 'geç', 'gec', 'boş ver', 'bosver', 'sonraki alan', 'bırak',
+            'salta', 'avanti', 'prossimo campo', 'prossimo',
+            'atla', 'geç', 'gec', 'boş ver', 'bosver', 'sonraki alan', 'sonraki', 'bırak',
             'overslaan', 'sla over', 'volgend veld', 'laat maar',
-            'пропустити', 'наступне поле', 'проїхали', 'залиш',
-            'bỏ qua', 'qua', 'trường tiếp', 'kệ đi',
+            'пропустити', 'наступне поле', 'далі', 'наступне', 'проїхали', 'залиш',
+            'bỏ qua', 'qua', 'tiếp theo', 'kế tiếp', 'trường tiếp', 'kệ đi',
 
             // Leave blank / empty triggers across languages
             'leave blank', 'leave it blank', 'blank', 'empty', 'leave empty', 'keep blank', 'keep empty',
@@ -159,17 +159,17 @@
             'để trống', 'trống', 'bỏ trống'
         ],
         confirmWords: [
-            'yes', 'yeah', 'yep', 'correct', 'right', 'ok', 'okay', 'proceed', 'next', 'fine', 'perfect', 'sure', 'confirm', 'good', 'looks good', "that's right", 'that is right',
+            'yes', 'yeah', 'yep', 'correct', 'right', 'ok', 'okay', 'proceed', 'fine', 'perfect', 'sure', 'confirm', 'good', 'looks good', "that's right", 'that is right',
             'keep', 'keep it', 'keep value', 'keep the value', 'keep earlier value', 'keep the earlier value', 'keep existing', 'keep existing value', 'keep this', 'keep it as is', 'leave it', 'leave as is', 'as is', 'let it be', 'no change', "don't change", 'do not change', 'same', 'keep same',
-            'हाँ', 'हां', 'हा', 'जी', 'haan', 'ha', 'बिल्कुल', 'ठीक', 'सही है', 'sahi hai', 'ठीक है', 'सही', 'sahi', 'आगे बढ़ो', 'रखो', 'वही रखो', 'यही रहने दो', 'वही रहने दो', 'पुराना वाला रखो', 'पुराना रखो', 'पुराना मान रखो', 'बदलना नहीं है', 'यही ठीक है', 'वही ठीक है', 'बदलो मत',
+            'हाँ', 'हां', 'हा', 'जी', 'haan', 'ha', 'बिल्कुल', 'ठीक', 'सही है', 'sahi hai', 'ठीक है', 'सही', 'sahi', 'रखो', 'वही रखो', 'यही रहने दो', 'वही रहने दो', 'पुराना वाला रखो', 'पुराना रखो', 'पुराना मान रखो', 'बदलना नहीं है', 'यही ठीक है', 'वही ठीक है', 'बदलो मत',
             'sí', 'si', 'correcto', 'exacto', 'bien', 'está bien', 'perfecto', 'adelante', 'proceder', 'claro', 'vale', 'de acuerdo', 'confirmo', 'así es', 'mantener', 'manténlo', 'dejarlo así', 'conservar', 'no cambiar',
             'oui', 'ouais', 'exact', 'correct', "d'accord", "c'est bon", 'valider', 'tout à fait', 'garder', 'conserver', 'laisser comme ça', 'ne pas changer',
-            'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'weiter', 'in ordnung', 'passt', 'sicher', 'bestätigen', 'beibehalten', 'so lassen', 'nicht ändern',
+            'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'in ordnung', 'passt', 'sicher', 'bestätigen', 'beibehalten', 'so lassen', 'nicht ändern',
             'はい', 'うん', 'そうです', '合ってる', 'オッケー', '大丈夫', 'オーケー', 'いいよ', '進めて', 'そのまま', '維持',
-            'да', 'верно', 'правильно', 'хорошо', 'точно', 'дальше', 'подтверждаю', 'все так', 'ладно', 'оставить', 'не менять', 'пусть так',
+            'да', 'верно', 'правильно', 'хорошо', 'точно', 'подтверждаю', 'все так', 'ладно', 'оставить', 'не менять', 'пусть так',
             'نعم', 'ايوه', 'اي', 'أجل', 'صحيح', 'مضبوط', 'تمام', 'أكيد', 'موافق', 'تابع', 'حسنا', 'تأكيد', 'إبقاء', 'اتركه كما هو',
-            'sim', 'certo', 'está certo', 'isso', 'pode ser', 'prosseguir', 'avançar', 'beleza', 'manter', 'deixar assim',
-            '네', '응', '맞아', '맞아요', '그래', '좋아', '다음', '진행', '맞습니다', '그대로', '유지',
+            'sim', 'certo', 'está certo', 'isso', 'pode ser', 'prosseguir', 'beleza', 'manter', 'deixar assim',
+            '네', '응', '맞아', '맞아요', '그래', '좋아', '진행', '맞습니다', '그대로', '유지',
             'esatto', 'va bene', 'confermo', 'mantieni', 'lascia così',
             'evet', 'doğru', 'dogru', 'tamam', 'olur', 'devam', 'onay', 'aynen', 'peki', 'kalsın', 'aynı kalsın',
             'klopt', 'prima', 'akkoord', 'inderdaad', 'behouden', 'zo laten',
@@ -228,7 +228,7 @@
             'sửa', 'đổi', 'thay đổi', 'thay vì', 'chỉnh'
         ],
         navPrefixes: [
-            'go to', 'jump to', 'skip to', 'move to', 'navigate to', 'switch to', 'take me to', 'open', 'focus on',
+            'go to', 'jump to', 'skip to', 'move to', 'move on to', 'move on', 'continue to', 'head to', 'navigate to', 'switch to', 'take me to', 'open', 'focus on',
             'चलो', 'जाओ', 'खोलो',
             'ir a', 'salta a', 'pasa a', 've a', 'abrir', 'enfocar',
             'aller à', 'passer à', 'ouvrir', 'aller sur',
@@ -498,9 +498,9 @@
                     const hasNavKeywords = matchPhrase(lower, heuristics.navPrefixes)
                         || matchPhrase(lower, heuristics.navSuffixes)
                         || targetMatch.matchType.startsWith('ordinal')
-                        || targetMatch.matchType.startsWith('relative');
+                    const isDirectExactLabel = targetMatch.matchType === 'exact_label' && targetMatch.confidence >= 0.90;
 
-                    if (hasNavKeywords || (targetMatch.index !== currentFieldIndex && targetMatch.confidence >= 0.85)) {
+                    if (hasNavKeywords || isDirectExactLabel) {
                         const isValueCollision = (targetMatch.index === currentFieldIndex) && !hasNavKeywords;
                         if (!isValueCollision) {
                             return {
@@ -704,6 +704,7 @@ Respond with a strictly formatted JSON object:
                     heuristicResult.latencyMs = Math.round(performance.now() - startT);
                     heuristicResult.tier = 1;
                     heuristicResult.source = 'heuristic';
+                    if (context.isBargeIn) heuristicResult.isBargeIn = true;
                     console.log(`[InputClassifier] Tier 1 Match (${heuristicResult.type}, conf: ${heuristicResult.confidence}):`, heuristicResult);
                     return heuristicResult;
                 }
@@ -715,6 +716,7 @@ Respond with a strictly formatted JSON object:
             console.log('[InputClassifier] Triggering Tier 2 LLM fallback for utterance:', text);
             const llmResult = await this.classifyLLM(text, context);
             llmResult.latencyMs = Math.round(performance.now() - startT);
+            if (context.isBargeIn) llmResult.isBargeIn = true;
             return llmResult;
         }
     }

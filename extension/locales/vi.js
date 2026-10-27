@@ -187,7 +187,7 @@ Chỉ trích xuất giá trị sạch mà người dùng muốn nhập, loại b
                 'có', 'đúng', 'chuẩn', 'chính xác', 'được', 'ok', 'tiếp tục', 'chuẩn rồi', 'xong'
             ],
             skipPhrases: [
-                'bỏ qua', 'qua', 'tiếp', 'trường tiếp', 'kệ đi', 'để trống', 'trống', 'bỏ trống'
+                'bỏ qua', 'qua', 'tiếp', 'tiếp theo', 'kế tiếp', 'trường tiếp', 'kệ đi', 'để trống', 'trống', 'bỏ trống'
             ],
             pureRejectionWords: [
                 'không', 'sai', 'nhầm rồi', 'chưa đúng', 'không phải'

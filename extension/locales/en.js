@@ -257,10 +257,10 @@ Output ONLY the final clean value. No explanations or quotes.`,
                 'no', 'not', 'wrong', 'incorrect', 'change', 'replace', 'mistake', 'fix', 'not right', 'nope', 'nah', 'error', 'different', 'modify'
             ],
             confirmWords: [
-                'yes', 'yeah', 'yep', 'correct', 'right', 'ok', 'okay', 'proceed', 'next', 'fine', 'perfect', 'sure', 'confirm', 'good', 'looks good', 'that is right', 'that\'s right'
+                'yes', 'yeah', 'yep', 'correct', 'right', 'ok', 'okay', 'proceed', 'fine', 'perfect', 'sure', 'confirm', 'good', 'looks good', 'that is right', 'that\'s right'
             ],
             skipPhrases: [
-                'skip', 'skip field', 'leave it', 'pass', 'next field', 'move on', 'ignore', 'leave blank', 'leave it blank', 'blank', 'empty', 'leave empty', 'keep blank'
+                'skip', 'skip field', 'leave it', 'pass', 'next field', 'move on', 'move on to next field', 'move to next field', 'next', 'ignore', 'leave blank', 'leave it blank', 'blank', 'empty', 'leave empty', 'keep blank'
             ],
             pureRejectionWords: [
                 'no', 'wrong', 'not this', 'incorrect', 'nah', 'nope', 'not right', 'that\'s wrong', 'it is wrong'

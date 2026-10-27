@@ -184,7 +184,7 @@ Wenden Sie die Korrekturanweisung auf den vorherigen Wert an und geben Sie NUR d
                 'nein', 'nicht', 'falsch', 'korrektur', 'ändern', 'ändere', 'fehler', 'unrichtig', 'ersetze', 'stimmt nicht'
             ],
             confirmWords: [
-                'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'weiter', 'in ordnung', 'passt', 'ok', 'sicher', 'perfekt', 'bestätigen'
+                'ja', 'korrekt', 'richtig', 'stimmt', 'genau', 'in ordnung', 'passt', 'ok', 'sicher', 'perfekt', 'bestätigen'
             ],
             skipPhrases: [
                 'überspringen', 'ueberspringen', 'weiter', 'nächstes feld', 'auslassen', 'leer lassen', 'leer', 'frei lassen', 'skip'

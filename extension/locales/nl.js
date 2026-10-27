@@ -184,7 +184,7 @@ Pas de correctie-instructie toe op de vorige waarde en geef UITSLUITEND de uitei
                 'nee', 'niet', 'fout', 'verkeerd', 'wijzig', 'wijzigen', 'verander', 'foutje', 'onjuist', 'verbeter'
             ],
             confirmWords: [
-                'ja', 'klopt', 'correct', 'prima', 'akkoord', 'goed', 'volgende', 'zeker', 'bevestigen', 'inderdaad'
+                'ja', 'klopt', 'correct', 'prima', 'akkoord', 'goed', 'zeker', 'bevestigen', 'inderdaad'
             ],
             skipPhrases: [
                 'overslaan', 'sla over', 'volgend veld', 'laat maar', 'skip', 'leeg laten', 'leeg'

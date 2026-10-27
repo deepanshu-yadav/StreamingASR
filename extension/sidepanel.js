@@ -284,6 +284,18 @@
         preRollSamples = 0,
         gatedSamplesSkipped = 0;
 
+    // ---------- BARGE-IN STATE & REFERENCE RING BUFFER ----------
+    let ttsRefBuffer = [];
+    const TTS_REF_MAX_SAMPLES = 16000 * 2; // 2 seconds history @ 16kHz
+    let ttsRefAnalyser = null;
+    let ttsRefSamplerInterval = null;
+    let estimatedEchoDelayMs = Number(localStorage.getItem('estimatedEchoDelayMs')) || 120;
+    let bargeInTriggered = false;
+    let pendingBargeInUtterance = false;
+    let currentTtsTextSnapshot = '';
+    let bargeInCandidateFrames = 0;
+    let bargeInHangoverFrames = 0;
+
     // ---------- DEBOUNCE BUFFERS ----------
     let formConfirmReplyBuffer = '';
     let formConfirmDebounceTimer = null;
@@ -414,6 +426,7 @@
     }
 
     function stopTTSPlayback() {
+        stopTtsRefSampler();
         if (ttsWebSocket) {
             try {
                 if (ttsWebSocket.readyState === WebSocket.OPEN) {
@@ -480,6 +493,17 @@
         const src = ttsPlaybackCtx.createBufferSource();
         src.buffer = buf;
         src.connect(ttsPlaybackCtx.destination);
+
+        // Tap audio signal into reference analyser for barge-in echo cancellation
+        if (!ttsRefAnalyser && ttsPlaybackCtx) {
+            ttsRefAnalyser = ttsPlaybackCtx.createAnalyser();
+            ttsRefAnalyser.fftSize = 1024;
+        }
+        if (ttsRefAnalyser) {
+            try { src.connect(ttsRefAnalyser); } catch (_) {}
+            startTtsRefSampler();
+        }
+
         src.start(ttsNextStartTime);
 
         ttsActiveSources.add(src);
@@ -496,6 +520,7 @@
 
     function speak(text) {
         const cleanText = formatForSpeech(text);
+        currentTtsTextSnapshot = cleanText;
         console.log('[TTS] speak() → "' + cleanText + '"');
         return new Promise(async (resolve) => {
             if (!cleanText || !cleanText.trim()) { resolve(); return; }
@@ -524,6 +549,9 @@
             vadSpeechFrames = 0;
             vadSilenceFrames = 0;
             vadTriggered = false;
+            bargeInCandidateFrames = 0;
+            bargeInHangoverFrames = 0;
+            bargeInTriggered = false;
             el.micMutedBadge.classList.add('visible');
             el.interruptBtn.classList.add('visible');
             setTTSStatus('playing', 'tts playing…');
@@ -745,7 +773,7 @@
         });
     }
 
-    function interruptTTS() {
+    function interruptTTS({ reason } = {}) {
         ttsCurrentToken++;
         if (ttsSafetyTimer) {
             clearTimeout(ttsSafetyTimer);
@@ -760,6 +788,12 @@
             ttsAbortController = null;
         }
         stopTTSPlayback();
+
+        // Cancel in-flight LLM/routing operations on user interruption
+        if (reason === 'barge_in' || reason === 'user_click') {
+            advanceTurnEpoch(reason);
+        }
+
         ttsPlaying = false;
         ttsMicMuted = false;
         el.micMutedBadge.classList.remove('visible');
@@ -770,8 +804,246 @@
             ttsResolve = null;
             r();
         }
-        showToast('TTS interrupted');
+        showToast(reason === 'barge_in' ? 'Interrupted by voice' : 'TTS interrupted');
     }
+
+    // ---------- BARGE-IN ALGORITHMS & SAMPLING ----------
+    function startTtsRefSampler() {
+        if (ttsRefSamplerInterval) return;
+        const timeDomainBuf = new Float32Array(ttsRefAnalyser.fftSize);
+        ttsRefSamplerInterval = setInterval(() => {
+            if (!ttsPlaying || !ttsRefAnalyser) return;
+            ttsRefAnalyser.getFloatTimeDomainData(timeDomainBuf);
+            // Resample from ttsPlaybackCtx.sampleRate (usually 22050) to 16000
+            const srcRate = ttsPlaybackCtx?.sampleRate || 22050;
+            const ratio = srcRate / 16000;
+            for (let i = 0; i < timeDomainBuf.length; i += ratio) {
+                const idx = Math.floor(i);
+                if (idx < timeDomainBuf.length) {
+                    ttsRefBuffer.push(timeDomainBuf[idx]);
+                    if (ttsRefBuffer.length > TTS_REF_MAX_SAMPLES) ttsRefBuffer.shift();
+                }
+            }
+        }, 32);
+    }
+
+    function stopTtsRefSampler() {
+        if (ttsRefSamplerInterval) {
+            clearInterval(ttsRefSamplerInterval);
+            ttsRefSamplerInterval = null;
+        }
+        ttsRefBuffer = [];
+        bargeInCandidateFrames = 0;
+        bargeInHangoverFrames = 0;
+    }
+
+    /**
+     * Cross-correlation echo likelihood calculation
+     * Two-pass coarse-to-fine search across estimated echo delay with jitter tolerance.
+     */
+    function computeEchoLikelihood(micFrame16k, ttsRefBuffer16k, estimatedDelayMs = estimatedEchoDelayMs, jitterMs = 15) {
+        if (!ttsRefBuffer16k || ttsRefBuffer16k.length < micFrame16k.length + 32) {
+            return 0; // Not enough TTS history
+        }
+
+        const delaySamples = Math.floor(estimatedDelayMs * 16); // 16 samples/ms @ 16kHz
+        const jitterSamples = Math.floor(jitterMs * 16); // 15ms = 240 samples
+        const refStart = Math.max(0, ttsRefBuffer16k.length - micFrame16k.length - delaySamples);
+
+        let maxCorr = 0;
+        let bestOffset = 0;
+
+        // Pass 1: Coarse search (stride 4, downsampled dot product)
+        for (let jitter = -jitterSamples; jitter <= jitterSamples; jitter += 4) {
+            const start = refStart + jitter;
+            if (start < 0 || start + micFrame16k.length > ttsRefBuffer16k.length) continue;
+
+            let dot = 0, micEnergy = 0, refEnergy = 0;
+            for (let i = 0; i < micFrame16k.length; i += 2) {
+                const m = micFrame16k[i];
+                const r = ttsRefBuffer16k[start + i];
+                dot += m * r;
+                micEnergy += m * m;
+                refEnergy += r * r;
+            }
+
+            if (micEnergy < 1e-6 || refEnergy < 1e-6) continue;
+            const corr = dot / Math.sqrt(micEnergy * refEnergy);
+            if (corr > maxCorr) {
+                maxCorr = corr;
+                bestOffset = jitter;
+            }
+        }
+
+        // Pass 2: Fine search around best coarse peak (±4 samples, step 1)
+        for (let jitter = bestOffset - 4; jitter <= bestOffset + 4; jitter++) {
+            const start = refStart + jitter;
+            if (start < 0 || start + micFrame16k.length > ttsRefBuffer16k.length) continue;
+
+            let dot = 0, micEnergy = 0, refEnergy = 0;
+            for (let i = 0; i < micFrame16k.length; i++) {
+                const m = micFrame16k[i];
+                const r = ttsRefBuffer16k[start + i];
+                dot += m * r;
+                micEnergy += m * m;
+                refEnergy += r * r;
+            }
+
+            if (micEnergy < 1e-6 || refEnergy < 1e-6) continue;
+            const corr = dot / Math.sqrt(micEnergy * refEnergy);
+            if (corr > maxCorr) maxCorr = corr;
+        }
+
+        return maxCorr;
+    }
+
+    /**
+     * Energy ratio: mic frame energy vs echo baseline in recent TTS history at estimated delay
+     */
+    function computeEnergyRatio(micFrame16k, ttsRefBuffer16k, estimatedDelayMs = estimatedEchoDelayMs) {
+        let frameSum = 0;
+        for (let i = 0; i < micFrame16k.length; i++) frameSum += micFrame16k[i] * micFrame16k[i];
+        const frameEnergySq = frameSum / micFrame16k.length;
+
+        const delaySamples = Math.floor(estimatedDelayMs * 16);
+        const refStart = Math.max(0, ttsRefBuffer16k.length - micFrame16k.length - delaySamples);
+
+        let refSum = 0;
+        for (let i = 0; i < micFrame16k.length; i++) {
+            const s = ttsRefBuffer16k[refStart + i] || 0;
+            refSum += s * s;
+        }
+        const refEnergySq = refSum / micFrame16k.length;
+        const effectiveRefFloor = Math.max(refEnergySq, 0.0001);
+        return frameEnergySq / effectiveRefFloor;
+    }
+
+    /**
+     * Central Barge-In Detection Handler
+     * Immediately interrupts TTS, clears ASR in-flight buffers, advances epoch, and starts new listening turn.
+     */
+    function onBargeInDetected({ source, rms, prob, echoLikelihood, energyRatio, text, matchedWord }) {
+        if (bargeInTriggered) return;
+        bargeInTriggered = true;
+
+        console.log(`[Barge-In] Triggered via ${source}! echoLikelihood=${echoLikelihood?.toFixed(3)}, energyRatio=${energyRatio?.toFixed(2)}x, matched="${matchedWord || text || ''}"`);
+
+        // 1. Audit Log event
+        if (auditLogger) {
+            auditLogger.recordEvent('FLOW', 'BARGE_IN_DETECTED', {
+                source,
+                rms,
+                prob,
+                echoLikelihood,
+                energyRatio,
+                text,
+                matchedWord,
+                ttsText: currentTtsTextSnapshot,
+                timestamp: Date.now()
+            });
+        }
+
+        // 2. Advance epoch to invalidate any pending turn promises & LLM/STT operations
+        advanceTurnEpoch('barge_in');
+
+        // 3. Kill TTS immediately
+        interruptTTS({ reason: 'barge_in' });
+
+        // 4. Clear server ASR audio buffer to discard pre-interruption speech/echo
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            try {
+                ws.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+            } catch (_) {}
+        }
+
+        // 5. CRITICAL: Unstick flowState!
+        // When barge-in interrupts the prompt, askField's speak() aborts.
+        // We transition flowState to 'form_awaiting_input' (or 'form_awaiting_confirmation' if field has a candidate value).
+        const currentF = (currentFieldIndex >= 0 && currentFieldIndex < scannedFields.length)
+            ? scannedFields[currentFieldIndex]
+            : null;
+        const fieldVal = (currentF && (fieldValues[currentF.id]?.value || currentF.currentValue || ''));
+        const hasExistingVal = !!(pendingFieldValue || fieldVal);
+        flowState = hasExistingVal ? 'form_awaiting_confirmation' : 'form_awaiting_input';
+
+        // 5. Reset VAD & audio buffers — the user's interruption speech starts cleanly
+        vadTriggered = false;
+        vadSpeechFrames = 0;
+        vadSilenceFrames = 0;
+        bargeInCandidateFrames = 0;
+        bargeInHangoverFrames = 0;
+        vadBuf = [];
+        accumBuf = [];
+        accumLen = 0;
+        preRollBuffer = [];
+        preRollSamples = 0;
+        liveText = '';
+        finalizing = false;
+        pendingCommit = false;
+        isRoutingTranscript = false;
+
+        // 6. Signal new barge-in turn & drain any waiting queued items
+        pendingBargeInUtterance = true;
+        turnStartedAt = performance.now();
+        setTurnMode(hasExistingVal ? 'confirming' : 'listening', 'barge-in: listening…');
+        drainTranscriptQueue();
+
+        // 6. 150ms debounce
+        setTimeout(() => {
+            bargeInTriggered = false;
+        }, 150);
+    }
+
+    /**
+     * Diagnostic Helper: Measure speaker-to-mic acoustic round-trip delay
+     * Exposes window.measureEchoDelay() in developer tools console.
+     */
+    async function measureEchoDelay() {
+        console.log('[Echo Calibration] Starting echo delay measurement chirp...');
+        ensureTTSContext();
+        if (ttsPlaybackCtx.state === 'suspended') await ttsPlaybackCtx.resume();
+
+        const clickBuf = ttsPlaybackCtx.createBuffer(1, Math.round(ttsPlaybackCtx.sampleRate * 0.1), ttsPlaybackCtx.sampleRate);
+        const data = clickBuf.getChannelData(0);
+        for (let i = 0; i < Math.min(100, data.length); i++) data[i] = (Math.random() - 0.5) * 0.9;
+
+        const player = ttsPlaybackCtx.createBufferSource();
+        player.buffer = clickBuf;
+        player.connect(ttsPlaybackCtx.destination);
+
+        const startTime = performance.now();
+        player.start();
+
+        let peakTime = 0;
+        let peakVal = 0;
+
+        const checkInterval = setInterval(() => {
+            if (preRollBuffer.length > 0) {
+                const latest = preRollBuffer[preRollBuffer.length - 1];
+                for (let i = 0; i < latest.length; i++) {
+                    const abs = Math.abs(latest[i]);
+                    if (abs > peakVal) {
+                        peakVal = abs;
+                        peakTime = performance.now() - startTime;
+                    }
+                }
+            }
+        }, 10);
+
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            const measuredMs = Math.round(peakTime);
+            console.log(`[Echo Calibration] Measured round-trip delay: ${measuredMs}ms (Peak: ${peakVal.toFixed(3)})`);
+            if (measuredMs > 30 && measuredMs < 400) {
+                localStorage.setItem('estimatedEchoDelayMs', measuredMs);
+                estimatedEchoDelayMs = measuredMs;
+                console.log(`[Echo Calibration] Saved estimatedEchoDelayMs=${measuredMs} to localStorage`);
+            } else {
+                console.warn(`[Echo Calibration] Measured value (${measuredMs}ms) outside [30ms, 400ms], keeping default: ${estimatedEchoDelayMs}ms`);
+            }
+        }, 500);
+    }
+    window.measureEchoDelay = measureEchoDelay;
 
     // ==========================================================
     // FORM FIELD SCANNER & SEQUENTIAL VOICE ITERATOR
@@ -1309,8 +1581,9 @@
         if (el.spotlightPrompt) el.spotlightPrompt.textContent = t('spotlightPromptListening');
 
         const existingVal = fieldValues[f.id]?.value || f.currentValue || '';
-        currentFieldCorrections = [];
+        pendingFieldValue = existingVal || '';
         currentFieldOriginalValue = existingVal || '';
+        currentFieldCorrections = [];
         if (el.spotlightValue) {
             if (existingVal) {
                 el.spotlightValue.textContent = existingVal;
@@ -1351,9 +1624,10 @@
         });
 
         flowState = 'busy';
-        clearDebounceBuffers();
         await speak(prompt);
-        if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex) return;
+        if (myEpoch !== flowEpoch || myFieldIndex !== currentFieldIndex) {
+            return;
+        }
 
         if (existingVal) {
             pendingFieldValue = existingVal;
@@ -1400,7 +1674,9 @@
 
             console.log(`[VFF Router] Routing transcript: "${clean}", flowState=${flowState}, activeField=#${currentFieldIndex} ("${scannedFields[currentFieldIndex]?.label}")`);
 
-            const ctx = getActionContext();
+            const isBargeIn = pendingBargeInUtterance;
+            pendingBargeInUtterance = false;
+            const ctx = { ...getActionContext(), isBargeIn };
             const t = (k, p) => (window.i18n ? window.i18n.t(k, p) : k);
 
             // State indicator while classifying
@@ -1598,6 +1874,8 @@
             }).catch(() => {});
         }
 
+        // Clear pending field values immediately so they never leak to subsequent fields
+        pendingFieldValue = '';
         currentFieldCorrections = [];
         currentFieldOriginalValue = '';
 
@@ -1697,6 +1975,31 @@
                     setLiveText(text);
                 } else {
                     setLiveText(liveText + text);
+                }
+
+                // Fast-Path Wake-Word Interruption Detection during TTS
+                if (ttsPlaying && !bargeInTriggered) {
+                    const currentUtterance = (liveText || text).toLowerCase().trim();
+                    const BARGE_WORDS = [
+                        'stop', 'wait', 'halt', 'enough', 'shut up',
+                        'रुको', 'रुक', 'बस', 'चुप', 'बंद करो',
+                        'cállate', 'pare', 'arrête', 'halte', '止まれ', '멈춰'
+                    ];
+                    const matchedWord = BARGE_WORDS.find(w => {
+                        const lw = w.toLowerCase();
+                        return currentUtterance === lw || 
+                               currentUtterance.startsWith(lw + ' ') || 
+                               currentUtterance.includes(' ' + lw + ' ') || 
+                               currentUtterance.endsWith(' ' + lw);
+                    });
+                    if (matchedWord) {
+                        onBargeInDetected({
+                            source: 'wake_word',
+                            text: currentUtterance,
+                            matchedWord
+                        });
+                        return;
+                    }
                 }
             }
         } else if (msg.type.endsWith('.completed')) {
@@ -1928,9 +2231,11 @@
         `class MicProcessor extends AudioWorkletProcessor { process(inputs) { const input = inputs[0]; if (input && input[0]) { const ch = input[0]; let sum = 0; for (let i = 0; i < ch.length; i++) sum += ch[i] * ch[i]; const rms = Math.sqrt(sum / ch.length); const copy = ch.slice(0); this.port.postMessage({ samples: copy, rms }, [copy.buffer]); } return true; } } registerProcessor('mic-processor', MicProcessor);`;
 
     async function handleVAD(float32Samples, rms) {
-        if (ttsMicMuted) { pushLevel(0, 'muted'); return; }
-        pushLevel(rms, finalizing ? 'finalizing' : 'live');
-        if (!vadReady) { handleLevelLegacy(rms); return; }
+        pushLevel(rms, finalizing ? 'finalizing' : (ttsPlaying ? 'muted' : 'live'));
+        if (!vadReady) {
+            if (!ttsPlaying) handleLevelLegacy(rms);
+            return;
+        }
         let samples16k = float32Samples;
         if (audioCtx && audioCtx.sampleRate !== 16000) {
             const ratio = audioCtx.sampleRate / 16000;
@@ -1961,30 +2266,86 @@
                 const out = await vadSession.run(feeds);
                 const prob = out.output.data[0];
                 vadState = new Float32Array(out.stateN.data);
-                if (prob >= VAD_THRESHOLD) {
-                    vadSpeechFrames++;
-                    vadSilenceFrames = 0;
-                    if (!vadTriggered && vadSpeechFrames >= VAD_MIN_SPEECH) {
-                        vadTriggered = true;
-                        if (!speaking) {
-                            speaking = true;
-                            turnStartedAt = performance.now();
-                            resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
-                            setTurnMode('speaking', 'speaking');
-                            auditLogger.logAudioSpeechStart({ vadProb: prob, rms });
+
+                const effectiveThreshold = ttsPlaying ? 0.85 : VAD_THRESHOLD;
+
+                if (prob >= effectiveThreshold) {
+                    if (ttsPlaying) {
+                        const delaySamples = Math.floor(estimatedEchoDelayMs * 16);
+                        const hasEnoughRefHistory = ttsRefBuffer.length >= (delaySamples + VAD_WINDOW);
+                        const hasSufficientSpeechEnergy = rms >= 0.015;
+
+                        if (!hasEnoughRefHistory || !hasSufficientSpeechEnergy) {
+                            if (bargeInHangoverFrames > 0) {
+                                bargeInHangoverFrames--;
+                            } else {
+                                bargeInCandidateFrames = Math.max(0, bargeInCandidateFrames - 1);
+                            }
+                            vadSpeechFrames = 0;
+                        } else {
+                            // Combined decision gate for barge-in during active TTS playback
+                            const echoLikelihood = computeEchoLikelihood(frame, ttsRefBuffer);
+                            const energyRatio = computeEnergyRatio(frame, ttsRefBuffer);
+                            const isDecorrelated = echoLikelihood < 0.40;
+                            const isEnergyHigher = energyRatio > 1.8;
+
+                            if (isDecorrelated && isEnergyHigher) {
+                                bargeInCandidateFrames++;
+                                bargeInHangoverFrames = 2; // Allow 2 gap frames
+                                if (bargeInCandidateFrames >= 2 && !bargeInTriggered) {
+                                    onBargeInDetected({
+                                        source: 'vad',
+                                        rms,
+                                        prob,
+                                        echoLikelihood,
+                                        energyRatio
+                                    });
+                                    return;
+                                }
+                            } else {
+                                // Speaker echo detected — decay candidate frame count
+                                if (bargeInHangoverFrames > 0) {
+                                    bargeInHangoverFrames--;
+                                } else {
+                                    bargeInCandidateFrames = Math.max(0, bargeInCandidateFrames - 1);
+                                }
+                                vadSpeechFrames = 0;
+                            }
                         }
-                        lastSpeechAt = performance.now();
+                    } else {
+                        // Normal turn start
+                        vadSpeechFrames++;
+                        vadSilenceFrames = 0;
+                        if (!vadTriggered && vadSpeechFrames >= VAD_MIN_SPEECH) {
+                            vadTriggered = true;
+                            if (!speaking) {
+                                speaking = true;
+                                turnStartedAt = performance.now();
+                                resetLiveLine(window.i18n ? window.i18n.t('transcriptListening') : 'Listening…');
+                                setTurnMode('speaking', 'speaking');
+                                auditLogger.logAudioSpeechStart({ vadProb: prob, rms });
+                            }
+                            lastSpeechAt = performance.now();
+                        }
                     }
                 } else {
-                    vadSilenceFrames++;
-                    vadSpeechFrames = 0;
-                    if (vadTriggered && vadSilenceFrames >= VAD_MIN_SILENCE) {
-                        vadTriggered = false;
-                        if (speaking && !finalizing) {
-                            speaking = false;
-                            finalizing = true;
-                            setTurnMode('finalizing', 'finalizing turn…');
-                            pendingCommit = true;
+                    if (ttsPlaying) {
+                        if (bargeInHangoverFrames > 0) {
+                            bargeInHangoverFrames--;
+                        } else {
+                            bargeInCandidateFrames = Math.max(0, bargeInCandidateFrames - 1);
+                        }
+                    } else {
+                        vadSilenceFrames++;
+                        vadSpeechFrames = 0;
+                        if (vadTriggered && vadSilenceFrames >= VAD_MIN_SILENCE) {
+                            vadTriggered = false;
+                            if (speaking && !finalizing) {
+                                speaking = false;
+                                finalizing = true;
+                                setTurnMode('finalizing', 'finalizing turn…');
+                                pendingCommit = true;
+                            }
                         }
                     }
                 }
@@ -1993,7 +2354,7 @@
                 handleLevelLegacy(rms); return;
             }
         }
-        if (speaking && !finalizing && performance.now() - turnStartedAt > MAX_UNCOMMITTED_MS) {
+        if (!ttsPlaying && speaking && !finalizing && performance.now() - turnStartedAt > MAX_UNCOMMITTED_MS) {
             speaking = false;
             finalizing = true;
             setTurnMode('finalizing', 'max turn length hit…');
@@ -2088,6 +2449,12 @@
             const wasSpeaking = speaking;
             await handleVAD(samples, rms);
             if (ttsMicMuted) {
+                // During TTS: stream audio to ASR so partial transcripts (*.delta) can arrive for wake-word barge-in!
+                // Do NOT commit yet (no sendCommit until barge-in triggers or normal turn completes).
+                const pcm16 = floatTo16BitPCM(samples, audioCtx.sampleRate, TARGET_RATE);
+                if (ws && ws.readyState === WebSocket.OPEN && ws.bufferedAmount < MAX_WS_BUFFERED_BYTES) {
+                    sendAppend(pcm16);
+                }
                 preRollBuffer = [];
                 preRollSamples = 0;
                 gatedSamplesSkipped += samples.length;

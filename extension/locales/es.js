@@ -207,7 +207,7 @@ Aplica la instrucción de corrección al valor anterior y devuelve ÚNICAMENTE e
                 'no', 'mal', 'incorrecto', 'cambiar', 'cambia', 'corrige', 'corrección', 'error', 'falso', 'equivocado', 'diferente', 'modificar', 'no es', 'otra cosa'
             ],
             confirmWords: [
-                'sí', 'si', 'correcto', 'exacto', 'bien', 'está bien', 'perfecto', 'adelante', 'proceder', 'siguiente', 'claro', 'vale', 'de acuerdo', 'confirmo', 'así es'
+                'sí', 'si', 'correcto', 'exacto', 'bien', 'está bien', 'perfecto', 'adelante', 'proceder', 'claro', 'vale', 'de acuerdo', 'confirmo', 'así es'
             ],
             skipPhrases: [
                 'omitir', 'saltar', 'pasar', 'dejarlo', 'siguiente campo', 'ignorar', 'pasa', 'dejar en blanco', 'en blanco', 'dejar vacío', 'vacío', 'déjalo en blanco'
