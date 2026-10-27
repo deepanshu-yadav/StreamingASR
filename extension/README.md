@@ -87,7 +87,15 @@ extension/
 ├── manifest.json             # Manifest V3 extension configuration & permissions
 ├── sidepanel.html            # Persistent Side Panel user interface layout
 ├── sidepanel.css             # Side Panel glassmorphism styling & animations
-├── sidepanel.js              # Core UI controller, audio capture, STT client & state machine
+├── sidepanel.js              # Core UI controller, audio capture, STT client & event dispatching
+├── classes/                  # Modular Intent-Driven Form Assistant Architecture
+│   ├── InputClassifier.js    # Tri-way Intent Classifier (Action, Information, Correction)
+│   ├── ActionHandler.js      # Non-linear navigation (jump to field, skip, prev, repeat, submit)
+│   ├── InformationHandler.js # Conversational filler removal & 15-language numeric normalization
+│   ├── CorrectionHandler.js  # In-place delta edits & historical cross-field corrections
+│   ├── FieldResolver.js      # Multilingual semantic, synonym & ordinal field matcher
+│   ├── WakeWordManager.js    # Low-power sleep mode, audio gating & Web Audio chime cues
+│   └── AuditLogger.js        # High-precision millisecond telemetry logger
 ├── form-field-scanner.js     # DOM form analyzer & sequential field fill orchestrator
 ├── scanner-highlight.css     # Webpage active input highlight rings & pulsing focus styles
 ├── i18n.js                   # Client-side localization engine & translation loader
@@ -107,7 +115,7 @@ extension/
 │   ├── tr.js                 # 🇹🇷 Turkish (tr-TR)
 │   ├── uk.js                 # 🇺🇦 Ukrainian (uk-UA)
 │   └── vi.js                 # 🇻🇳 Vietnamese (vi-VN)
-├── permission.html / .js     # Dedicated tab to grant persistent microphone access
+├── permission.html / .js     # Dedicated tab to grant persistent microphone access in all 15 languages
 ├── launch.html / .js         # Protocol launch fallback helper
 ├── background.js             # Service worker handling extension lifecycle & side panel open
 ├── scanBackground.js         # Content-script / tab coordination for DOM form inspection
@@ -122,37 +130,84 @@ extension/
 
 ## 🏗️ Architecture & Component Flow
 
+```mermaid
+flowchart TD
+    subgraph Browser Extension Context
+        Mic[16 kHz PCM Audio] --> VAD[Silero VAD v5]
+        VAD --> PreFilter{Is System Sleeping?}
+        PreFilter -- Yes --> WakeDetector[WakeWordManager]
+        WakeDetector -- Wake Word Detected --> WakeChime[Auditory Chime & Resume]
+        WakeDetector -- Speech/Noise --> Discard[Audio Gated / Discarded]
+
+        PreFilter -- No (Active) --> STTStream[CrispASR WebSocket Stream]
+        STTStream --> Classifier[InputClassifier]
+        
+        Classifier --> IntentResult{Classified Intent}
+        IntentResult -- ACTION --> ActionHandler[ActionHandler]
+        IntentResult -- INFORMATION --> InfoHandler[InformationHandler]
+        IntentResult -- CORRECTION --> CorrectionHandler[CorrectionHandler]
+
+        ActionHandler --> FieldResolver[FieldResolver Engine]
+        FieldResolver --> Jump[Jump to Target / Skip / Prev / Submit]
+
+        InfoHandler --> NumNorm[Multilingual Number Normalization]
+        NumNorm --> CommitVal[Extract Value & Ask Confirmation]
+
+        CorrectionHandler --> Patch[In-Place or Cross-Field Patch]
+
+        Audit[AuditLogger Client] --> LogEvents[Stream JSONL Telemetry]
+        
+        BargeIn[VAD Voice Activity] -. Interrupt Midway .-> TTSPlayer[Streaming Piper TTS Player]
+    end
+
+    subgraph Host Native Companion Server :8000
+        LogEvents --> AuditMgr[AuditManager Engine]
+        AuditMgr --> DiskLogs[(~/Downloads/signal/audit_logs/)]
+        Classifier -. Tier 2 Fallback .-> LLMServer[llama-server Gemma 4 :8084]
+        STTStream <--> ASRServer[CrispASR Nemotron :8081]
+        TTSPlayer <--> TTSServer[CrispASR Piper :8089]
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ Google Chrome (Extension Context)                              │
-│                                                                 │
-│  ┌───────────────────────┐         ┌─────────────────────────┐  │
-│  │  sidepanel.html / js  │         │    Silero VAD (ONNX)    │  │
-│  │  - User Interface     │────────▶│  - Client-Side Wasm     │  │
-│  │  - Audio Capture      │         │  - 16 kHz PCM Gating    │  │
-│  └───────────┬───────────┘         └─────────────────────────┘  │
-│              │                                                  │
-└──────────────┼──────────────────────────────────────────────────┘
-               │ (WebSockets & REST)
-               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ Local Host OS (Windows, Linux, macOS)                           │
-│                                                                 │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │ Companion Orchestrator & Proxy Server (:8000)             │  │
-│  │ - Binary/Model Checker & Downloader                       │  │
-│  │ - Process Manager (Spawns & Monitors Background Servers)  │  │
-│  │ - TTS & LLM Reverse Proxy (Resolves CORS & Preflights)    │  │
-│  └────────────────┬───────────────────┬───────────────────┬──┘  │
-│                   │                   │                   │     │
-│                   ▼                   ▼                   ▼     │
-│          ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐  │
-│          │ CrispASR        │ │ CrispASR        │ │ llama.cpp │  │
-│          │ Nemotron ASR    │ │ Piper TTS       │ │ Gemma 4   │  │
-│          │ :8082 WS / 8080 │ │ :8089 HTTP      │ │ :8084 HTTP│  │
-│          └─────────────────┘ └─────────────────┘ └───────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+---
+
+## 🧠 Core Intelligence & Interactive Features
+
+### 1. Two-Tier Intent Classification (`InputClassifier.js`)
+* **Tier 1 (Instant Regex & Deterministic Heuristics ~0ms)**: Direct pattern evaluation for high-frequency navigational commands (*"next"*, *"skip"*, *"previous"*, *"pause"*, *"छोड़ो"*, *"अगला"*), direct affirmative/negative confirmations (*"yes"*, *"no"*, *"हाँ"*, *"नहीं"*), and cardinal/ordinal field jumps.
+* **Tier 2 (Gemma 4 LLM Fallback)**: Automatically triggered when Tier 1 confidence is uncertain or complex colloquial phrasing is encountered.
+
+### 2. Real-Time TTS Barge-In (Interruption Midway)
+* Users are never forced to listen to long voice prompts.
+* As soon as speech is detected by Silero VAD during TTS playback, the audio is immediately halted ("barge-in"), audio buffers are cleared, and the recognized speech is dispatched to the assistant.
+
+### 3. Wake Word & Hands-Free Sleep System (`WakeWordManager.js`)
+* **Pause / Sleep**: Say *"pause"*, *"hold on"*, *"रुको"*, or click the Pause button.
+* **Continuous Audio Gating**: The WebSocket connection remains hot while Silero VAD filters out all background speech without running LLM or TTS loops.
+* **Web Audio Chimes**: Distinct pleasant melodic audio cues play upon entering sleep and waking up.
+* **Wake Words**: Multi-language detection (*"Hey Assistant"*, *"Wake up"*, *"सुनो"*, *"जागो"*, *"फॉर्म भरो"*).
+
+### 4. Non-Linear Navigation & Semantic Resolution (`FieldResolver.js` & `ActionHandler.js`)
+* Jump directly to any field on the form using natural language (*"Go to permanent address"*, *"फ़ोन नंबर पर जाओ"*).
+* Resolves fields using a 4-layer matching hierarchy:
+  1. Exact / Fuzzy token match against DOM labels, placeholders, and names.
+  2. Multilingual synonym and alias dictionary across 15 languages.
+  3. Ordinal and relative resolver (*"first field"*, *"पहला फ़ील्ड"*, *"last field"*).
+  4. LLM semantic fallback.
+
+### 5. Multi-Language Numeric Normalization (`InformationHandler.js`)
+* Spoken numbers (e.g. *"nine eight seven six..."*, *"नौ आठ सात छह..."*, *"neuf huit sept..."*) are normalized into clean digits for phone numbers, postal codes, and numerical inputs across all 15 supported languages.
+
+### 6. Delta & Historical Cross-Field Corrections (`CorrectionHandler.js`)
+* **Current Field**: Correct mistakes immediately (*"Change Rahul to Rohan"*, *"Make it 25"*, *"गलत है, विजय लिखो"*).
+* **Historical Past Field**: Modify previous inputs without resetting current state (*"In phone number make the last digit 5 instead of 4"*).
+
+### 7. Multilingual Microphone Permission Portal (`permission.html` / `permission.js`)
+* Dynamically detects the selected language and renders localized permission guidance, instructions, and success feedback across all 15 languages.
+
+### 8. Enterprise Audit Logging (`AuditLogger.js` & Companion `AuditManager.js`)
+* Automatically streams millisecond-stamped telemetry for every session.
+* Stores both `.jsonl` (for machine analytics and regression evaluation) and formatted `.log` files (for human audit trails) in `~/Downloads/signal/audit_logs/`.
 
 ---
 
@@ -274,14 +329,45 @@ Select your preferred language from the **Language Selector** dropdown at the to
 6. The assistant populates the input, verifies (*"क्या यह सही है?"*), and advances to the next field.
 7. Click **⏹️ सत्र समाप्त करें (Stop Session)** anytime to halt all listening, playback, and form-filling activities.
 
+---
+
+### Step 7 — Advanced Voice Controls & Dynamic Navigation
+
+#### 🗣️ Midway TTS Barge-In
+Feel free to speak while the assistant is reading a question or asking for confirmation. The Silero VAD detects your speech, instantly cuts off TTS audio, and routes your voice to the streaming ASR pipeline.
+
+#### 💤 Sleep & Wake Word
+* **Sleep**: Say *"pause"*, *"hold on"*, or *"रुको"*. The assistant emits an acoustic chime and turns to `💤 Sleeping`. Background chatter is discarded with zero token or TTS overhead.
+* **Wake**: Say *"Hey Assistant"*, *"Wake up"*, *"सुनो"*, or *"जागो"*. A chime confirms reactivation and the assistant resumes the active field prompt.
+
+#### 🔀 Non-Linear Form Navigation
+* **Field Jump**: Say *"Go to name"*, *"फ़ोन नंबर पर जाओ"*, *"Jump to the 3rd field"*, or *"ईमेल भरो"*.
+* **Step Navigation**: Say *"Skip"*, *"छोड़ो"*, *"Previous"*, *"पिछला"*, *"Repeat"*, or *"दोबारा पूछें"*.
+* **Inline Corrections**: Say *"Change Rahul to Rohit"*, *"गलत है, 25 लिखो"*, or *"Not that, write Bangalore"*.
+* **Cross-Field History**: Say *"In phone number, change the last digit to 5"* to update previous inputs without abandoning the active field.
+
+---
+
+## ⚙️ Side Panel Tuning Parameters
+
+The Side Panel features an expandable **ट्यूनिंग सेटिंग्स (Tuning Parameters)** drawer for fine-grained control:
+
+| Parameter | Default | Range / Format | Description |
+| :--- | :--- | :--- | :--- |
+| **Silero Speech Threshold** | `0.50` | `0.10 - 0.90` | Sensitivity threshold for speech classification. Lower values detect softer voices. |
+| **Silence Before Turn Finalizes** | `800 ms` | `300 - 2000 ms` | Duration of silence before committing an utterance turn. |
+| **Max Utterance Hard Cap** | `12000 ms` | `3000 - 25000 ms` | Maximum continuous recording duration before forcing a turn finalization. |
+| **Pre-roll Padding** | `200 ms` | `0 - 500 ms` | Audio buffer preserved immediately before speech onset to prevent clipping initial syllables. |
+| **Confirmation Debounce** | `1000 ms` | `400 - 2000 ms` | Delay before processing confirmation responses to avoid capturing conversational echo. |
+| **LLM Proxy Server URL** | `http://127.0.0.1:8000/v1/chat/completions` | HTTP URL | Endpoint for Gemma 4 intent classification and value extraction. |
 
 ---
 
 ## 🛠️ Developer & Troubleshooting Guide
 
-### Where to View Extension Logs
+### Where to View Extension Logs & Telemetry
 
-Chrome separates extension logs into two separate DevTools consoles:
+Chrome separates extension logs into dedicated DevTools consoles:
 
 #### 1. Side Panel Console (VAD, WebSockets, Audio, UI)
 * **How to open**: Right-click anywhere inside the Side Panel and select **Inspect**.
@@ -289,11 +375,18 @@ Chrome separates extension logs into two separate DevTools consoles:
 
 #### 2. Background Service Worker Console
 * **How to open**: Go to `chrome://extensions`, find the extension card, and click the blue link: **`service worker`**.
-* **What you see**: Side panel registration, extension installation events, and lifecycle handlers.
+* **What you see**: Side panel registration, extension installation events, and tab injection lifecycle handlers.
 
 #### 3. Companion Server Console
 * **How to open**: Look at the terminal window running `node server.js`.
 * **What you see**: Process spawn logs, stdout/stderr streams from `crispasr.exe` and `llama-server.exe`, and HTTP reverse proxy requests.
+
+#### 4. Audit Log Files (`~/Downloads/signal/audit_logs/`)
+* **How to open**: Navigate to `~/Downloads/signal/audit_logs/` (or `COMPANION_ROOT/audit_logs/`).
+* **What you see**:
+  * `audit_session_<timestamp>_<id>.jsonl`: High-precision structured event stream with full payload and timing.
+  * `audit_session_<timestamp>_<id>.log`: Formatted, readable session timeline showing field sequence, audio commits, classifier decisions, and diff patches.
+* **REST API**: Query via `http://127.0.0.1:8000/api/audit/sessions`.
 
 ---
 

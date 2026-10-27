@@ -19,7 +19,7 @@ This demo demonstrates a full voice interaction pipeline operating locally:
 2. **Client-Side VAD**: Uses **Silero VAD v5 ONNX** via `onnxruntime-web` to detect speech vs. silence boundaries directly in the browser.
 3. **Real-Time Streaming ASR**: Streams audio frames via native WebSockets to **CrispASR** running **Nemotron 3.5 ASR (GGUF)** for immediate partial and final transcripts.
 4. **LLM Command Processing**: Transforms raw recognized speech into structured actions or corrected commands using **Gemma 4 E2B (gemma-4-E2B-it-UD-Q4_K_XL GGUF)** via `llama-server`.
-5. **TTS Voice Feedback**: Synthesizes localized voice responses using **CrispASR (Piper Backend)**.
+5. **Streaming Low-Latency TTS Voice Feedback**: Synthesizes localized voice responses using **CrispASR (Piper Backend)** with chunked streaming playback over the Web Audio API without waiting for generation completion.
 6. **Node.js Local Server**: Lightweight web server hosting the client UI (`index.html`, `styles.css`, `script.js`).
 
 ---
@@ -41,9 +41,9 @@ sequenceDiagram
     ASR-->>Browser: Return streaming partial & final transcription JSON
     Browser->>LLM: Post final transcription to /v1/chat/completions (http://127.0.0.1:8084)
     LLM-->>Browser: Return structured command / transformed text
-    Browser->>TTS: Request speech synthesis (http://127.0.0.1:8089)
-    TTS-->>Browser: Return PCM / Audio stream
-    Browser->>User: Play synthesized audio response
+    Browser->>TTS: Request streaming speech synthesis (/v1/audio/speech, stream=true)
+    TTS-->>Browser: Stream chunked PCM / Audio buffer chunks
+    Browser->>User: Play streaming audio chunks immediately with near-zero latency
 ```
 
 ---

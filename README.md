@@ -46,33 +46,27 @@ Watch the complete end-to-end demo showing service orchestration, real-time stre
 streaming_demos/
 ├── README.md                     # Main repository documentation (this file)
 ├── commands.md                   # Scratchpad reference for CLI commands & testing scripts
+├── PLAN.md                       # Comprehensive architectural & roadmap specifications
 ├── LICENSE.txt                   # Project license (MIT)
 ├── extension/                    # Chrome Extension (Manifest V3 Side Panel Voice Assistant)
 │   ├── README.md                 # 📖 Comprehensive Chrome Extension manual
 │   ├── manifest.json             # Manifest V3 extension configuration & permissions
-│   ├── sidepanel.html            # Side Panel user interface
-│   ├── sidepanel.css             # Glassmorphism dark-mode UI styling
-│   ├── sidepanel.js              # Voice capture, VAD, WebSocket streaming, and LLM correction
+│   ├── sidepanel.html            # Side Panel user interface layout
+│   ├── sidepanel.css             # Glassmorphism dark-mode UI styling & animations
+│   ├── sidepanel.js              # Core UI orchestration, VAD, STT client & event routing
+│   ├── classes/                  # Modular Intent-Driven Form Filling Architecture
+│   │   ├── InputClassifier.js    # Tri-way Intent Classifier (Action, Information, Correction)
+│   │   ├── ActionHandler.js      # Non-linear navigation (jump to field, skip, prev, repeat)
+│   │   ├── InformationHandler.js # Filler stripping & 15-language numeric normalization
+│   │   ├── CorrectionHandler.js  # In-place delta edits & historical cross-field corrections
+│   │   ├── FieldResolver.js      # Multilingual semantic & synonym field label matcher
+│   │   ├── WakeWordManager.js    # Sleep/Pause mode, audio gating & Web Audio chimes
+│   │   └── AuditLogger.js        # Millisecond telemetry logger sending events to companion
 │   ├── form-field-scanner.js     # DOM form field extraction & sequential voice filler
 │   ├── scanner-highlight.css     # Webpage focus outline & active field indicator
 │   ├── i18n.js                   # Dynamic multi-language localization manager
-│   ├── locales/                  # 15 Language dictionary modules
-│   │   ├── ar.js                 # 🇸🇦 Arabic (ar-AR)
-│   │   ├── de.js                 # 🇩🇪 German (de-DE)
-│   │   ├── en.js                 # 🇺🇸/🇬🇧 English (en-US, en-GB)
-│   │   ├── es.js                 # 🇪🇸/🇲🇽 Spanish (es-ES, es-US)
-│   │   ├── fr.js                 # 🇫🇷/🇨🇦 French (fr-FR, fr-CA)
-│   │   ├── hi.js                 # 🇮🇳 Hindi (hi-IN)
-│   │   ├── it.js                 # 🇮🇹 Italian (it-IT)
-│   │   ├── ja.js                 # 🇯🇵 Japanese (ja-JP)
-│   │   ├── ko.js                 # 🇰🇷 Korean (ko-KR)
-│   │   ├── nl.js                 # 🇳🇱 Dutch (nl-NL)
-│   │   ├── pt.js                 # 🇧🇷/🇵🇹 Portuguese (pt-BR, pt-PT)
-│   │   ├── ru.js                 # 🇷🇺 Russian (ru-RU)
-│   │   ├── tr.js                 # 🇹🇷 Turkish (tr-TR)
-│   │   ├── uk.js                 # 🇺🇦 Ukrainian (uk-UA)
-│   │   └── vi.js                 # 🇻🇳 Vietnamese (vi-VN)
-│   ├── permission.html / .js     # One-time microphone permission request handler
+│   ├── locales/                  # 15 Language dictionary modules (ar, de, en, es, fr, hi, it, ja, ko, nl, pt, ru, tr, uk, vi)
+│   ├── permission.html / .js     # Multilingual microphone permission approval portal
 │   ├── launch.html / .js         # Protocol launch fallback helper
 │   ├── background.js             # Service worker for side panel lifecycle
 │   ├── scanBackground.js         # Tab coordination for DOM scanner injection
@@ -85,6 +79,7 @@ streaming_demos/
 │   ├── server.js                 # Reverse proxy & REST API endpoints (:8000)
 │   ├── process_manager.js        # Spawns, monitors & stops local AI processes
 │   ├── downloader.js             # Binary and model verification & automated downloader
+│   ├── audit_manager.js          # Enterprise audit log generator (.jsonl & .log)
 │   ├── config.json               # Language models, ports & binary download registry
 │   ├── cleanup_ports.js          # Utility to release occupied network ports
 │   ├── start_companion.bat / .sh # 1-click companion launcher (Win / Linux / macOS)
@@ -94,11 +89,26 @@ streaming_demos/
     ├── README.md                 # Detailed setup & architecture documentation
     ├── index.html                # Web frontend layout
     ├── styles.css                # UI styling
-    ├── script.js                 # Complete client logic & WebSocket streaming
+    ├── script.js                 # Complete client logic, VAD, WebSockets & streaming TTS
     ├── server.js                 # Static file server
     ├── sample_form.html          # Sample HTML form for local testing
     └── file.wav                  # Audio test asset
 ```
+---
+
+## 🌟 Latest Features & Core Highlights
+
+* **🧠 Modular Intent-Driven Architecture**: Refactored from a linear flow into dedicated decoupled classes (`InputClassifier`, `ActionHandler`, `InformationHandler`, `CorrectionHandler`, `FieldResolver`, `WakeWordManager`, `AuditLogger`).
+* **⚡ Two-Tier Intent Classification**: Instant deterministic regex heuristics (~0ms) for high-frequency actions and confirmations, backed by local Gemma 4 LLM fallback for ambiguous or conversational utterances.
+* **🗣️ Barge-In Support (Midway Interruption)**: Users can speak anytime during TTS voice prompts. The Silero VAD immediately cuts off voice playback ("barge-in") and listens to user input without waiting for the prompt to complete.
+* **⏩ Streaming Low-Latency TTS**: Piper TTS audio is streamed directly in chunks via HTTP/Web Audio API for near-instant vocal feedback, drastically reducing interaction latency.
+* **💤 Wake Word & Hands-Free Sleep Mode**: Say *"pause"* or *"रुको"* to enter low-power sleep mode with auditory chimes; say *"Hey Assistant"*, *"Wake up"*, or *"सुनो"* to instantly resume where you left off.
+* **🔀 Non-Linear Navigation & Semantic Field Resolution**: Jump freely to any field (*"Go to address"*, *"तीसरा फ़ील्ड"*), skip optional inputs, or navigate backward using multilingual synonym dictionaries.
+* **🛠️ Cross-Field & In-Place Corrections**: Correct active fields (*"Change Rahul to Rohit"*) or historical past fields (*"In phone number make the last digit 5"*) seamlessly.
+* **🔢 Multilingual Numeric Normalization**: Intelligent normalization of spoken number words into digits across all 15 supported languages for telephone, zip code, and numeric inputs.
+* **📊 Comprehensive Audit Logging**: Automatic session recording via `AuditManager` with dual structured `.jsonl` and formatted `.log` outputs saved cleanly to `~/Downloads/signal/audit_logs/`.
+* **🎙️ Localized Microphone Permission Portal**: Multilingual permission onboarding in all 15 languages with instant feedback.
+
 ---
 
 ## 🎙️ Featured Demos
@@ -109,7 +119,7 @@ An offline, privacy-first Chrome Extension that runs in the **Chrome Side Panel*
 * 📖 **[Read the Full Chrome Extension Instructional Manual](./extension/README.md)** with visual screenshots, setup instructions, and troubleshooting tips.
 
 ### 2. [Voice Commands & Real-Time Streaming ASR Web Demo](./commands_demo/README.md)
-A browser-based interactive web client that captures real-time microphone audio, performs low-latency streaming ASR via native WebSockets, transforms raw recognized speech into structured commands using a local LLM, and plays synthesized voice responses.
+A browser-based interactive web client that captures real-time microphone audio, performs low-latency streaming ASR via native WebSockets, transforms raw recognized speech into structured commands using a local LLM, and plays synthesized voice responses with chunked streaming.
 
 * 📖 **[Read the Full Voice Commands Demo README](./commands_demo/README.md)** for detailed installation steps, model downloads, architecture diagrams, and service ports.
 
@@ -120,10 +130,11 @@ A browser-based interactive web client that captures real-time microphone audio,
 | Component | Technology / Model | Role / Description |
 | :--- | :--- | :--- |
 | **Browser Engine** | Web Audio API / ONNX Runtime Web | 16 kHz PCM audio recording & client-side VAD |
-| **VAD Engine** | [Silero VAD v5 (ONNX)](https://huggingface.co/runanywhere/silero-vad-v5) | Real-time speech/silence detection in browser |
+| **VAD Engine** | [Silero VAD v5 (ONNX)](https://huggingface.co/runanywhere/silero-vad-v5) | Real-time speech/silence detection & barge-in interruption |
 | **Streaming ASR** | [CrispASR](https://github.com/CrispStrobe/CrispASR) + [Nemotron 3.5 0.6B (GGUF)](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) | Low-latency streaming Speech-to-Text over WebSocket (`ws://127.0.0.1:8081` / `8082`) |
-| **LLM Engine** | [llama-server](https://github.com/ggml-org/llama.cpp) + [Google Gemma 4 E2B (GGUF)](https://huggingface.co/google/gemma-4-E2B) | Real-time speech transcript correction & intent extraction (`http://127.0.0.1:8084`) |
-| **TTS Engine** | CrispASR (Piper Backend) + [Piper Voice Models (GGUF)](https://huggingface.co/rhasspy/piper-voices) | Multi-language neural voice speech synthesis (`http://127.0.0.1:8089`) |
+| **LLM Engine** | [llama-server](https://github.com/ggml-org/llama.cpp) + [Google Gemma 4 E2B (GGUF)](https://huggingface.co/google/gemma-4-E2B) | Real-time speech transcript correction, tier-2 intent classification (`http://127.0.0.1:8084`) |
+| **TTS Engine** | CrispASR (Piper Backend) + [Piper Voice Models (GGUF)](https://huggingface.co/rhasspy/piper-voices) | Multi-language neural voice speech synthesis with chunked streaming playback (`http://127.0.0.1:8089`) |
+| **Audit Manager** | Node.js File System Streams | Enterprise session recorder producing dual `.jsonl` & `.log` artifacts in external storage |
 | **Web Server** | Node.js + Express | Serves companion orchestrator, process manager & proxy (`http://localhost:8000`) |
 
 ---
@@ -236,6 +247,40 @@ Select your preferred language from the **Language Selector** dropdown at the to
 7. Click **⏹️ सत्र समाप्त करें (Stop Session)** anytime to halt all listening, playback, and form-filling activities.
 
 ![Live Voice Session, VAD Tuning, and Spoken Confirmation Dialogue](./extension/docs/images/live_session_dialogue.png)
+
+---
+
+### Step 7 — Advanced Voice Interaction & Controls
+
+#### 🗣️ Barge-In (Midway Interruption)
+You do not have to wait for the assistant to finish speaking its prompt. As soon as you begin talking, Silero VAD detects your voice, cuts off the TTS audio midway ("barge-in"), and routes your speech to Nemotron ASR immediately.
+
+#### 💤 Hands-Free Sleep & Wake Word
+* **To Pause**: Say *"pause"*, *"hold on"*, *"रुको"*, or click the **Pause** button. The assistant will chime and enter sleep mode:
+  ```
+  💤 Sleeping (Say "Hey Assistant" or "सुनो" to wake)
+  ```
+  The audio pipeline remains gated with zero LLM or TTS resource usage.
+* **To Wake**: Say *"Hey Assistant"*, *"Wake up"*, *"सुनो"*, or *"जागो"*. A pleasant chime will sound and the assistant will announce: *"I'm listening. We were on [Field Name]."*
+
+#### 🔀 Non-Linear Navigation & Historical Corrections
+* **Jump to Any Field**: Speak naturally to move around the form (*"Go to Address"*, *"मोबाइल नंबर पर जाओ"*, *"Jump to the 3rd field"*).
+* **Skip or Step Back**: Say *"Skip"*, *"छोड़ो"*, *"Previous"*, or *"पिछला"*.
+* **Current Field Correction**: Say *"Change Rahul to Rohit"*, *"नहीं, गलत है"*, or *"It is 5 not 4"*.
+* **Historical Past Field Correction**: Change previously filled fields without restarting (*"In phone number change the last digit to 5"*).
+
+---
+
+### 📊 Enterprise Audit Logging & Analytics
+
+Every voice form filling session is automatically captured with millisecond telemetry by the companion's `AuditManager` and `AuditLogger`:
+* **Location**: Stored in `~/Downloads/signal/audit_logs/` (or `COMPANION_ROOT/audit_logs/`) keeping your git repository pristine.
+* **Dual Output Formats**:
+  * **`.jsonl`**: Machine-readable JSON Lines detailing every audio frame, VAD transition, STT interim/final transcripts, classifier confidence, and DOM mutations.
+  * **`.log`**: Clean, formatted human-readable timeline with visual dividers and millisecond latency tracking.
+* **Companion REST Endpoints**:
+  * `GET http://127.0.0.1:8000/api/audit/sessions` — List all captured sessions with duration & statistics.
+  * `GET http://127.0.0.1:8000/api/audit/session/:id` — Inspect complete audit event stream for a specific session.
 
 ---
 
